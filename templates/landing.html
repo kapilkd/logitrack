@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}LogiTrack — Logistics Tracker & Builder{% endblock %}
+
+{% block content %}
+
+<section class="hero">
+    <div class="hero-inner">
+        <div class="hero-badge">Logistics Tracker &amp; Builder</div>
+        <h1 class="hero-title">
+            Know where your<br>
+            <em>shipments are</em>
+        </h1>
+        <p class="hero-subtitle">
+            Log shipments, manage routes, and monitor delivery status —
+            all in one place. Build smarter logistics operations
+            one consignment at a time.
+        </p>
+        <div class="hero-actions">
+            <a href="{{ url_for('register') }}" class="btn-primary">Start tracking free</a>
+            <a href="{{ url_for('login') }}" class="btn-ghost">Sign in</a>
+        </div>
+    </div>
+    <div class="hero-visual">
+        <div class="mock-card">
+            <div class="mock-card-header">
+                <span class="mock-label">Active Shipments</span>
+                <span class="mock-total">24</span>
+            </div>
+            <div class="mock-bars">
+                <div class="mock-bar-row">
+                    <span class="mock-cat">In Transit</span>
+                    <div class="mock-bar-track">
+                        <div class="mock-bar" style="width: 75%"></div>
+                    </div>
+                    <span class="mock-amt">18</span>
+                </div>
+                <div class="mock-bar-row">
+                    <span class="mock-cat">Delivered</span>
+                    <div class="mock-bar-track">
+                        <div class="mock-bar mock-bar-2" style="width: 54%"></div>
+                    </div>
+                    <span class="mock-amt">13</span>
+                </div>
+                <div class="mock-bar-row">
+                    <span class="mock-cat">Pending</span>
+                    <div class="mock-bar-track">
+                        <div class="mock-bar mock-bar-3" style="width: 33%"></div>
+                    </div>
+                    <span class="mock-amt">8</span>
+                </div>
+                <div class="mock-bar-row">
+                    <span class="mock-cat">Delayed</span>
+                    <div class="mock-bar-track">
+                        <div class="mock-bar mock-bar-4" style="width: 17%"></div>
+                    </div>
+                    <span class="mock-amt">4</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="features">
+    <div class="features-inner">
+        <div class="feature-card">
+            <div class="feature-icon">⬡</div>
+            <h3 class="feature-title">Log shipments instantly</h3>
+            <p class="feature-body">Add any consignment in seconds. Origin, destination, carrier, weight, and status — all in one simple form.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">◎</div>
+            <h3 class="feature-title">Monitor delivery status</h3>
+            <p class="feature-body">See exactly where every shipment stands — in transit, delivered, pending, or delayed — at a glance.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">◷</div>
+            <h3 class="feature-title">Filter by route &amp; date</h3>
+            <p class="feature-body">View shipments by route, carrier, or time period. Filter last week, last month, or any custom range.</p>
+        </div>
+    </div>
+</section>
+
+<section class="cta-section">
+    <div class="cta-inner">
+        <h2 class="cta-title">Ready to streamline your logistics?</h2>
+        <p class="cta-body">Join logistics teams who track and manage their shipments with LogiTrack.</p>
+        <a href="{{ url_for('register') }}" class="btn-primary">Create free account</a>
+    </div>
+</section>
+
+{% endblock %}
