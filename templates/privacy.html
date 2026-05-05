@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Privacy Policy — LogiTrack{% endblock %}
+
+{% block content %}
+
+<section class="legal-section">
+    <div class="legal-container">
+
+        <div class="legal-header">
+            <h1 class="legal-title">Privacy Policy</h1>
+            <p class="legal-meta">Last updated: May 2026</p>
+        </div>
+
+        <div class="legal-body">
+
+            <div class="legal-block">
+                <h2>1. Overview</h2>
+                <p>LogiTrack ("we", "us", or "our") is committed to protecting your privacy. This Privacy Policy explains what information we collect, how we use it, and what choices you have. By using LogiTrack, you agree to the practices described in this policy.</p>
+            </div>
+
+            <div class="legal-block">
+                <h2>2. Data We Collect</h2>
+                <p>We collect the following types of information when you use LogiTrack:</p>
+                <ul>
+                    <li><strong>Account information</strong> — your name and email address when you register</li>
+                    <li><strong>Shipment data</strong> — details you enter such as origin, destination, carrier, weight, status, and dates</li>
+                    <li><strong>Usage data</strong> — pages visited, actions taken, and timestamps, collected automatically to help us improve the platform</li>
+                    <li><strong>Device information</strong> — browser type, operating system, and IP address, collected for security and debugging purposes</li>
+                </ul>
+                <p>We do not collect payment information. LogiTrack does not currently charge for the Service.</p>
+            </div>
+
+            <div class="legal-block">
+                <h2>3. How We Use Your Data</h2>
+                <p>The information we collect is used solely to operate and improve the Service. Specifically, we use your data to:</p>
+                <ul>
+                    <li>Create and manage your account</li>
+                    <li>Display your shipment records and logistics data to you</li>
+                    <li>Respond to support requests and enquiries</li>
+                    <li>Monitor for abuse, fraud, or security incidents</li>
+                    <li>Analyse aggregate usage patterns to improve features (no individual tracking)</li>
+                </ul>
+                <p>We will never sell, rent, or share your personal data with third parties for marketing purposes.</p>
+            </div>
+
+            <div class="legal-block">
+                <h2>4. Data Storage</h2>
+                <p>Your data is stored securely on our servers. We take reasonable technical and organisational measures to protect your information against unauthorised access, loss, or disclosure, including encrypted connections (HTTPS) and access controls.</p>
+                <p>We retain your data for as long as your account is active. If you delete your account, your data will be permanently removed from our systems within 30 days, except where we are required by law to retain it for longer.</p>
+            </div>
+
+            <div class="legal-block">
+                <h2>5. Cookies</h2>
+                <p>LogiTrack uses session cookies to keep you signed in. These cookies are strictly necessary for the Service to function and are deleted when you close your browser or sign out. We do not use tracking or advertising cookies.</p>
+            </div>
+
+            <div class="legal-block">
+                <h2>6. Third-Party Services</h2>
+                <p>LogiTrack may use a small number of third-party services to operate the platform:</p>
+                <ul>
+                    <li><strong>Hosting providers</strong> — our servers and infrastructure may be managed by cloud hosting partners who are contractually bound to protect your data</li>
+                    <li><strong>Analytics</strong> — if used, only aggregate and anonymised data is shared; no personally identifiable information is transmitted</li>
+                </ul>
+                <p>We do not integrate with social media platforms or advertising networks. Any third-party service we use is selected for its commitment to data privacy.</p>
+            </div>
+
+            <div class="legal-block">
+                <h2>7. Your Rights</h2>
+                <p>You have the following rights with respect to your personal data:</p>
+                <ul>
+                    <li><strong>Access</strong> — request a copy of the data we hold about you</li>
+                    <li><strong>Correction</strong> — ask us to correct inaccurate information</li>
+                    <li><strong>Deletion</strong> — request that we delete your account and associated data</li>
+                    <li><strong>Portability</strong> — request an export of your shipment data in a standard format</li>
+                </ul>
+                <p>To exercise any of these rights, contact us at the address below.</p>
+            </div>
+
+            <div class="legal-block">
+                <h2>8. Changes to This Policy</h2>
+                <p>We may update this Privacy Policy from time to time. When we do, we will revise the "Last updated" date at the top of this page. For significant changes, we will notify registered users via email or an in-app notice. Continued use of the Service after changes are posted constitutes your acceptance of the updated policy.</p>
+            </div>
+
+            <div class="legal-block">
+                <h2>9. Contact Us</h2>
+                <p>If you have any questions, concerns, or requests regarding this Privacy Policy, please reach out to us at <a href="mailto:privacy@logitrack.app">privacy@logitrack.app</a>.</p>
+                <p>You may also review our <a href="{{ url_for('terms') }}">Terms and Conditions</a> for further information about your obligations and our Service.</p>
+            </div>
+
+        </div>
+
+    </div>
+</section>
+
+{% endblock %}
