@@ -81,7 +81,35 @@ def logout():
 
 @app.route("/profile")
 def profile():
-    return "Profile page — coming in Step 4"
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    name = session.get("user_name", "Demo User")
+    initials = "".join(w[0].upper() for w in name.split() if w)
+
+    user = {"name": name, "initials": initials, "email": "demo@logitrack.com", "member_since": "January 2026"}
+
+    stats = {"total_spent": "₹2,47,830.00", "transaction_count": 24, "top_category": "Freight Charges"}
+
+    transactions = [
+        {"date": "07 May 2026", "description": "Sea freight Mumbai to Dubai",     "category": "Freight Charges",   "amount": "₹12,500.00"},
+        {"date": "06 May 2026", "description": "Marine cargo insurance premium",  "category": "Insurance",          "amount": "₹2,100.00"},
+        {"date": "05 May 2026", "description": "Cold storage 7 days",             "category": "Warehouse Charges", "amount": "₹4,750.00"},
+        {"date": "04 May 2026", "description": "Bill of lading and packing list", "category": "Documentation",     "amount": "₹950.00"},
+        {"date": "03 May 2026", "description": "Import clearance charges",        "category": "Customs Duty",      "amount": "₹3,200.00"},
+        {"date": "02 May 2026", "description": "Port handling fee JNPT",          "category": "Port Charges",      "amount": "₹1,800.00"},
+    ]
+
+    categories = [
+        {"name": "Freight Charges",     "amount": "₹87,500.00", "count": 7, "pct": 85},
+        {"name": "Vendor Payments",     "amount": "₹62,300.00", "count": 5, "pct": 65},
+        {"name": "Customs Duty",        "amount": "₹45,800.00", "count": 4, "pct": 45},
+        {"name": "Penalty & Demurrage", "amount": "₹28,600.00", "count": 3, "pct": 28},
+        {"name": "Insurance",           "amount": "₹15,400.00", "count": 3, "pct": 15},
+        {"name": "Warehouse Charges",   "amount": "₹8,230.00",  "count": 2, "pct": 8},
+    ]
+
+    return render_template("profile.html", user=user, stats=stats, transactions=transactions, categories=categories)
 
 
 @app.route("/shipments/add")
