@@ -64,9 +64,11 @@ def get_recent_transactions(user_id, limit=10, from_date=None, to_date=None):
         result.append({
             "id": row["id"],
             "date": formatted,
+            "raw_date": row["date"],
             "description": row["description"] or "",
             "category": row["category"],
             "amount": f"₹{row['amount']:,.2f}",
+            "raw_amount": row["amount"],
         })
     return result
 

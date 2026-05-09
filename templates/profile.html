@@ -1,133 +1,266 @@
-{% extends "base.html" %}
-
-{% block title %}Profile — LogiTrack{% endblock %}
-
-{% block head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}">
-{% endblock %}
-
-{% block content %}
+{% extends "base.html" %} {% block title %}Profile — LogiTrack{% endblock %} {%
+block head %}
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/profile.css') }}"
+/>
+{% endblock %} {% block content %}
 <section class="profile-section">
-    <div class="profile-container">
-
-        <!-- Section 1: User info card -->
-        <div class="profile-header">
-            <div class="profile-user-info">
-                <div class="profile-avatar">{{ user.initials }}</div>
-                <div class="profile-meta">
-                    <span class="profile-name">{{ user.name }}</span>
-                    <span class="profile-meta-sep">·</span>
-                    <span class="profile-email">{{ user.email }}</span>
-                    <span class="profile-meta-sep">·</span>
-                    <span class="profile-since">Member since {{ user.member_since }}</span>
-                </div>
-            </div>
-            <a href="{{ url_for('add_shipment') }}" class="profile-add-btn">+ Add Expense</a>
+  <div class="profile-container">
+    <!-- Section 1: User info card -->
+    <div class="profile-header">
+      <div class="profile-user-info">
+        <div class="profile-avatar">{{ user.initials }}</div>
+        <div class="profile-meta">
+          <span class="profile-name">{{ user.name }}</span>
+          <span class="profile-meta-sep">·</span>
+          <span class="profile-email">{{ user.email }}</span>
+          <span class="profile-meta-sep">·</span>
+          <span class="profile-since"
+            >Member since {{ user.member_since }}</span
+          >
         </div>
-
-        <!-- Filter bar -->
-        <div class="filter-bar">
-            <div class="filter-presets">
-                <a href="{{ url_for('profile') }}"
-                   class="filter-preset-btn{% if active_preset == 'all' %} filter-preset-btn--active{% endif %}">
-                    All Time
-                </a>
-                <a href="{{ url_for('profile', from_date=presets.this_month[0], to_date=presets.this_month[1]) }}"
-                   class="filter-preset-btn{% if active_preset == 'this_month' %} filter-preset-btn--active{% endif %}">
-                    This Month
-                </a>
-                <a href="{{ url_for('profile', from_date=presets.last_month[0], to_date=presets.last_month[1]) }}"
-                   class="filter-preset-btn{% if active_preset == 'last_month' %} filter-preset-btn--active{% endif %}">
-                    Last Month
-                </a>
-                <a href="{{ url_for('profile', from_date=presets.last_3_months[0], to_date=presets.last_3_months[1]) }}"
-                   class="filter-preset-btn{% if active_preset == 'last_3_months' %} filter-preset-btn--active{% endif %}">
-                    Last 3 Months
-                </a>
-            </div>
-            <form class="filter-custom-form" method="get" action="{{ url_for('profile') }}">
-                <input class="filter-date-input" type="date" name="from_date"
-                       value="{{ from_date }}" aria-label="From date">
-                <span class="filter-date-sep">to</span>
-                <input class="filter-date-input" type="date" name="to_date"
-                       value="{{ to_date }}" aria-label="To date">
-                <button class="filter-submit-btn" type="submit">Apply</button>
-            </form>
-        </div>
-
-        <!-- Section 2: Summary stats -->
-        <div class="profile-stats">
-            <div class="stat-card">
-                <span class="stat-label">Total Spent</span>
-                <span class="stat-value">{{ stats.total_spent }}</span>
-            </div>
-            <div class="stat-card">
-                <span class="stat-label">Transactions</span>
-                <span class="stat-value">{{ stats.transaction_count }}</span>
-            </div>
-            <div class="stat-card">
-                <span class="stat-label">Top Category</span>
-                <span class="stat-value stat-value--sm">{{ stats.top_category }}</span>
-            </div>
-        </div>
-
-        <!-- Sections 3 + 4: Side by side -->
-        <div class="profile-bottom-grid">
-
-            <!-- Section 3: Transaction history -->
-            <div class="profile-card">
-                <h2 class="profile-card-title">Recent Transactions</h2>
-                <table class="txn-table">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Description</th>
-                            <th>Category</th>
-                            <th class="text-right">Amount</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for txn in transactions %}
-                        <tr>
-                            <td class="txn-date">{{ txn.date }}</td>
-                            <td class="txn-desc">{{ txn.description }}</td>
-                            <td><span class="category-badge">{{ txn.category }}</span></td>
-                            <td class="txn-amount text-right">{{ txn.amount }}</td>
-                            <td class="txn-actions"><a href="{{ url_for('edit_shipment', id=txn.id) }}" class="txn-action-link">Edit</a></td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="5" class="txn-empty">No transactions found for this period.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Section 4: Category breakdown -->
-            <div class="profile-card">
-                <h2 class="profile-card-title">Spending by Category</h2>
-                <ul class="category-list">
-                    {% for cat in categories %}
-                    <li class="category-row">
-                        <div class="category-row-top">
-                            <span class="category-name">{{ cat.name }}</span>
-                            <span class="category-amount">{{ cat.amount }}</span>
-                        </div>
-                        <div class="category-bar-track">
-                            <div class="category-bar-fill" style="width: {{ cat.pct }}%"></div>
-                        </div>
-                        <span class="category-count">{{ cat.count }} transaction{{ 's' if cat.count != 1 }}</span>
-                    </li>
-                    {% else %}
-                    <li class="category-empty">No spending data for this period.</li>
-                    {% endfor %}
-                </ul>
-            </div>
-
-        </div>
-
+      </div>
+      <button class="profile-add-btn" id="openAddExpenseModal">
+        + Add Expensesds
+      </button>
     </div>
+
+    <!-- Filter bar -->
+    <div class="filter-bar">
+      <div class="filter-presets">
+        <a
+          href="{{ url_for('profile') }}"
+          class="filter-preset-btn{% if active_preset == 'all' %} filter-preset-btn--active{% endif %}"
+        >
+          All Time
+        </a>
+        <a
+          href="{{ url_for('profile', from_date=presets.this_month[0], to_date=presets.this_month[1]) }}"
+          class="filter-preset-btn{% if active_preset == 'this_month' %} filter-preset-btn--active{% endif %}"
+        >
+          This Month
+        </a>
+        <a
+          href="{{ url_for('profile', from_date=presets.last_month[0], to_date=presets.last_month[1]) }}"
+          class="filter-preset-btn{% if active_preset == 'last_month' %} filter-preset-btn--active{% endif %}"
+        >
+          Last Month
+        </a>
+        <a
+          href="{{ url_for('profile', from_date=presets.last_3_months[0], to_date=presets.last_3_months[1]) }}"
+          class="filter-preset-btn{% if active_preset == 'last_3_months' %} filter-preset-btn--active{% endif %}"
+        >
+          Last 3 Months
+        </a>
+      </div>
+      <form
+        class="filter-custom-form"
+        method="get"
+        action="{{ url_for('profile') }}"
+      >
+        <input
+          class="filter-date-input"
+          type="date"
+          name="from_date"
+          value="{{ from_date }}"
+          aria-label="From date"
+        />
+        <span class="filter-date-sep">to</span>
+        <input
+          class="filter-date-input"
+          type="date"
+          name="to_date"
+          value="{{ to_date }}"
+          aria-label="To date"
+        />
+        <button class="filter-submit-btn" type="submit">Apply</button>
+      </form>
+    </div>
+
+    <!-- Section 2: Summary stats -->
+    <div class="profile-stats">
+      <div class="stat-card">
+        <span class="stat-label">Total Spent</span>
+        <span class="stat-value">{{ stats.total_spent }}</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Transactions</span>
+        <span class="stat-value">{{ stats.transaction_count }}</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Top Category</span>
+        <span class="stat-value stat-value--sm">{{ stats.top_category }}</span>
+      </div>
+    </div>
+
+    <!-- Sections 3 + 4: Side by side -->
+    <div class="profile-bottom-grid">
+      <!-- Section 3: Transaction history -->
+      <div class="profile-card">
+        <h2 class="profile-card-title">Recent Transactions</h2>
+        <table class="txn-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Description</th>
+              <th>Category</th>
+              <th class="text-right">Amount</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for txn in transactions %}
+            <tr>
+              <td class="txn-date">{{ txn.date }}</td>
+              <td class="txn-desc">{{ txn.description }}</td>
+              <td><span class="category-badge">{{ txn.category }}</span></td>
+              <td class="txn-amount text-right">{{ txn.amount }}</td>
+              <td class="txn-actions">
+                <button
+                  class="txn-action-link edit-expense-btn"
+                  data-id="{{ txn.id }}"
+                  data-date="{{ txn.raw_date }}"
+                  data-description="{{ txn.description }}"
+                  data-category="{{ txn.category }}"
+                  data-amount="{{ txn.raw_amount }}"
+                >
+                  Edit
+                </button>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="5" class="txn-empty">
+                No transactions found for this period.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Section 4: Category breakdown -->
+      <div class="profile-card">
+        <h2 class="profile-card-title">Spending by Category</h2>
+        <ul class="category-list">
+          {% for cat in categories %}
+          <li class="category-row">
+            <div class="category-row-top">
+              <span class="category-name">{{ cat.name }}</span>
+              <span class="category-amount">{{ cat.amount }}</span>
+            </div>
+            <div class="category-bar-track">
+              <div
+                class="category-bar-fill"
+                style="width: {{ cat.pct }}%"
+              ></div>
+            </div>
+            <span class="category-count"
+              >{{ cat.count }} transaction{{ 's' if cat.count != 1 }}</span
+            >
+          </li>
+          {% else %}
+          <li class="category-empty">No spending data for this period.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
 </section>
+<!-- ADD EXPENSE MODAL -->
+<div class="modal-overlay" id="addExpenseModal">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h2>Add Expense</h2>
+            <button class="close-modal" id="closeAddModal">×</button>
+        </div>
+
+        <form method="POST" action="{{ url_for('add_shipment') }}">
+
+            <div class="form-group">
+                <label>Amount</label>
+                <input type="number" step="0.01" name="amount" required>
+            </div>
+
+            <div class="form-group">
+                <label>Category</label>
+                <select name="category" required>
+                    <option value="Freight Charges">Freight Charges</option>
+                    <option value="Customs Duty">Customs Duty</option>
+                    <option value="Port Charges">Port Charges</option>
+                    <option value="Documentation">Documentation</option>
+                    <option value="Warehouse Charges">Warehouse Charges</option>
+                    <option value="Insurance">Insurance</option>
+                    <option value="Courier & Shipping">Courier & Shipping</option>
+                    <option value="Penalty & Demurrage">Penalty & Demurrage</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Date</label>
+                <input type="date" name="date" required>
+            </div>
+
+            <div class="form-group">
+                <label>Description</label>
+                <textarea name="description"></textarea>
+            </div>
+
+            <button type="submit" class="modal-submit-btn">
+                Save Expense
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- EDIT EXPENSE MODAL -->
+<div class="modal-overlay" id="editExpenseModal">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h2>Edit Expense</h2>
+            <button class="close-modal" id="closeEditModal">×</button>
+        </div>
+
+        <form method="POST" id="editExpenseForm">
+
+            <div class="form-group">
+                <label>Amount</label>
+                <input type="number" step="0.01" name="amount" id="editAmount" required>
+            </div>
+
+            <div class="form-group">
+                <label>Category</label>
+                <select name="category" id="editCategory" required>
+                    <option value="Freight Charges">Freight Charges</option>
+                    <option value="Customs Duty">Customs Duty</option>
+                    <option value="Port Charges">Port Charges</option>
+                    <option value="Documentation">Documentation</option>
+                    <option value="Warehouse Charges">Warehouse Charges</option>
+                    <option value="Insurance">Insurance</option>
+                    <option value="Courier & Shipping">Courier & Shipping</option>
+                    <option value="Penalty & Demurrage">Penalty & Demurrage</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Date</label>
+                <input type="date" name="date" id="editDate" required>
+            </div>
+
+            <div class="form-group">
+                <label>Description</label>
+                <textarea name="description" id="editDescription"></textarea>
+            </div>
+
+            <button type="submit" class="modal-submit-btn">
+                Update Expense
+            </button>
+        </form>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/profile.js') }}"></script>
 {% endblock %}
