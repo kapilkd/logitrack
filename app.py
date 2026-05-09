@@ -2,7 +2,7 @@ import os
 from datetime import date, timedelta
 from flask import Flask, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
-from database.db import get_db, init_db, seed_db, get_user_by_email, create_user
+from database.db import get_db, init_db, seed_db, get_user_by_email, create_user, create_expense
 from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown
 
 app = Flask(__name__)
@@ -152,9 +152,56 @@ def profile():
     )
 
 
-@app.route("/shipments/add")
+EXPENSE_CATEGORIES = [
+    "Freight Charges", "Customs Duty", "Port Charges", "Documentation",
+    "Warehouse Charges", "Insurance", "Courier & Shipping",
+    "Penalty & Demurrage", "Other",
+]
+
+
+@app.route("/shipments/add", methods=["GET", "POST"])
 def add_shipment():
-    return "Add shipment — coming in Step 7"
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    if request.method == "GET":
+        return render_template(
+            "add_expense.html",
+            categories=EXPENSE_CATEGORIES,
+            today=date.today().isoformat(),
+        )
+
+    amount_raw = request.form.get("amount", "").strip()
+    category = request.form.get("category", "").strip()
+    date_raw = request.form.get("date", "").strip()
+    description = request.form.get("description", "").strip()
+
+    def bad(msg):
+        return render_template(
+            "add_expense.html",
+            categories=EXPENSE_CATEGORIES,
+            today=date.today().isoformat(),
+            error=msg,
+            form=request.form,
+        )
+
+    try:
+        amount = float(amount_raw)
+        if amount <= 0:
+            raise ValueError
+    except ValueError:
+        return bad("Amount must be a positive number.")
+
+    if category not in EXPENSE_CATEGORIES:
+        return bad("Please select a valid category.")
+
+    try:
+        date.fromisoformat(date_raw)
+    except ValueError:
+        return bad("Please enter a valid date.")
+
+    create_expense(session["user_id"], amount, category, date_raw, description or None)
+    return redirect(url_for("profile"))
 
 
 @app.route("/shipments/<int:id>/edit")
