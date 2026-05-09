@@ -20,6 +20,36 @@
             </div>
         </div>
 
+        <!-- Filter bar -->
+        <div class="filter-bar">
+            <div class="filter-presets">
+                <a href="{{ url_for('profile') }}"
+                   class="filter-preset-btn{% if active_preset == 'all' %} filter-preset-btn--active{% endif %}">
+                    All Time
+                </a>
+                <a href="{{ url_for('profile', from_date=presets.this_month[0], to_date=presets.this_month[1]) }}"
+                   class="filter-preset-btn{% if active_preset == 'this_month' %} filter-preset-btn--active{% endif %}">
+                    This Month
+                </a>
+                <a href="{{ url_for('profile', from_date=presets.last_month[0], to_date=presets.last_month[1]) }}"
+                   class="filter-preset-btn{% if active_preset == 'last_month' %} filter-preset-btn--active{% endif %}">
+                    Last Month
+                </a>
+                <a href="{{ url_for('profile', from_date=presets.last_3_months[0], to_date=presets.last_3_months[1]) }}"
+                   class="filter-preset-btn{% if active_preset == 'last_3_months' %} filter-preset-btn--active{% endif %}">
+                    Last 3 Months
+                </a>
+            </div>
+            <form class="filter-custom-form" method="get" action="{{ url_for('profile') }}">
+                <input class="filter-date-input" type="date" name="from_date"
+                       value="{{ from_date }}" aria-label="From date">
+                <span class="filter-date-sep">to</span>
+                <input class="filter-date-input" type="date" name="to_date"
+                       value="{{ to_date }}" aria-label="To date">
+                <button class="filter-submit-btn" type="submit">Apply</button>
+            </form>
+        </div>
+
         <!-- Section 2: Summary stats -->
         <div class="profile-stats">
             <div class="stat-card">
@@ -59,6 +89,10 @@
                             <td><span class="category-badge">{{ txn.category }}</span></td>
                             <td class="txn-amount text-right">{{ txn.amount }}</td>
                         </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="txn-empty">No transactions found for this period.</td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -79,6 +113,8 @@
                         </div>
                         <span class="category-count">{{ cat.count }} transaction{{ 's' if cat.count != 1 }}</span>
                     </li>
+                    {% else %}
+                    <li class="category-empty">No spending data for this period.</li>
                     {% endfor %}
                 </ul>
             </div>

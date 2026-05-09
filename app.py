@@ -1,4 +1,5 @@
 import os
+from datetime import date, timedelta
 from flask import Flask, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 from database.db import get_db, init_db, seed_db, get_user_by_email, create_user
@@ -10,6 +11,16 @@ app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
 with app.app_context():
     init_db()
     seed_db()
+
+
+def _parse_date(raw):
+    if not raw:
+        return None
+    try:
+        date.fromisoformat(raw)
+        return raw
+    except ValueError:
+        return None
 
 
 # ------------------------------------------------------------------ #
@@ -91,18 +102,54 @@ def profile():
     if user is None:
         session.clear()
         return redirect(url_for("login"))
-    stats = get_summary_stats(uid)
+    # SECTION_USER_STATS_END
+
+    from_date = _parse_date(request.args.get("from_date", ""))
+    to_date = _parse_date(request.args.get("to_date", ""))
+
+    today = date.today()
+    first_this_month = today.replace(day=1)
+    last_month_end = first_this_month - timedelta(days=1)
+    first_last_month = last_month_end.replace(day=1)
+    last_3m_start = today - timedelta(days=89)  # 89 days back + today = 90-day inclusive window
+
+    presets = {
+        "this_month":    (first_this_month.isoformat(), today.isoformat()),
+        "last_month":    (first_last_month.isoformat(), last_month_end.isoformat()),
+        "last_3_months": (last_3m_start.isoformat(),    today.isoformat()),
+    }
+
+    if from_date is None and to_date is None:
+        active_preset = "all"
+    elif (from_date, to_date) == presets["this_month"]:
+        active_preset = "this_month"
+    elif (from_date, to_date) == presets["last_month"]:
+        active_preset = "last_month"
+    elif (from_date, to_date) == presets["last_3_months"]:
+        active_preset = "last_3_months"
+    else:
+        active_preset = "custom"
+
+    # SECTION_USER_STATS_START
+    stats = get_summary_stats(uid, from_date=from_date, to_date=to_date)
     # SECTION_USER_STATS_END
 
     # SECTION_TRANSACTIONS_START
-    transactions = get_recent_transactions(uid)
+    transactions = get_recent_transactions(uid, from_date=from_date, to_date=to_date)
     # SECTION_TRANSACTIONS_END
 
     # SECTION_CATEGORIES_START
-    categories = get_category_breakdown(uid)
+    categories = get_category_breakdown(uid, from_date=from_date, to_date=to_date)
     # SECTION_CATEGORIES_END
 
-    return render_template("profile.html", user=user, stats=stats, transactions=transactions, categories=categories)
+    return render_template(
+        "profile.html",
+        user=user, stats=stats, transactions=transactions, categories=categories,
+        from_date=from_date or "",
+        to_date=to_date or "",
+        active_preset=active_preset,
+        presets=presets,
+    )
 
 
 @app.route("/shipments/add")
@@ -121,4 +168,4 @@ def delete_shipment(id):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5001)
+    app.run(debug=os.environ.get("FLASK_DEBUG", "false").lower() == "true", port=5001)
