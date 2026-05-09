@@ -12,12 +12,17 @@
 
         <!-- Section 1: User info card -->
         <div class="profile-header">
-            <div class="profile-avatar">{{ user.initials }}</div>
-            <div class="profile-meta">
-                <h1 class="profile-name">{{ user.name }}</h1>
-                <p class="profile-email">{{ user.email }}</p>
-                <p class="profile-since">Member since {{ user.member_since }}</p>
+            <div class="profile-user-info">
+                <div class="profile-avatar">{{ user.initials }}</div>
+                <div class="profile-meta">
+                    <span class="profile-name">{{ user.name }}</span>
+                    <span class="profile-meta-sep">·</span>
+                    <span class="profile-email">{{ user.email }}</span>
+                    <span class="profile-meta-sep">·</span>
+                    <span class="profile-since">Member since {{ user.member_since }}</span>
+                </div>
             </div>
+            <a href="{{ url_for('add_shipment') }}" class="profile-add-btn">+ Add Expense</a>
         </div>
 
         <!-- Filter bar -->
