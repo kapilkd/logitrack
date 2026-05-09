@@ -84,6 +84,7 @@
                             <th>Description</th>
                             <th>Category</th>
                             <th class="text-right">Amount</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -93,10 +94,11 @@
                             <td class="txn-desc">{{ txn.description }}</td>
                             <td><span class="category-badge">{{ txn.category }}</span></td>
                             <td class="txn-amount text-right">{{ txn.amount }}</td>
+                            <td class="txn-actions"><a href="{{ url_for('edit_shipment', id=txn.id) }}" class="txn-action-link">Edit</a></td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="4" class="txn-empty">No transactions found for this period.</td>
+                            <td colspan="5" class="txn-empty">No transactions found for this period.</td>
                         </tr>
                         {% endfor %}
                     </tbody>

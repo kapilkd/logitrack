@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Add Expense – LogiTrack{% endblock %}
+{% block title %}Edit Expense – LogiTrack{% endblock %}
 
 {% block content %}
 <section class="auth-section">
   <div class="auth-container">
     <div class="auth-header">
-      <h1 class="auth-title">Add Expense</h1>
-      <p class="auth-subtitle">Record a new logistics expense</p>
+      <h1 class="auth-title">Edit Expense</h1>
+      <p class="auth-subtitle">Update this logistics expense</p>
     </div>
 
     <div class="auth-card">
@@ -14,24 +14,24 @@
       <div class="auth-error">{{ error }}</div>
       {% endif %}
 
-      <form method="POST" action="{{ url_for('add_shipment') }}">
+      <form method="POST" action="{{ url_for('edit_shipment', id=expense.id) }}">
         <div class="form-group">
           <label for="amount">Amount (₹)</label>
           <input type="number" id="amount" name="amount" class="form-input"
                  step="0.01" min="0.01" placeholder="0.00" required
-                 value="{{ form.amount if form else '' }}">
+                 value="{{ form.amount if form else expense.amount }}">
         </div>
 
         <div class="form-group">
           <label for="category">Category</label>
           <select id="category" name="category" class="form-input" required>
-            <option value="" disabled
-              {% if not form or not form.category %}selected{% endif %}>
-              Select a category
-            </option>
+            <option value="" disabled>Select a category</option>
             {% for cat in categories %}
             <option value="{{ cat | safe }}"
-              {% if form and form.category == cat %}selected{% endif %}>
+              {% if form %}
+                {% if form.category == cat %}selected{% endif %}
+              {% elif expense.category == cat %}selected
+              {% endif %}>
               {{ cat | safe }}
             </option>
             {% endfor %}
@@ -41,17 +41,17 @@
         <div class="form-group">
           <label for="date">Date</label>
           <input type="date" id="date" name="date" class="form-input" required
-                 value="{{ form.date if form else today }}">
+                 value="{{ form.date if form else expense.date }}">
         </div>
 
         <div class="form-group">
           <label for="description">Description <span style="color:var(--ink-muted)">(optional)</span></label>
           <textarea id="description" name="description" class="form-input"
                     rows="3" maxlength="200"
-                    placeholder="e.g. Sea freight Mumbai to Dubai">{{ form.description if form else '' }}</textarea>
+                    placeholder="e.g. Sea freight Mumbai to Dubai">{{ form.description if form else (expense.description or '') }}</textarea>
         </div>
 
-        <button type="submit" class="btn-submit">Add Expense</button>
+        <button type="submit" class="btn-submit">Save Changes</button>
       </form>
     </div>
 

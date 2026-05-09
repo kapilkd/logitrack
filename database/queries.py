@@ -50,7 +50,7 @@ def get_recent_transactions(user_id, limit=10, from_date=None, to_date=None):
     extra_sql, extra_params = _date_filter(from_date, to_date)
     conn = get_db()
     rows = conn.execute(
-        "SELECT date, description, category, amount FROM expenses "
+        "SELECT id, date, description, category, amount FROM expenses "
         "WHERE user_id = ?" + extra_sql + " ORDER BY date DESC, id DESC LIMIT ?",
         (user_id, *extra_params, limit),
     ).fetchall()
@@ -62,6 +62,7 @@ def get_recent_transactions(user_id, limit=10, from_date=None, to_date=None):
         except ValueError:
             formatted = row["date"]
         result.append({
+            "id": row["id"],
             "date": formatted,
             "description": row["description"] or "",
             "category": row["category"],
