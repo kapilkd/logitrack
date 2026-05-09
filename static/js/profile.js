@@ -36,6 +36,20 @@ closeEditBtn.addEventListener('click', () => {
     editModal.style.display = 'none';
 });
 
+// DELETE EXPENSE
+document.querySelectorAll('.delete-expense-btn').forEach(button => {
+    button.addEventListener('click', () => {
+        if (!confirm('Delete this transaction? This cannot be undone.')) return;
+
+        const expenseId = button.dataset.id;
+        fetch(`/shipments/${expenseId}/delete`, { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) location.reload();
+            });
+    });
+});
+
 // CLOSE WHEN CLICKING OUTSIDE
 window.addEventListener('click', (e) => {
     if (e.target === addModal) {

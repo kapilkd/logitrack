@@ -2,9 +2,9 @@ import math
 import os
 import re
 from datetime import date, timedelta
-from flask import Flask, abort, redirect, render_template, request, session, url_for
+from flask import Flask, abort, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
-from database.db import get_db, init_db, seed_db, get_user_by_email, create_user, create_expense, get_expense_by_id, update_expense
+from database.db import get_db, init_db, seed_db, get_user_by_email, create_user, create_expense, get_expense_by_id, update_expense, delete_expense
 from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown
 
 app = Flask(__name__)
@@ -261,9 +261,19 @@ def edit_shipment(id):
     return redirect(url_for("profile"))
 
 
-@app.route("/shipments/<int:id>/delete")
+@app.route("/shipments/<int:id>/delete", methods=["POST"])
 def delete_shipment(id):
-    return "Delete shipment — coming in Step 9"
+    if not session.get("user_id"):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+
+    expense = get_expense_by_id(id)
+    if expense is None:
+        abort(404)
+    if expense["user_id"] != session["user_id"]:
+        abort(403)
+
+    delete_expense(id)
+    return jsonify({"ok": True})
 
 
 if __name__ == "__main__":
