@@ -1,8 +1,10 @@
+import math
 import os
+import re
 from datetime import date, timedelta
-from flask import Flask, redirect, render_template, request, session, url_for
+from flask import Flask, abort, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
-from database.db import get_db, init_db, seed_db, get_user_by_email, create_user, create_expense
+from database.db import get_db, init_db, seed_db, get_user_by_email, create_user, create_expense, get_expense_by_id, update_expense
 from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown
 
 app = Flask(__name__)
@@ -187,7 +189,7 @@ def add_shipment():
 
     try:
         amount = float(amount_raw)
-        if amount <= 0:
+        if amount <= 0 or not math.isfinite(amount):
             raise ValueError
     except ValueError:
         return bad("Amount must be a positive number.")
@@ -195,6 +197,8 @@ def add_shipment():
     if category not in EXPENSE_CATEGORIES:
         return bad("Please select a valid category.")
 
+    if not re.match(r'^\d{4}-\d{2}-\d{2}$', date_raw):
+        return bad("Please enter a valid date.")
     try:
         date.fromisoformat(date_raw)
     except ValueError:
@@ -204,9 +208,57 @@ def add_shipment():
     return redirect(url_for("profile"))
 
 
-@app.route("/shipments/<int:id>/edit")
+@app.route("/shipments/<int:id>/edit", methods=["GET", "POST"])
 def edit_shipment(id):
-    return "Edit shipment — coming in Step 8"
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    expense = get_expense_by_id(id)
+    if expense is None:
+        abort(404)
+    if expense["user_id"] != session["user_id"]:
+        abort(403)
+
+    if request.method == "GET":
+        return render_template(
+            "edit_expense.html",
+            expense=expense,
+            categories=EXPENSE_CATEGORIES,
+        )
+
+    amount_raw = request.form.get("amount", "").strip()
+    category = request.form.get("category", "").strip()
+    date_raw = request.form.get("date", "").strip()
+    description = request.form.get("description", "").strip()
+
+    def bad(msg):
+        return render_template(
+            "edit_expense.html",
+            expense=expense,
+            categories=EXPENSE_CATEGORIES,
+            error=msg,
+            form=request.form,
+        )
+
+    try:
+        amount = float(amount_raw)
+        if amount <= 0 or not math.isfinite(amount):
+            raise ValueError
+    except ValueError:
+        return bad("Amount must be a positive number.")
+
+    if category not in EXPENSE_CATEGORIES:
+        return bad("Please select a valid category.")
+
+    if not re.match(r'^\d{4}-\d{2}-\d{2}$', date_raw):
+        return bad("Please enter a valid date.")
+    try:
+        date.fromisoformat(date_raw)
+    except ValueError:
+        return bad("Please enter a valid date.")
+
+    update_expense(id, amount, category, date_raw, description or None)
+    return redirect(url_for("profile"))
 
 
 @app.route("/shipments/<int:id>/delete")

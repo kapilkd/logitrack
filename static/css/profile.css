@@ -200,6 +200,21 @@
     text-align: right;
 }
 
+.txn-actions {
+    white-space: nowrap;
+    padding-left: 0.75rem;
+}
+
+.txn-action-link {
+    font-size: 0.8rem;
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.txn-action-link:hover {
+    text-decoration: underline;
+}
+
 /* ── Category badge ──────────────────────────────────── */
 .category-badge {
     display: inline-block;
