@@ -1,0 +1,230 @@
+/* ── Shipments list table ────────────────────────────── */
+.shipment-link {
+    font-weight: 600;
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.shipment-link:hover {
+    text-decoration: underline;
+}
+
+/* ── Status badges ───────────────────────────────────── */
+.status-badge {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+.status-badge--draft        { background: var(--border-soft); color: var(--ink-muted); }
+.status-badge--active       { background: var(--accent-light); color: var(--accent); }
+.status-badge--in-transit   { background: var(--accent-2-light); color: var(--accent-2); }
+.status-badge--delivered    { background: #dcfce7; color: #166534; }
+.status-badge--cancelled    { background: var(--danger-light); color: var(--danger); }
+
+/* ── Role badges ─────────────────────────────────────── */
+.role-badge {
+    display: inline-block;
+    padding: 0.18rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.role-badge--customer       { background: #ede9fe; color: #5b21b6; }
+.role-badge--transporter    { background: var(--accent-2-light); color: var(--accent-2); }
+.role-badge--consignee      { background: #e0f2fe; color: #0369a1; }
+.role-badge--clearing-agent { background: #fef9c3; color: #854d0e; }
+
+/* ── Billing badges ──────────────────────────────────── */
+.billing-badge {
+    display: inline-block;
+    padding: 0.18rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.billing-badge--payable    { background: var(--danger-light); color: var(--danger); }
+.billing-badge--receivable { background: #dcfce7; color: #166534; }
+
+/* ── Payment status badges ───────────────────────────── */
+.payment-badge {
+    display: inline-block;
+    padding: 0.18rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.payment-badge--pending  { background: var(--accent-2-light); color: var(--accent-2); }
+.payment-badge--partial  { background: #fef9c3; color: #854d0e; }
+.payment-badge--paid     { background: #dcfce7; color: #166534; }
+.payment-badge--overdue  { background: var(--danger-light); color: var(--danger); }
+
+/* ── Amount colours ──────────────────────────────────── */
+.amount-payable    { color: var(--danger); }
+.amount-receivable { color: #166534; }
+
+/* ── Card header row (title + action button) ─────────── */
+.card-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+}
+
+.card-header-row .profile-card-title {
+    margin: 0;
+}
+
+/* ── Header actions ──────────────────────────────────── */
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+/* ── Back link ───────────────────────────────────────── */
+.back-link {
+    font-size: 0.85rem;
+    color: var(--ink-muted);
+    text-decoration: none;
+    transition: color 0.15s;
+}
+
+.back-link:hover { color: var(--accent); }
+
+/* ── Form layout helpers ─────────────────────────────── */
+.form-section-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 1.5rem 0 0.75rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.form-section-title:first-of-type {
+    margin-top: 0;
+}
+
+.form-grid-two {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 1.25rem;
+}
+
+.form-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1.75rem;
+}
+
+.cancel-link {
+    font-size: 0.875rem;
+    color: var(--ink-muted);
+    text-decoration: none;
+    transition: color 0.15s;
+}
+
+.cancel-link:hover { color: var(--ink); }
+
+/* ── Form error ──────────────────────────────────────── */
+.form-error {
+    background: var(--danger-light);
+    color: var(--danger);
+    border: 1px solid #fecaca;
+    border-radius: var(--radius-sm);
+    padding: 0.65rem 1rem;
+    font-size: 0.875rem;
+    margin-bottom: 1.25rem;
+}
+
+/* ── Required asterisk ───────────────────────────────── */
+.required {
+    color: var(--danger);
+}
+
+/* ── Shipment detail meta card ───────────────────────── */
+.detail-meta-card {
+    padding: 1rem 1.5rem;
+}
+
+.detail-meta-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem 1.5rem;
+    flex-wrap: wrap;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.detail-meta-row:last-child { border-bottom: none; }
+
+.detail-meta-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+    min-width: 140px;
+}
+
+.detail-meta-value {
+    font-size: 0.9rem;
+    color: var(--ink-soft);
+}
+
+/* ── Profile stats — 6 columns on detail page ───────── */
+.profile-stats {
+    grid-template-columns: repeat(6, 1fr);
+}
+
+/* ── Modal form group overrides ──────────────────────── */
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--ink-soft);
+    margin-bottom: 0.3rem;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 0.45rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    color: var(--ink);
+    background: var(--paper);
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    border-color: var(--accent);
+}
+
+.form-group textarea { resize: vertical; min-height: 64px; }

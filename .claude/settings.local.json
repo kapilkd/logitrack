@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git stash *)",
+      "Bash(python -m pytest tests/test_07-add-expense.py tests/test_08-edit-expense.py --tb=line -q)",
+      "Bash(python -m pytest tests/test_07-add-expense.py --tb=line -q)"
+    ]
+  }
+}

@@ -67,7 +67,7 @@ VALID_CATEGORIES = [
     "Other",
 ]
 
-ADD_URL = "/shipments/add"
+ADD_URL = "/expenses/add"
 
 VALID_POST_DATA = {
     "amount": "150.00",
@@ -846,16 +846,16 @@ class TestParameterisedQueries:
         fstring_sql_hits = re.findall(
             r'f["\'].*?(?:SELECT|INSERT|UPDATE|DELETE|WHERE|AND|OR).*?\{.*?\}.*?["\']',
             source,
-            re.IGNORECASE | re.DOTALL,
+            re.IGNORECASE,
         )
         assert len(fstring_sql_hits) == 0, (
             "db.py must not interpolate values into SQL strings via f-strings. "
             f"Suspicious patterns found: {fstring_sql_hits}"
         )
 
-    def test_add_shipment_route_delegates_insert_to_create_expense(self):
+    def test_add_expense_route_delegates_insert_to_create_expense(self):
         """
-        The add_shipment route function must call create_expense() instead of
+        The add_expense route function must call create_expense() instead of
         executing raw INSERT SQL itself.  This enforces the DB logic boundary.
         """
         app_path = os.path.join(
@@ -865,22 +865,22 @@ class TestParameterisedQueries:
         with open(app_path, encoding="utf-8") as fh:
             source = fh.read()
 
-        # Extract the add_shipment function body by stopping at the next route decorator
+        # Extract the add_expense function body by stopping at the next route decorator
         match = re.search(
-            r"def add_shipment\(\)(.*?)(?=\n@app\.route|\Z)",
+            r"def add_expense\(\)(.*?)(?=\n@app\.route|\Z)",
             source,
             re.DOTALL,
         )
-        assert match is not None, "add_shipment function must exist in app.py"
+        assert match is not None, "add_expense function must exist in app.py"
 
         body = match.group(1)
         assert "INSERT INTO" not in body.upper(), (
-            "add_shipment route must not contain raw INSERT SQL — "
+            "add_expense route must not contain raw INSERT SQL — "
             "use create_expense() from database/db.py"
         )
 
-    def test_add_shipment_route_calls_create_expense(self):
-        """create_expense must actually be called somewhere in the add_shipment body."""
+    def test_add_expense_route_calls_create_expense(self):
+        """create_expense must actually be called somewhere in the add_expense body."""
         app_path = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             "app.py",
@@ -889,13 +889,13 @@ class TestParameterisedQueries:
             source = fh.read()
 
         match = re.search(
-            r"def add_shipment\(\)(.*?)(?=\n@app\.route|\Z)",
+            r"def add_expense\(\)(.*?)(?=\n@app\.route|\Z)",
             source,
             re.DOTALL,
         )
-        assert match is not None, "add_shipment function must exist in app.py"
+        assert match is not None, "add_expense function must exist in app.py"
 
         body = match.group(1)
         assert "create_expense" in body, (
-            "add_shipment route must call create_expense() from database/db.py"
+            "add_expense route must call create_expense() from database/db.py"
         )

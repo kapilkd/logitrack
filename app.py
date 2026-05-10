@@ -11,6 +11,16 @@ from database.db import (
     get_vendors_by_user, get_all_vendors, get_vendor_count,
     create_contact, get_contacts_by_vendor, get_contact_by_id,
     update_contact, delete_contact,
+    SHIPMENT_STATUSES, INCOTERMS,
+    create_shipment, get_shipment_by_id, get_shipments_by_user,
+    update_shipment, delete_shipment as db_delete_shipment, get_shipment_by_number,
+    get_expenses_by_shipment,
+    RELATIONSHIP_TYPES, BILLING_TYPES, PAYMENT_STATUSES,
+    create_shipment_vendor, get_shipment_vendor_by_id,
+    get_vendors_by_shipment, update_shipment_vendor,
+    delete_shipment_vendor as db_delete_shipment_vendor,
+    get_shipment_vendor_count, get_total_payables_by_shipment,
+    get_total_receivables_by_shipment,
 )
 from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown
 
@@ -170,8 +180,130 @@ def shipments():
     if user is None:
         session.clear()
         return redirect(url_for("login"))
-    transactions = get_recent_transactions(uid, limit=1000)
-    return render_template("shipments.html", user=user, transactions=transactions)
+    shipment_list = get_shipments_by_user(uid)
+    rows = []
+    for s in shipment_list:
+        rows.append({
+            **dict(s),
+            "vendor_count": get_shipment_vendor_count(s["id"]),
+            "total_payables": get_total_payables_by_shipment(s["id"]),
+            "total_receivables": get_total_receivables_by_shipment(s["id"]),
+        })
+    return render_template("shipments.html", user=user, shipments=rows)
+
+
+@app.route("/expenses/add", methods=["GET", "POST"])
+def add_expense():
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    if request.method == "GET":
+        return render_template(
+            "add_expense.html",
+            categories=EXPENSE_CATEGORIES,
+            today=date.today().isoformat(),
+        )
+
+    amount_raw = request.form.get("amount", "").strip()
+    category = request.form.get("category", "").strip()
+    date_raw = request.form.get("date", "").strip()
+    description = request.form.get("description", "").strip()
+
+    try:
+        amount = float(amount_raw)
+        if amount <= 0 or not math.isfinite(amount):
+            raise ValueError
+    except ValueError:
+        return render_template(
+            "add_expense.html",
+            categories=EXPENSE_CATEGORIES,
+            today=date.today().isoformat(),
+            error="Amount must be a positive number.",
+            form=request.form,
+        )
+
+    if category not in EXPENSE_CATEGORIES:
+        return render_template(
+            "add_expense.html",
+            categories=EXPENSE_CATEGORIES,
+            today=date.today().isoformat(),
+            error="Please select a valid category.",
+            form=request.form,
+        )
+
+    if not re.match(r'^\d{4}-\d{2}-\d{2}$', date_raw):
+        return render_template(
+            "add_expense.html",
+            categories=EXPENSE_CATEGORIES,
+            today=date.today().isoformat(),
+            error="Please enter a valid date (YYYY-MM-DD).",
+            form=request.form,
+        )
+    try:
+        date.fromisoformat(date_raw)
+    except ValueError:
+        return render_template(
+            "add_expense.html",
+            categories=EXPENSE_CATEGORIES,
+            today=date.today().isoformat(),
+            error="Please enter a valid date.",
+            form=request.form,
+        )
+
+    create_expense(session["user_id"], amount, category, date_raw, description or None)
+    return redirect(url_for("profile"))
+
+
+@app.route("/expenses/<int:expense_id>/edit", methods=["POST"])
+def edit_expense(expense_id):
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    expense = get_expense_by_id(expense_id)
+    if expense is None:
+        abort(404)
+    if expense["user_id"] != session["user_id"]:
+        abort(403)
+
+    amount_raw = request.form.get("amount", "").strip()
+    category = request.form.get("category", "").strip()
+    date_raw = request.form.get("date", "").strip()
+    description = request.form.get("description", "").strip()
+
+    try:
+        amount = float(amount_raw)
+        if amount <= 0 or not math.isfinite(amount):
+            raise ValueError
+    except ValueError:
+        return redirect(url_for("profile"))
+
+    if category not in EXPENSE_CATEGORIES:
+        return redirect(url_for("profile"))
+
+    if not re.match(r'^\d{4}-\d{2}-\d{2}$', date_raw):
+        return redirect(url_for("profile"))
+    try:
+        date.fromisoformat(date_raw)
+    except ValueError:
+        return redirect(url_for("profile"))
+
+    update_expense(expense_id, amount, category, date_raw, description or None, expense["shipment_id"])
+    return redirect(url_for("profile"))
+
+
+@app.route("/expenses/<int:expense_id>/delete", methods=["POST"])
+def delete_expense_route(expense_id):
+    if not session.get("user_id"):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+
+    expense = get_expense_by_id(expense_id)
+    if expense is None:
+        abort(404)
+    if expense["user_id"] != session["user_id"]:
+        abort(403)
+
+    delete_expense(expense_id)
+    return jsonify({"ok": True})
 
 
 def _next_vendor_code(vendor_list):
@@ -456,44 +588,91 @@ def add_shipment():
 
     if request.method == "GET":
         return render_template(
-            "add_expense.html",
-            categories=EXPENSE_CATEGORIES,
+            "add_shipment.html",
+            statuses=SHIPMENT_STATUSES,
+            incoterms=INCOTERMS,
             today=date.today().isoformat(),
         )
 
-    amount_raw = request.form.get("amount", "").strip()
-    category = request.form.get("category", "").strip()
-    date_raw = request.form.get("date", "").strip()
-    description = request.form.get("description", "").strip()
+    def _f(key):
+        v = request.form.get(key, "").strip()
+        return v or None
 
-    def bad(msg):
+    shipment_number = _f("shipment_number")
+    if not shipment_number:
         return render_template(
-            "add_expense.html",
-            categories=EXPENSE_CATEGORIES,
+            "add_shipment.html",
+            statuses=SHIPMENT_STATUSES,
+            incoterms=INCOTERMS,
             today=date.today().isoformat(),
-            error=msg,
+            error="Shipment number is required.",
             form=request.form,
         )
 
-    try:
-        amount = float(amount_raw)
-        if amount <= 0 or not math.isfinite(amount):
-            raise ValueError
-    except ValueError:
-        return bad("Amount must be a positive number.")
+    if get_shipment_by_number(shipment_number):
+        return render_template(
+            "add_shipment.html",
+            statuses=SHIPMENT_STATUSES,
+            incoterms=INCOTERMS,
+            today=date.today().isoformat(),
+            error="A shipment with that number already exists.",
+            form=request.form,
+        )
 
-    if category not in EXPENSE_CATEGORIES:
-        return bad("Please select a valid category.")
+    status = request.form.get("status", "DRAFT")
+    if status not in SHIPMENT_STATUSES:
+        status = "DRAFT"
 
-    if not re.match(r'^\d{4}-\d{2}-\d{2}$', date_raw):
-        return bad("Please enter a valid date.")
-    try:
-        date.fromisoformat(date_raw)
-    except ValueError:
-        return bad("Please enter a valid date.")
+    create_shipment(
+        user_id=session["user_id"],
+        shipment_number=shipment_number,
+        origin=_f("origin"),
+        destination=_f("destination"),
+        carrier=_f("carrier"),
+        status=status,
+        shipment_date=_f("shipment_date"),
+        etd=_f("etd"),
+        eta=_f("eta"),
+        port_of_loading=_f("port_of_loading"),
+        port_of_discharge=_f("port_of_discharge"),
+        incoterms=_f("incoterms"),
+        description=_f("description"),
+    )
+    return redirect(url_for("shipments"))
 
-    create_expense(session["user_id"], amount, category, date_raw, description or None)
-    return redirect(url_for("profile"))
+
+@app.route("/shipments/<int:id>")
+def shipment_detail(id):
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    shipment = get_shipment_by_id(id)
+    if shipment is None:
+        abort(404)
+    if shipment["user_id"] != session["user_id"]:
+        abort(403)
+
+    expenses = get_expenses_by_shipment(id)
+    vendors = get_vendors_by_shipment(id)
+    all_vendors = get_all_vendors()
+    total_expenses = sum(e["amount"] for e in expenses)
+    payables = get_total_payables_by_shipment(id)
+    receivables = get_total_receivables_by_shipment(id)
+
+    return render_template(
+        "shipment_detail.html",
+        shipment=shipment,
+        expenses=expenses,
+        vendors=vendors,
+        all_vendors=all_vendors,
+        total_expenses=total_expenses,
+        payables=payables,
+        receivables=receivables,
+        categories=EXPENSE_CATEGORIES,
+        relationship_types=RELATIONSHIP_TYPES,
+        billing_types=BILLING_TYPES,
+        payment_statuses=PAYMENT_STATUSES,
+    )
 
 
 @app.route("/shipments/<int:id>/edit", methods=["GET", "POST"])
@@ -501,52 +680,64 @@ def edit_shipment(id):
     if not session.get("user_id"):
         return redirect(url_for("login"))
 
-    expense = get_expense_by_id(id)
-    if expense is None:
+    shipment = get_shipment_by_id(id)
+    if shipment is None:
         abort(404)
-    if expense["user_id"] != session["user_id"]:
+    if shipment["user_id"] != session["user_id"]:
         abort(403)
 
     if request.method == "GET":
         return render_template(
-            "edit_expense.html",
-            expense=expense,
-            categories=EXPENSE_CATEGORIES,
+            "edit_shipment.html",
+            shipment=shipment,
+            statuses=SHIPMENT_STATUSES,
+            incoterms=INCOTERMS,
         )
 
-    amount_raw = request.form.get("amount", "").strip()
-    category = request.form.get("category", "").strip()
-    date_raw = request.form.get("date", "").strip()
-    description = request.form.get("description", "").strip()
+    def _f(key):
+        v = request.form.get(key, "").strip()
+        return v or None
 
-    def bad(msg):
+    shipment_number = _f("shipment_number")
+    if not shipment_number:
         return render_template(
-            "edit_expense.html",
-            expense=expense,
-            categories=EXPENSE_CATEGORIES,
-            error=msg,
-            form=request.form,
+            "edit_shipment.html",
+            shipment=shipment,
+            statuses=SHIPMENT_STATUSES,
+            incoterms=INCOTERMS,
+            error="Shipment number is required.",
         )
 
-    try:
-        amount = float(amount_raw)
-        if amount <= 0 or not math.isfinite(amount):
-            raise ValueError
-    except ValueError:
-        return bad("Amount must be a positive number.")
+    existing = get_shipment_by_number(shipment_number)
+    if existing and existing["id"] != id:
+        return render_template(
+            "edit_shipment.html",
+            shipment=shipment,
+            statuses=SHIPMENT_STATUSES,
+            incoterms=INCOTERMS,
+            error="A shipment with that number already exists.",
+        )
 
-    if category not in EXPENSE_CATEGORIES:
-        return bad("Please select a valid category.")
+    status = request.form.get("status", shipment["status"])
+    if status not in SHIPMENT_STATUSES:
+        status = shipment["status"]
 
-    if not re.match(r'^\d{4}-\d{2}-\d{2}$', date_raw):
-        return bad("Please enter a valid date.")
-    try:
-        date.fromisoformat(date_raw)
-    except ValueError:
-        return bad("Please enter a valid date.")
-
-    update_expense(id, amount, category, date_raw, description or None)
-    return redirect(url_for("profile"))
+    update_shipment(
+        shipment_id=id,
+        shipment_number=shipment_number,
+        origin=_f("origin"),
+        destination=_f("destination"),
+        carrier=_f("carrier"),
+        status=status,
+        shipment_date=_f("shipment_date"),
+        etd=_f("etd"),
+        eta=_f("eta"),
+        port_of_loading=_f("port_of_loading"),
+        port_of_discharge=_f("port_of_discharge"),
+        incoterms=_f("incoterms"),
+        description=_f("description"),
+    )
+    return redirect(url_for("shipment_detail", id=id))
 
 
 @app.route("/shipments/<int:id>/delete", methods=["POST"])
@@ -554,13 +745,226 @@ def delete_shipment(id):
     if not session.get("user_id"):
         return jsonify({"ok": False, "error": "Unauthorized"}), 401
 
-    expense = get_expense_by_id(id)
-    if expense is None:
+    shipment = get_shipment_by_id(id)
+    if shipment is None:
         abort(404)
-    if expense["user_id"] != session["user_id"]:
+    if shipment["user_id"] != session["user_id"]:
         abort(403)
 
-    delete_expense(id)
+    db_delete_shipment(id)
+    return jsonify({"ok": True})
+
+
+@app.route("/shipments/<int:shipment_id>/expenses/add", methods=["POST"])
+def add_shipment_expense(shipment_id):
+    if not session.get("user_id"):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+
+    shipment = get_shipment_by_id(shipment_id)
+    if shipment is None:
+        abort(404)
+    if shipment["user_id"] != session["user_id"]:
+        abort(403)
+
+    amount_raw = request.form.get("amount", "").strip()
+    category = request.form.get("category", "").strip()
+    date_raw = request.form.get("date", "").strip()
+    description = request.form.get("description", "").strip()
+
+    try:
+        amount = float(amount_raw)
+        if amount <= 0 or not math.isfinite(amount):
+            raise ValueError
+    except ValueError:
+        return redirect(url_for("shipment_detail", id=shipment_id))
+
+    if category not in EXPENSE_CATEGORIES:
+        return redirect(url_for("shipment_detail", id=shipment_id))
+
+    if not re.match(r'^\d{4}-\d{2}-\d{2}$', date_raw):
+        return redirect(url_for("shipment_detail", id=shipment_id))
+    try:
+        date.fromisoformat(date_raw)
+    except ValueError:
+        return redirect(url_for("shipment_detail", id=shipment_id))
+
+    create_expense(session["user_id"], amount, category, date_raw, description or None, shipment_id)
+    return redirect(url_for("shipment_detail", id=shipment_id))
+
+
+@app.route("/shipments/<int:shipment_id>/expenses/<int:expense_id>/edit", methods=["POST"])
+def edit_shipment_expense(shipment_id, expense_id):
+    if not session.get("user_id"):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+
+    shipment = get_shipment_by_id(shipment_id)
+    if shipment is None:
+        abort(404)
+    if shipment["user_id"] != session["user_id"]:
+        abort(403)
+
+    expense = get_expense_by_id(expense_id)
+    if expense is None or expense["shipment_id"] != shipment_id:
+        abort(404)
+
+    amount_raw = request.form.get("amount", "").strip()
+    category = request.form.get("category", "").strip()
+    date_raw = request.form.get("date", "").strip()
+    description = request.form.get("description", "").strip()
+
+    try:
+        amount = float(amount_raw)
+        if amount <= 0 or not math.isfinite(amount):
+            raise ValueError
+    except ValueError:
+        return redirect(url_for("shipment_detail", id=shipment_id))
+
+    if category not in EXPENSE_CATEGORIES:
+        return redirect(url_for("shipment_detail", id=shipment_id))
+
+    if not re.match(r'^\d{4}-\d{2}-\d{2}$', date_raw):
+        return redirect(url_for("shipment_detail", id=shipment_id))
+    try:
+        date.fromisoformat(date_raw)
+    except ValueError:
+        return redirect(url_for("shipment_detail", id=shipment_id))
+
+    update_expense(expense_id, amount, category, date_raw, description or None, shipment_id)
+    return redirect(url_for("shipment_detail", id=shipment_id))
+
+
+@app.route("/shipments/<int:shipment_id>/expenses/<int:expense_id>/delete", methods=["POST"])
+def delete_shipment_expense(shipment_id, expense_id):
+    if not session.get("user_id"):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+
+    shipment = get_shipment_by_id(shipment_id)
+    if shipment is None:
+        abort(404)
+    if shipment["user_id"] != session["user_id"]:
+        abort(403)
+
+    expense = get_expense_by_id(expense_id)
+    if expense is None or expense["shipment_id"] != shipment_id:
+        abort(404)
+
+    delete_expense(expense_id)
+    return jsonify({"ok": True})
+
+
+@app.route("/shipments/<int:shipment_id>/vendors/add", methods=["POST"])
+def add_shipment_vendor(shipment_id):
+    if not session.get("user_id"):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+
+    shipment = get_shipment_by_id(shipment_id)
+    if shipment is None:
+        abort(404)
+    if shipment["user_id"] != session["user_id"]:
+        abort(403)
+
+    def _f(key):
+        v = request.form.get(key, "").strip()
+        return v or None
+
+    def _num(key, cast, default):
+        try:
+            return cast(request.form.get(key, "").strip())
+        except (ValueError, TypeError):
+            return default
+
+    vendor_id = _num("vendor_id", int, None)
+    relationship_type = _f("relationship_type")
+    billing_type = _f("billing_type")
+
+    if not vendor_id or relationship_type not in RELATIONSHIP_TYPES or billing_type not in BILLING_TYPES:
+        return redirect(url_for("shipment_detail", id=shipment_id))
+
+    payment_status = request.form.get("payment_status", "PENDING")
+    if payment_status not in PAYMENT_STATUSES:
+        payment_status = "PENDING"
+
+    create_shipment_vendor(
+        vendor_id=vendor_id,
+        shipment_id=shipment_id,
+        relationship_type=relationship_type,
+        billing_type=billing_type,
+        amount=_num("amount", float, 0.0),
+        currency=request.form.get("currency", "INR") or "INR",
+        invoice_number=_f("invoice_number"),
+        invoice_date=_f("invoice_date"),
+        due_date=_f("due_date"),
+        payment_status=payment_status,
+        notes=_f("notes"),
+    )
+    return redirect(url_for("shipment_detail", id=shipment_id))
+
+
+@app.route("/shipments/<int:shipment_id>/vendors/<int:sv_id>/edit", methods=["POST"])
+def edit_shipment_vendor(shipment_id, sv_id):
+    if not session.get("user_id"):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+
+    shipment = get_shipment_by_id(shipment_id)
+    if shipment is None:
+        abort(404)
+    if shipment["user_id"] != session["user_id"]:
+        abort(403)
+
+    sv = get_shipment_vendor_by_id(sv_id)
+    if sv is None or sv["shipment_id"] != shipment_id:
+        abort(404)
+
+    def _f(key):
+        v = request.form.get(key, "").strip()
+        return v or None
+
+    def _num(key, cast, default):
+        try:
+            return cast(request.form.get(key, "").strip())
+        except (ValueError, TypeError):
+            return default
+
+    relationship_type = _f("relationship_type")
+    billing_type = _f("billing_type")
+    if relationship_type not in RELATIONSHIP_TYPES or billing_type not in BILLING_TYPES:
+        return redirect(url_for("shipment_detail", id=shipment_id))
+
+    payment_status = request.form.get("payment_status", "PENDING")
+    if payment_status not in PAYMENT_STATUSES:
+        payment_status = "PENDING"
+
+    update_shipment_vendor(
+        sv_id=sv_id,
+        relationship_type=relationship_type,
+        billing_type=billing_type,
+        amount=_num("amount", float, 0.0),
+        currency=request.form.get("currency", "INR") or "INR",
+        invoice_number=_f("invoice_number"),
+        invoice_date=_f("invoice_date"),
+        due_date=_f("due_date"),
+        payment_status=payment_status,
+        notes=_f("notes"),
+    )
+    return redirect(url_for("shipment_detail", id=shipment_id))
+
+
+@app.route("/shipments/<int:shipment_id>/vendors/<int:sv_id>/delete", methods=["POST"])
+def delete_shipment_vendor_route(shipment_id, sv_id):
+    if not session.get("user_id"):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+
+    shipment = get_shipment_by_id(shipment_id)
+    if shipment is None:
+        abort(404)
+    if shipment["user_id"] != session["user_id"]:
+        abort(403)
+
+    sv = get_shipment_vendor_by_id(sv_id)
+    if sv is None or sv["shipment_id"] != shipment_id:
+        abort(404)
+
+    db_delete_shipment_vendor(sv_id)
     return jsonify({"ok": True})
 
 

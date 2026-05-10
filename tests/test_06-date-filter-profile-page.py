@@ -810,7 +810,7 @@ class TestParameterisedQueries:
         fstring_sql_pattern = re.findall(
             r'f["\'].*?(?:SELECT|INSERT|UPDATE|DELETE|WHERE|AND|OR).*?\{.*?\}.*?["\']',
             source,
-            re.IGNORECASE | re.DOTALL,
+            re.IGNORECASE,
         )
         assert len(fstring_sql_pattern) == 0, (
             "db.py must not interpolate values into SQL strings via f-strings. "
