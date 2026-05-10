@@ -40,6 +40,10 @@ No database changes.
 
 - `templates/shipments.html`
 - `templates/placeholder.html`
+- `templates/vendor.html`
+- `templates/reports.html`
+- `templates/billings.html`
+- `templates/emails.html`
 
 ## New dependencies
 
