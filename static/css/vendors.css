@@ -147,3 +147,123 @@
     cursor: not-allowed;
     border-color: var(--border-soft);
 }
+
+/* ── Contacts modal ──────────────────────────────────────── */
+.contacts-modal-box {
+    width: min(95vw, 680px);
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 2rem 2.5rem;
+}
+
+.contacts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.contacts-empty {
+    padding: 1.5rem 0;
+    text-align: center;
+    color: var(--ink-muted);
+    font-size: 0.9rem;
+}
+
+/* ── Single contact row ──────────────────────────────────── */
+.contact-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.55rem 0.85rem;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-sm);
+    background: var(--paper);
+}
+
+.contact-row-left {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+    flex: 1;
+}
+
+.contact-row-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.contact-row-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.contact-row-detail {
+    font-size: 0.78rem;
+    color: var(--ink-muted);
+}
+
+.contact-row-notes {
+    font-size: 0.75rem;
+    color: var(--ink-muted);
+    font-style: italic;
+}
+
+.contact-row-actions {
+    display: flex;
+    gap: 0.35rem;
+    flex-shrink: 0;
+    align-items: center;
+}
+
+/* ── Primary badge ───────────────────────────────────────── */
+.contact-primary-badge {
+    display: inline-block;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    background: var(--accent-2-light);
+    color: var(--accent-2);
+    white-space: nowrap;
+}
+
+/* ── Section labels inside contacts modal ────────────────── */
+.contacts-add-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-muted);
+    border-bottom: 1px solid var(--border-soft);
+    padding-bottom: 0.4rem;
+    margin: 1.25rem 0 0.75rem;
+}
+
+/* ── Contacts form grid (2-col) ──────────────────────────── */
+.contacts-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 1.25rem;
+}
+
+/* ── Contacts button in vendor table row ─────────────────── */
+.txn-btn--contacts {
+    color: var(--accent-2);
+    border-color: var(--accent-2-light);
+    background: var(--accent-2-light);
+    margin-left: 0.35rem;
+}
+
+.txn-btn--contacts:hover {
+    background: var(--accent-2);
+    color: var(--paper-card);
+    border-color: var(--accent-2);
+}

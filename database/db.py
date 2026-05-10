@@ -70,6 +70,18 @@ def init_db(path=None):
             created_by         INTEGER,
             updated_by         INTEGER
         );
+
+        CREATE TABLE IF NOT EXISTS vendor_contacts (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            vendor_id  INTEGER NOT NULL REFERENCES vendors(id) ON DELETE CASCADE,
+            name       TEXT    NOT NULL,
+            title      TEXT,
+            phone      TEXT,
+            email      TEXT,
+            is_primary INTEGER NOT NULL DEFAULT 0,
+            notes      TEXT,
+            created_at TEXT    DEFAULT (datetime('now'))
+        );
     """)
     conn.commit()
     conn.close()
@@ -287,3 +299,67 @@ def get_vendor_count(user_id):
     ).fetchone()[0]
     conn.close()
     return count
+
+
+def create_contact(vendor_id, name, title=None, phone=None,
+                   email=None, is_primary=0, notes=None):
+    conn = get_db()
+    if is_primary:
+        conn.execute(
+            "UPDATE vendor_contacts SET is_primary = 0 WHERE vendor_id = ?",
+            (vendor_id,)
+        )
+    conn.execute(
+        "INSERT INTO vendor_contacts (vendor_id, name, title, phone, email, is_primary, notes)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (vendor_id, name, title or None, phone or None,
+         email or None, 1 if is_primary else 0, notes or None),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_contacts_by_vendor(vendor_id):
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM vendor_contacts WHERE vendor_id = ?"
+        " ORDER BY is_primary DESC, name ASC",
+        (vendor_id,)
+    ).fetchall()
+    conn.close()
+    return rows
+
+
+def get_contact_by_id(contact_id):
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM vendor_contacts WHERE id = ?", (contact_id,)
+    ).fetchone()
+    conn.close()
+    return row
+
+
+def update_contact(contact_id, vendor_id, name, title=None,
+                   phone=None, email=None, is_primary=0, notes=None):
+    conn = get_db()
+    if is_primary:
+        conn.execute(
+            "UPDATE vendor_contacts SET is_primary = 0"
+            " WHERE vendor_id = ? AND id != ?",
+            (vendor_id, contact_id)
+        )
+    conn.execute(
+        "UPDATE vendor_contacts SET name=?, title=?, phone=?, email=?, is_primary=?, notes=?"
+        " WHERE id=?",
+        (name, title or None, phone or None, email or None,
+         1 if is_primary else 0, notes or None, contact_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def delete_contact(contact_id):
+    conn = get_db()
+    conn.execute("DELETE FROM vendor_contacts WHERE id = ?", (contact_id,))
+    conn.commit()
+    conn.close()

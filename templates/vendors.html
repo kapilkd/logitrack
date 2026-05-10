@@ -109,8 +109,15 @@ block head %}
               </td>
               <td class="txn-actions">
                 <button
+                  class="txn-btn txn-btn--contacts vendor-contacts-btn"
+                  data-vendor-id="{{ v.id }}"
+                  data-vendor-name="{{ v.vendor_name | e }}"
+                >
+                  Contacts
+                </button>
+                <button
                   class="txn-btn txn-btn--edit vendor-edit-btn"
-                  data-vendor="{{ v | tojson }}"
+                  data-vendor='{{ v | tojson }}'
                 >
                   Edit
                 </button>
@@ -528,6 +535,97 @@ block head %}
       </div>
       <button type="submit" class="modal-submit-btn">Update Vendor</button>
     </form>
+  </div>
+</div>
+
+<!-- CONTACTS MODAL -->
+<div class="modal-overlay" id="contactsModal">
+  <div class="modal-box contacts-modal-box">
+    <div class="modal-header">
+      <h2>Contacts &mdash; <span id="contactsModalVendorName"></span></h2>
+      <button class="close-modal" id="closeContactsModal">&times;</button>
+    </div>
+
+    <div id="contactsList" class="contacts-list">
+      <p class="contacts-empty">Loading&hellip;</p>
+    </div>
+
+    <div id="addContactLabel" class="contacts-add-label">Add New Contact</div>
+    <form id="addContactForm" method="POST" action="#">
+      <div class="contacts-form-grid">
+        <div class="form-group">
+          <label>Name <span class="field-required">*</span></label>
+          <input type="text" name="name" id="newContactName" required />
+        </div>
+        <div class="form-group">
+          <label>Title / Role</label>
+          <input type="text" name="title" id="newContactTitle" placeholder="e.g. Sales Lead" />
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="text" name="phone" id="newContactPhone" />
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" name="email" id="newContactEmail" />
+        </div>
+        <div class="form-group form-group--full">
+          <label>Notes</label>
+          <textarea name="notes" id="newContactNotes" rows="2"></textarea>
+        </div>
+        <div class="form-group form-group--full">
+          <label>
+            <input type="checkbox" id="newContactIsPrimary" />
+            Mark as Primary Contact
+          </label>
+          <input type="hidden" name="is_primary" id="newContactIsPrimaryHidden" value="0" />
+        </div>
+      </div>
+      <button type="submit" class="modal-submit-btn">Add Contact</button>
+    </form>
+
+    <div id="editContactSection" style="display:none;">
+      <div class="contacts-add-label">Edit Contact</div>
+      <form id="editContactForm" method="POST" action="#">
+        <div class="contacts-form-grid">
+          <div class="form-group">
+            <label>Name <span class="field-required">*</span></label>
+            <input type="text" name="name" id="editContactName" required />
+          </div>
+          <div class="form-group">
+            <label>Title / Role</label>
+            <input type="text" name="title" id="editContactTitle" />
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="text" name="phone" id="editContactPhone" />
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" name="email" id="editContactEmail" />
+          </div>
+          <div class="form-group form-group--full">
+            <label>Notes</label>
+            <textarea name="notes" id="editContactNotes" rows="2"></textarea>
+          </div>
+          <div class="form-group form-group--full">
+            <label>
+              <input type="checkbox" id="editContactIsPrimary" />
+              Mark as Primary Contact
+            </label>
+            <input type="hidden" name="is_primary" id="editContactIsPrimaryHidden" value="0" />
+          </div>
+        </div>
+        <div style="display:flex; gap:0.75rem; margin-top:0.5rem;">
+          <button type="submit" class="modal-submit-btn" style="flex:1;">Update Contact</button>
+          <button type="button" id="cancelEditContact"
+                  class="modal-submit-btn"
+                  style="flex:1;";">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 </div>
 
