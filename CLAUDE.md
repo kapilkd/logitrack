@@ -10,27 +10,42 @@ logitrack is a lightweight logistic tracker and builder application built with F
 
 ```
 logitrack/
-├── app.py              # All routes — single file, no blueprints
+├── app.py                  # All routes — single file, no blueprints
 ├── database/
-│   └── db.py           # SQLite helpers: get_db(), init_db(), seed_db()
+│   ├── db.py               # SQLite helpers + CRUD: get_db(), init_db(), seed_db(),
+│   │                       #   create_user(), get_user_by_email(), get_user_by_id(),
+│   │                       #   create_expense(), get_expense_by_id(), update_expense(), delete_expense()
+│   └── queries.py          # Profile query helpers: get_user_by_id(), get_summary_stats(),
+│                           #   get_recent_transactions(), get_category_breakdown()
 ├── templates/
-│   ├── base.html       # Shared layout — all templates must extend this
-│   └── *.html          # One template per page
+│   ├── base.html           # Shared layout — all templates must extend this
+│   ├── landing.html
+│   ├── login.html
+│   ├── register.html
+│   ├── profile.html        # Dashboard with left sidebar + expense management modals
+│   ├── add_expense.html
+│   ├── edit_expense.html
+│   ├── terms.html
+│   └── privacy.html
 ├── static/
 │   ├── css/
-│   │   ├── style.css       # Global styles
-│   │   └── landing.css     # Landing-page-only styles
+│   │   ├── style.css       # Global styles: navbar, buttons, auth pages, footer
+│   │   ├── landing.css     # Landing page only
+│   │   └── profile.css     # Profile page: sidebar, stats, filter bar, modals
 │   └── js/
-│       └── main.js         # Vanilla JS only
+│       ├── main.js         # Global JS (currently minimal)
+│       └── profile.js      # Profile page: modal open/close, edit/delete handlers
 └── requirements.txt
 ```
 
 **Where things belong:**
 
 - New routes → `app.py` only, no blueprints
-- DB logic → `database/db.py` only, never inline in routes
+- DB CRUD helpers → `database/db.py` only, never inline in routes
+- Complex read queries (joins, aggregates) → `database/queries.py`
 - New pages → new `.html` file extending `base.html`
 - Page-specific styles → new `.css` file, not inline `<style>` tags
+- Page-specific JS → new `.js` file loaded at bottom of that template
 
 ---
 
@@ -92,30 +107,77 @@ pytest -s
 
 ---
 
-## Implemented vs stub routes
+## Implemented routes
 
-| Route                       | Status                                |
-| --------------------------- | ------------------------------------- |
-| `GET /`                     | Implemented — renders `landing.html`  |
-| `GET /register`             | Implemented — renders `register.html` |
-| `GET /login`                | Implemented — renders `login.html`    |
-| `GET /logout`               | Stub — Step 3                         |
-| `GET /profile`              | Stub — Step 4                         |
-| `GET /tracking/add`         | Stub — Step 7                         |
-| `GET /tracking/<id>/edit`   | Stub — Step 8                         |
-| `GET /tracking/<id>/delete` | Stub — Step 9                         |
+| Route                          | Status                                                      |
+| ------------------------------ | ----------------------------------------------------------- |
+| `GET /`                        | Implemented — renders `landing.html`                        |
+| `GET /register`                | Implemented — registration form                             |
+| `POST /register`               | Implemented — validates + creates user, redirects to login  |
+| `GET /login`                   | Implemented — login form                                    |
+| `POST /login`                  | Implemented — validates credentials, sets session           |
+| `GET /logout`                  | Implemented — clears session, redirects to landing          |
+| `GET /terms`                   | Implemented — static terms page                             |
+| `GET /privacy`                 | Implemented — static privacy page                           |
+| `GET /profile`                 | Implemented — dashboard with sidebar, stats, date filter,   |
+|                                |   recent transactions, category breakdown (login required)  |
+| `POST /shipments/add`          | Implemented — creates expense, redirects to profile         |
+| `GET /shipments/<id>/edit`     | Implemented — edit expense form                             |
+| `POST /shipments/<id>/edit`    | Implemented — updates expense, redirects to profile         |
+| `POST /shipments/<id>/delete`  | Implemented — deletes expense, returns JSON `{"ok": true}`  |
 
-**Do not implement a stub route unless the active task explicitly targets that step.**
+**Do not add new routes unless the active spec explicitly defines them.**
+
+---
+
+## Profile page structure
+
+The profile page (`/profile`) uses a two-column layout:
+
+- **Left sidebar** (220 px, sticky) — nav links: Overview, Shipments, Vendors, Billing, Emails, Notifications, Reports, Settings + Sign out footer. All sidebar links except Sign out are currently `#` placeholders.
+- **Right main area** — user info header, date-filter bar, 3 stat cards (inline label/value), recent transactions table with Edit/Delete, category breakdown with progress bars.
+- Two modals (Add Expense, Edit Expense) are rendered outside the shell div as `position: fixed` overlays; toggled by `profile.js`.
+
+---
+
+## Navbar
+
+`base.html` navbar is full-width (no max-width constraint). When **logged in**: shows a "Sign out" link (`.nav-cta`). When **logged out**: shows "Sign in" and "Get started".
+
+---
+
+## Database schema
+
+```sql
+users (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    name          TEXT    NOT NULL,
+    email         TEXT    UNIQUE NOT NULL,
+    password_hash TEXT    NOT NULL,
+    created_at    TEXT    DEFAULT (datetime('now'))
+)
+
+expenses (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL REFERENCES users(id),
+    amount      REAL    NOT NULL,
+    category    TEXT    NOT NULL,
+    date        TEXT    NOT NULL,          -- ISO 8601: YYYY-MM-DD
+    description TEXT,
+    created_at  TEXT DEFAULT (datetime('now'))
+)
+```
+
+`get_db()` enables `PRAGMA foreign_keys = ON` on every connection.
 
 ---
 
 ## Warnings and things to avoid
 
-- **Never use raw string returns for stub routes** once a step is implemented — always render a template
 - **Never hardcode URLs** in templates — always use `url_for()`
-- **Never put DB logic in route functions** — it belongs in `database/db.py`
+- **Never put DB logic in route functions** — CRUD in `database/db.py`, complex reads in `database/queries.py`
 - **Never install new packages** mid-feature without flagging it — keep `requirements.txt` in sync
 - **Never use JS frameworks** — the frontend is intentionally vanilla
-- **`database/db.py` is currently empty** — do not assume helpers exist until the step that implements them
-- **FK enforcement is manual** — SQLite foreign keys are off by default; `get_db()` must run `PRAGMA foreign_keys = ON` on every connection
+- **FK enforcement is manual** — `get_db()` must run `PRAGMA foreign_keys = ON` on every connection
 - The app runs on **port 5001**, not the Flask default 5000 — don't change this
+- **CSS variables only** — never hardcode hex colour values; use the variables defined in `:root` in `style.css`

@@ -1,7 +1,7 @@
 ---
 description: Create a spec file and feature branch for the next logitrack step
-argument-hint: "Step number and feature name e.g. 2 registration"
-allowed-tools: Read, Write, Glob, Bash(git:*)
+argument-hint: "<folder_name> <step_number> <feature description>  e.g. auth 10 password reset"
+allowed-tools: Read, Write, Glob, Bash(git:*), Bash(mkdir*)
 ---
 
 You are a senior developer spinning up a new feature for the
@@ -18,30 +18,36 @@ DO NOT CONTINUE until the working directory is clean.
 
 ## Step 2 — Parse the arguments
 
-From $ARGUMENTS extract:
+From $ARGUMENTS extract these four values:
 
-1. `step_number` — zero-padded to 2 digits: 2 → 02, 11 → 11
+1. `folder_name` — the **first word** of the input.
+   - Lowercase, kebab-case, only a-z, 0-9 and -
+   - Maximum 30 characters
+   - This is the sub-folder under `.claude/specs/` where the spec will be saved
+   - Example: `auth`, `profile`, `shipments`
 
-2. `feature_title` — human readable title in Title Case
-   - Example: "Registration" or "Login and Logout"
+2. `step_number` — the **second token** (a number), zero-padded to 2 digits: 2 → 02, 11 → 11
 
-3. `feature_slug` — git and file safe slug
+3. `feature_title` — human readable title in Title Case derived from the remaining words
+   - Example: "Password Reset" or "Edit Shipment"
+
+4. `feature_slug` — git and file-safe slug derived from the feature title
    - Lowercase, kebab-case
    - Only a-z, 0-9 and -
    - Maximum 40 characters
-   - Example: registration, login-logout
+   - Example: password-reset, edit-shipment
 
-4. `branch_name` — format: `feature/<feature_slug>`
-   - Example: `feature/registration`
+5. `branch_name` — format: `feature/<folder_name>/<feature_slug>`
+   - Example: `feature/auth/password-reset`
 
-If you cannot infer these from $ARGUMENTS, ask the user
+If you cannot infer all five values from $ARGUMENTS, ask the user
 to clarify before proceeding.
 
 ## Step 3 — Check branch name is not taken
 
 Run `git branch` to list existing branches.
 If `branch_name` is already taken, append a number:
-`feature/registration-01`, `feature/registration-02` etc.
+`feature/auth/password-reset-01`, `feature/auth/password-reset-02` etc.
 
 ## Step 4 — Switch to main and pull latest
 
@@ -64,13 +70,12 @@ git checkout -b <branch_name>
 
 Read these files before writing the spec:
 
-- `CLAUDE.md` — roadmap, conventions, schema
+- `CLAUDE.md` — implemented routes, conventions, schema
 - `app.py` — existing routes and structure
-- `database/db.py` — existing schema and functions
-- All files in `.claude/specs/` — avoid duplicating existing specs
-
-Check `CLAUDE.md` to confirm the requested step is not already
-marked complete. If it is, warn the user and stop.
+- `database/db.py` and `database/queries.py` — existing schema and functions
+- All files in `.claude/specs/` (root) — avoid duplicating existing specs
+- All files in `.claude/specs/<folder_name>/` if the folder exists — understand
+  what has already been specced in this folder
 
 ## Step 7 — Write the spec
 
@@ -137,9 +142,17 @@ something that can be verified by running the app.
 
 ---
 
-## Step 8 — Save the spec
+## Step 8 — Ensure the folder exists and save the spec
 
-Save to: `.claude/specs/<step_number>-<feature_slug>.md`
+First create the folder if it does not already exist:
+
+```
+mkdir -p .claude/specs/<folder_name>
+```
+
+Then save the spec to:
+
+`.claude/specs/<folder_name>/<step_number>-<feature_slug>.md`
 
 ## Step 9 — Report to the user
 
@@ -147,12 +160,12 @@ Print a short summary in this exact format:
 
 ```
 Branch:    <branch_name>
-Spec file: .claude/specs/<step_number>-<feature_slug>.md
+Spec file: .claude/specs/<folder_name>/<step_number>-<feature_slug>.md
 Title:     <feature_title>
 ```
 
 Then tell the user:
-"Review the spec at `.claude/specs/<step_number>-<feature_slug>.md`
+"Review the spec at `.claude/specs/<folder_name>/<step_number>-<feature_slug>.md`
 then enter Plan Mode with Shift+Tab twice to begin implementation."
 
 Do not print the full spec in chat unless explicitly asked.
