@@ -154,6 +154,61 @@ def profile():
     )
 
 
+@app.route("/shipments")
+def shipments():
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    uid = session["user_id"]
+    user = get_user_by_id(uid)
+    if user is None:
+        session.clear()
+        return redirect(url_for("login"))
+    transactions = get_recent_transactions(uid, limit=1000)
+    return render_template("shipments.html", user=user, transactions=transactions)
+
+
+@app.route("/vendors")
+def vendors():
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    return render_template("placeholder.html", title="Vendors")
+
+
+@app.route("/billing")
+def billing():
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    return render_template("placeholder.html", title="Billing")
+
+
+@app.route("/emails")
+def emails():
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    return render_template("placeholder.html", title="Emails")
+
+
+@app.route("/notifications")
+def notifications():
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    return render_template("placeholder.html", title="Notifications")
+
+
+@app.route("/reports")
+def reports():
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    return render_template("placeholder.html", title="Reports")
+
+
+@app.route("/settings")
+def settings():
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    return render_template("placeholder.html", title="Settings")
+
+
 EXPENSE_CATEGORIES = [
     "Freight Charges", "Customs Duty", "Port Charges", "Documentation",
     "Warehouse Charges", "Insurance", "Courier & Shipping",
