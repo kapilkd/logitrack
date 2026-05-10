@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — LogiTrack{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}" />
+{% endblock %}
+{% block content %}
+<div class="profile-shell">
+  {% include '_sidebar.html' %}
+  <section class="profile-section">
+    <div class="profile-container">
+      <div class="profile-header">
+        <h1 class="profile-card-title" style="font-size: 1.5rem;">{{ title }}</h1>
+      </div>
+      <div class="profile-card" style="text-align: center; padding: 3rem 2rem;">
+        <p style="color: var(--ink-muted); font-size: 1rem;">This section is coming soon.</p>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}

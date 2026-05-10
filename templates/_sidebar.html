@@ -1,0 +1,39 @@
+<aside class="profile-sidebar">
+  <nav class="sidebar-nav">
+    <a href="{{ url_for('profile') }}"
+       class="sidebar-link{% if request.endpoint == 'profile' %} sidebar-link--active{% endif %}">
+      <span class="sidebar-icon">▦</span> Overview
+    </a>
+    <a href="{{ url_for('shipments') }}"
+       class="sidebar-link{% if request.endpoint == 'shipments' %} sidebar-link--active{% endif %}">
+      <span class="sidebar-icon">⬡</span> Shipments
+    </a>
+    <a href="{{ url_for('vendors') }}"
+       class="sidebar-link{% if request.endpoint == 'vendors' %} sidebar-link--active{% endif %}">
+      <span class="sidebar-icon">⬡</span> Vendors
+    </a>
+    <a href="{{ url_for('billing') }}"
+       class="sidebar-link{% if request.endpoint == 'billing' %} sidebar-link--active{% endif %}">
+      <span class="sidebar-icon">⬡</span> Billing
+    </a>
+    <a href="{{ url_for('emails') }}"
+       class="sidebar-link{% if request.endpoint == 'emails' %} sidebar-link--active{% endif %}">
+      <span class="sidebar-icon">⬡</span> Emails
+    </a>
+    <a href="{{ url_for('notifications') }}"
+       class="sidebar-link{% if request.endpoint == 'notifications' %} sidebar-link--active{% endif %}">
+      <span class="sidebar-icon">◎</span> Notifications
+    </a>
+    <a href="{{ url_for('reports') }}"
+       class="sidebar-link{% if request.endpoint == 'reports' %} sidebar-link--active{% endif %}">
+      <span class="sidebar-icon">◎</span> Reports
+    </a>
+    <a href="{{ url_for('settings') }}"
+       class="sidebar-link{% if request.endpoint == 'settings' %} sidebar-link--active{% endif %}">
+      <span class="sidebar-icon">⚙</span> Settings
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <a href="{{ url_for('logout') }}" class="sidebar-signout">Sign out</a>
+  </div>
+</aside>

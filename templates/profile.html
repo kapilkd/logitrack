@@ -6,37 +6,7 @@ block head %}
 />
 {% endblock %} {% block content %}
 <div class="profile-shell">
-  <aside class="profile-sidebar">
-    <nav class="sidebar-nav">
-      <a href="#" class="sidebar-link sidebar-link--active">
-        <span class="sidebar-icon">▦</span> Overview
-      </a>
-      <a href="#" class="sidebar-link">
-        <span class="sidebar-icon">⬡</span> Shipments
-      </a>
-      <a href="#" class="sidebar-link">
-        <span class="sidebar-icon">⬡</span> Vendors
-      </a>
-      <a href="#" class="sidebar-link">
-        <span class="sidebar-icon">⬡</span> Billing
-      </a>
-      <a href="#" class="sidebar-link">
-        <span class="sidebar-icon">⬡</span> Emails
-      </a>
-      <a href="#" class="sidebar-link">
-        <span class="sidebar-icon">◎</span> Notifications
-      </a>
-      <a href="#" class="sidebar-link">
-        <span class="sidebar-icon">◎</span> Reports
-      </a>
-      <a href="#" class="sidebar-link">
-        <span class="sidebar-icon">⚙</span> Settings
-      </a>
-    </nav>
-    <div class="sidebar-footer">
-      <a href="{{ url_for('logout') }}" class="sidebar-signout">Sign out</a>
-    </div>
-  </aside>
+  {% include '_sidebar.html' %}
 
   <section class="profile-section">
     <div class="profile-container">
