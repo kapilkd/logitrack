@@ -4,7 +4,7 @@ import re
 from datetime import date, timedelta
 from flask import Flask, abort, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
-from database.db import get_db, init_db, seed_db, get_user_by_email, create_user, create_expense, get_expense_by_id, update_expense, delete_expense
+from database.db import get_db, init_db, seed_db, get_user_by_email, create_user, create_expense, get_expense_by_id, update_expense, delete_expense, create_vendor, get_vendor_by_id as get_vendor_row, update_vendor, get_vendors_by_user, get_vendor_count
 from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown
 
 app = Flask(__name__)
@@ -167,11 +167,161 @@ def shipments():
     return render_template("shipments.html", user=user, transactions=transactions)
 
 
+def _next_vendor_code(vendor_list):
+    max_num = 0
+    for v in vendor_list:
+        m = re.match(r'^VND-(\d+)$', v["vendor_code"] or "", re.IGNORECASE)
+        if m:
+            max_num = max(max_num, int(m.group(1)))
+    return f"VND-{max_num + 1:03d}"
+
+
+@app.route("/vendors/add", methods=["POST"])
+def add_vendor():
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    uid = session["user_id"]
+
+    vendor_code   = request.form.get("vendor_code", "").strip()
+    vendor_name   = request.form.get("vendor_name", "").strip()
+    vendor_type   = request.form.get("vendor_type", "").strip()
+    vendor_cat    = request.form.get("vendor_category", "").strip()
+
+    if not vendor_name or not vendor_type or not vendor_cat:
+        return redirect(url_for("vendors"))
+
+    def _f(key):
+        v = request.form.get(key, "").strip()
+        return v or None
+
+    def _num(key, cast, default):
+        try:
+            return cast(request.form.get(key, "").strip())
+        except (ValueError, TypeError):
+            return default
+
+    try:
+        create_vendor(
+            user_id=uid,
+            vendor_code=vendor_code,
+            vendor_name=vendor_name,
+            vendor_type=vendor_type,
+            vendor_category=vendor_cat,
+            company_name=_f("company_name"),
+            owner_name=_f("owner_name"),
+            status=request.form.get("status", "ACTIVE"),
+            email=_f("email"),
+            phone=_f("phone"),
+            alternate_phone=_f("alternate_phone"),
+            website=_f("website"),
+            address_line1=_f("address_line1"),
+            address_line2=_f("address_line2"),
+            city=_f("city"),
+            state=_f("state"),
+            pincode=_f("pincode"),
+            gst_number=_f("gst_number"),
+            pan_number=_f("pan_number"),
+            iec_code=_f("iec_code"),
+            bank_name=_f("bank_name"),
+            account_number=_f("account_number"),
+            ifsc_code=_f("ifsc_code"),
+            upi_id=_f("upi_id"),
+            currency=request.form.get("currency", "INR"),
+            credit_limit=_num("credit_limit", float, 0.0),
+            payment_terms_days=_num("payment_terms_days", int, 0),
+            notes=_f("notes"),
+            created_by=uid,
+        )
+    except Exception:
+        pass
+
+    return redirect(url_for("vendors"))
+
+
+@app.route("/vendors/<int:vendor_id>/edit", methods=["POST"])
+def edit_vendor(vendor_id):
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    uid = session["user_id"]
+
+    vendor = get_vendor_row(vendor_id)
+    if vendor is None or vendor["user_id"] != uid:
+        abort(404)
+
+    vendor_name = request.form.get("vendor_name", "").strip()
+    vendor_type = request.form.get("vendor_type", "").strip()
+    vendor_cat  = request.form.get("vendor_category", "").strip()
+
+    if not vendor_name or not vendor_type or not vendor_cat:
+        return redirect(url_for("vendors"))
+
+    def _f(key):
+        v = request.form.get(key, "").strip()
+        return v or None
+
+    def _num(key, cast, default):
+        try:
+            return cast(request.form.get(key, "").strip())
+        except (ValueError, TypeError):
+            return default
+
+    update_vendor(
+        vendor_id=vendor_id,
+        vendor_code=vendor["vendor_code"],
+        vendor_name=vendor_name,
+        vendor_type=vendor_type,
+        vendor_category=vendor_cat,
+        company_name=_f("company_name"),
+        owner_name=_f("owner_name"),
+        status=request.form.get("status", "ACTIVE"),
+        email=_f("email"),
+        phone=_f("phone"),
+        alternate_phone=_f("alternate_phone"),
+        website=_f("website"),
+        address_line1=_f("address_line1"),
+        address_line2=_f("address_line2"),
+        city=_f("city"),
+        state=_f("state"),
+        pincode=_f("pincode"),
+        gst_number=_f("gst_number"),
+        pan_number=_f("pan_number"),
+        iec_code=_f("iec_code"),
+        bank_name=_f("bank_name"),
+        account_number=_f("account_number"),
+        ifsc_code=_f("ifsc_code"),
+        upi_id=_f("upi_id"),
+        currency=request.form.get("currency", "INR"),
+        credit_limit=_num("credit_limit", float, 0.0),
+        payment_terms_days=_num("payment_terms_days", int, 0),
+        notes=_f("notes"),
+        updated_by=uid,
+    )
+    return redirect(url_for("vendors"))
+
+
 @app.route("/vendors")
 def vendors():
     if not session.get("user_id"):
         return redirect(url_for("login"))
-    return render_template("placeholder.html", title="Vendors")
+    uid = session["user_id"]
+    user = get_user_by_id(uid)
+    if user is None:
+        session.clear()
+        return redirect(url_for("login"))
+    vendor_list = [dict(v) for v in get_vendors_by_user(uid)]
+    active_count = sum(1 for v in vendor_list if v["status"] == "ACTIVE")
+    stats = {
+        "total": len(vendor_list),
+        "active": active_count,
+        "inactive": len(vendor_list) - active_count,
+    }
+    return render_template(
+        "vendors.html",
+        user=user,
+        vendors=vendor_list,
+        stats=stats,
+        next_vendor_code=_next_vendor_code(vendor_list),
+    )
 
 
 @app.route("/billing")
