@@ -4,7 +4,7 @@ import re
 from datetime import date, timedelta
 from flask import Flask, abort, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
-from database.db import get_db, init_db, seed_db, get_user_by_email, create_user, create_expense, get_expense_by_id, update_expense, delete_expense, create_vendor, get_vendor_by_id as get_vendor_row, update_vendor, get_vendors_by_user, get_vendor_count
+from database.db import get_db, init_db, seed_db, get_user_by_email, create_user, create_expense, get_expense_by_id, update_expense, delete_expense, create_vendor, get_vendor_by_id as get_vendor_row, update_vendor, get_vendors_by_user, get_all_vendors, get_vendor_count
 from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown
 
 app = Flask(__name__)
@@ -308,7 +308,7 @@ def vendors():
     if user is None:
         session.clear()
         return redirect(url_for("login"))
-    vendor_list = [dict(v) for v in get_vendors_by_user(uid)]
+    vendor_list = [dict(v) for v in get_all_vendors()]
     active_count = sum(1 for v in vendor_list if v["status"] == "ACTIVE")
     stats = {
         "total": len(vendor_list),

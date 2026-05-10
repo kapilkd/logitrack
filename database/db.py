@@ -239,6 +239,15 @@ def get_vendors_by_user(user_id):
     return rows
 
 
+def get_all_vendors():
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM vendors ORDER BY vendor_name ASC"
+    ).fetchall()
+    conn.close()
+    return rows
+
+
 def update_vendor(vendor_id, vendor_code, vendor_name, vendor_type, vendor_category,
                   company_name=None, owner_name=None, email=None, phone=None,
                   alternate_phone=None, website=None, gst_number=None, pan_number=None,
