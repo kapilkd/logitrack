@@ -4,7 +4,14 @@ import re
 from datetime import date, timedelta
 from flask import Flask, abort, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
-from database.db import get_db, init_db, seed_db, get_user_by_email, create_user, create_expense, get_expense_by_id, update_expense, delete_expense, create_vendor, get_vendor_by_id as get_vendor_row, update_vendor, get_vendors_by_user, get_all_vendors, get_vendor_count
+from database.db import (
+    get_db, init_db, seed_db, get_user_by_email, create_user,
+    create_expense, get_expense_by_id, update_expense, delete_expense,
+    create_vendor, get_vendor_by_id as get_vendor_row, update_vendor,
+    get_vendors_by_user, get_all_vendors, get_vendor_count,
+    create_contact, get_contacts_by_vendor, get_contact_by_id,
+    update_contact, delete_contact,
+)
 from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown
 
 app = Flask(__name__)
@@ -245,7 +252,7 @@ def edit_vendor(vendor_id):
     uid = session["user_id"]
 
     vendor = get_vendor_row(vendor_id)
-    if vendor is None or vendor["user_id"] != uid:
+    if vendor is None:
         abort(404)
 
     vendor_name = request.form.get("vendor_name", "").strip()
@@ -297,6 +304,82 @@ def edit_vendor(vendor_id):
         updated_by=uid,
     )
     return redirect(url_for("vendors"))
+
+
+@app.route("/vendors/<int:vendor_id>/contacts")
+def get_vendor_contacts(vendor_id):
+    if not session.get("user_id"):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+    vendor = get_vendor_row(vendor_id)
+    if vendor is None:
+        abort(404)
+    contacts = [dict(c) for c in get_contacts_by_vendor(vendor_id)]
+    return jsonify(contacts)
+
+
+@app.route("/vendors/<int:vendor_id>/contacts/add", methods=["POST"])
+def add_contact(vendor_id):
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    vendor = get_vendor_row(vendor_id)
+    if vendor is None:
+        abort(404)
+    name = request.form.get("name", "").strip()
+    if not name:
+        return redirect(url_for("vendors"))
+
+    def _f(key):
+        v = request.form.get(key, "").strip()
+        return v or None
+
+    is_primary = 1 if request.form.get("is_primary") == "1" else 0
+    create_contact(
+        vendor_id=vendor_id, name=name, title=_f("title"),
+        phone=_f("phone"), email=_f("email"),
+        is_primary=is_primary, notes=_f("notes"),
+    )
+    return redirect(url_for("vendors"))
+
+
+@app.route("/vendors/<int:vendor_id>/contacts/<int:contact_id>/edit", methods=["POST"])
+def edit_contact(vendor_id, contact_id):
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    vendor = get_vendor_row(vendor_id)
+    if vendor is None:
+        abort(404)
+    contact = get_contact_by_id(contact_id)
+    if contact is None or contact["vendor_id"] != vendor_id:
+        abort(404)
+    name = request.form.get("name", "").strip()
+    if not name:
+        return redirect(url_for("vendors"))
+
+    def _f(key):
+        v = request.form.get(key, "").strip()
+        return v or None
+
+    is_primary = 1 if request.form.get("is_primary") == "1" else 0
+    update_contact(
+        contact_id=contact_id, vendor_id=vendor_id, name=name,
+        title=_f("title"), phone=_f("phone"), email=_f("email"),
+        is_primary=is_primary, notes=_f("notes"),
+    )
+    return redirect(url_for("vendors"))
+
+
+@app.route("/vendors/<int:vendor_id>/contacts/<int:contact_id>/delete", methods=["POST"])
+def delete_contact_route(vendor_id, contact_id):
+    if not session.get("user_id"):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+    vendor = get_vendor_row(vendor_id)
+    if vendor is None:
+        abort(404)
+    contact = get_contact_by_id(contact_id)
+    if contact is None or contact["vendor_id"] != vendor_id:
+        abort(404)
+    delete_contact(contact_id)
+    return jsonify({"ok": True})
 
 
 @app.route("/vendors")
