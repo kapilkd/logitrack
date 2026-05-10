@@ -26,7 +26,7 @@ editButtons.forEach(button => {
         document.getElementById('editDate').value = button.dataset.date;
         document.getElementById('editDescription').value = button.dataset.description;
 
-        document.getElementById('editExpenseForm').action = `/shipments/${expenseId}/edit`;
+        document.getElementById('editExpenseForm').action = `/expenses/${expenseId}/edit`;
 
         editModal.style.display = 'flex';
     });
@@ -42,7 +42,7 @@ document.querySelectorAll('.delete-expense-btn').forEach(button => {
         if (!confirm('Delete this transaction? This cannot be undone.')) return;
 
         const expenseId = button.dataset.id;
-        fetch(`/shipments/${expenseId}/delete`, { method: 'POST' })
+        fetch(`/expenses/${expenseId}/delete`, { method: 'POST' })
             .then(r => r.json())
             .then(data => {
                 if (data.ok) location.reload();

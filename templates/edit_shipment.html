@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Edit Shipment — LogiTrack{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/shipments.css') }}" />
+{% endblock %}
+{% block content %}
+<div class="profile-shell">
+  {% include '_sidebar.html' %}
+
+  <section class="profile-section">
+    <div class="profile-container">
+
+      <div class="profile-header">
+        <div class="profile-user-info">
+          <div class="profile-meta">
+            <span class="profile-name">Edit Shipment</span>
+            <span class="profile-meta-sep">·</span>
+            <span class="profile-email">{{ shipment.shipment_number }}</span>
+          </div>
+        </div>
+        <a href="{{ url_for('shipment_detail', id=shipment.id) }}" class="back-link">← Back to Shipment</a>
+      </div>
+
+      <div class="profile-card">
+        {% if error %}
+        <div class="form-error">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('edit_shipment', id=shipment.id) }}">
+
+          <div class="form-section-title">Shipment Details</div>
+          <div class="form-grid-two">
+            <div class="form-group">
+              <label>Shipment Number <span class="required">*</span></label>
+              <input type="text" name="shipment_number" value="{{ shipment.shipment_number }}" required />
+            </div>
+            <div class="form-group">
+              <label>Status</label>
+              <select name="status">
+                {% for s in statuses %}
+                <option value="{{ s }}" {% if shipment.status == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Origin</label>
+              <input type="text" name="origin" value="{{ shipment.origin or '' }}" placeholder="e.g. Mumbai, India" />
+            </div>
+            <div class="form-group">
+              <label>Destination</label>
+              <input type="text" name="destination" value="{{ shipment.destination or '' }}" placeholder="e.g. Dubai, UAE" />
+            </div>
+            <div class="form-group">
+              <label>Carrier</label>
+              <input type="text" name="carrier" value="{{ shipment.carrier or '' }}" placeholder="e.g. Maersk Line" />
+            </div>
+            <div class="form-group">
+              <label>Incoterms</label>
+              <select name="incoterms">
+                <option value="">— Select —</option>
+                {% for t in incoterms %}
+                <option value="{{ t }}" {% if shipment.incoterms == t %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="form-section-title">Dates &amp; Ports</div>
+          <div class="form-grid-two">
+            <div class="form-group">
+              <label>Shipment Date</label>
+              <input type="date" name="shipment_date" value="{{ shipment.shipment_date or '' }}" />
+            </div>
+            <div class="form-group">
+              <label>ETD (Est. Departure)</label>
+              <input type="date" name="etd" value="{{ shipment.etd or '' }}" />
+            </div>
+            <div class="form-group">
+              <label>ETA (Est. Arrival)</label>
+              <input type="date" name="eta" value="{{ shipment.eta or '' }}" />
+            </div>
+            <div class="form-group">
+              <label>Port of Loading</label>
+              <input type="text" name="port_of_loading" value="{{ shipment.port_of_loading or '' }}" placeholder="e.g. JNPT" />
+            </div>
+            <div class="form-group">
+              <label>Port of Discharge</label>
+              <input type="text" name="port_of_discharge" value="{{ shipment.port_of_discharge or '' }}" placeholder="e.g. Jebel Ali" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Description / Notes</label>
+            <textarea name="description" rows="3">{{ shipment.description or '' }}</textarea>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="modal-submit-btn">Save Changes</button>
+            <a href="{{ url_for('shipment_detail', id=shipment.id) }}" class="cancel-link">Cancel</a>
+          </div>
+
+        </form>
+      </div>
+
+    </div>
+  </section>
+</div>
+{% endblock %}

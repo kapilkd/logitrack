@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}New Shipment — LogiTrack{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/shipments.css') }}" />
+{% endblock %}
+{% block content %}
+<div class="profile-shell">
+  {% include '_sidebar.html' %}
+
+  <section class="profile-section">
+    <div class="profile-container">
+
+      <div class="profile-header">
+        <div class="profile-user-info">
+          <div class="profile-meta">
+            <span class="profile-name">New Shipment</span>
+          </div>
+        </div>
+        <a href="{{ url_for('shipments') }}" class="back-link">← Back to Shipments</a>
+      </div>
+
+      <div class="profile-card">
+        {% if error %}
+        <div class="form-error">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('add_shipment') }}">
+
+          <div class="form-section-title">Shipment Details</div>
+          <div class="form-grid-two">
+            <div class="form-group">
+              <label>Shipment Number <span class="required">*</span></label>
+              <input type="text" name="shipment_number" value="{{ form.shipment_number if form else '' }}" placeholder="e.g. SHP-2026-001" required />
+            </div>
+            <div class="form-group">
+              <label>Status</label>
+              <select name="status">
+                {% for s in statuses %}
+                <option value="{{ s }}" {% if (form and form.status == s) or (not form and s == 'DRAFT') %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Origin</label>
+              <input type="text" name="origin" value="{{ form.origin if form else '' }}" placeholder="e.g. Mumbai, India" />
+            </div>
+            <div class="form-group">
+              <label>Destination</label>
+              <input type="text" name="destination" value="{{ form.destination if form else '' }}" placeholder="e.g. Dubai, UAE" />
+            </div>
+            <div class="form-group">
+              <label>Carrier</label>
+              <input type="text" name="carrier" value="{{ form.carrier if form else '' }}" placeholder="e.g. Maersk Line" />
+            </div>
+            <div class="form-group">
+              <label>Incoterms</label>
+              <select name="incoterms">
+                <option value="">— Select —</option>
+                {% for t in incoterms %}
+                <option value="{{ t }}" {% if form and form.incoterms == t %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="form-section-title">Dates &amp; Ports</div>
+          <div class="form-grid-two">
+            <div class="form-group">
+              <label>Shipment Date</label>
+              <input type="date" name="shipment_date" value="{{ form.shipment_date if form else today }}" />
+            </div>
+            <div class="form-group">
+              <label>ETD (Est. Departure)</label>
+              <input type="date" name="etd" value="{{ form.etd if form else '' }}" />
+            </div>
+            <div class="form-group">
+              <label>ETA (Est. Arrival)</label>
+              <input type="date" name="eta" value="{{ form.eta if form else '' }}" />
+            </div>
+            <div class="form-group">
+              <label>Port of Loading</label>
+              <input type="text" name="port_of_loading" value="{{ form.port_of_loading if form else '' }}" placeholder="e.g. JNPT" />
+            </div>
+            <div class="form-group">
+              <label>Port of Discharge</label>
+              <input type="text" name="port_of_discharge" value="{{ form.port_of_discharge if form else '' }}" placeholder="e.g. Jebel Ali" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Description / Notes</label>
+            <textarea name="description" rows="3" placeholder="Optional notes about this shipment">{{ form.description if form else '' }}</textarea>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="modal-submit-btn">Create Shipment</button>
+            <a href="{{ url_for('shipments') }}" class="cancel-link">Cancel</a>
+          </div>
+
+        </form>
+      </div>
+
+    </div>
+  </section>
+</div>
+{% endblock %}

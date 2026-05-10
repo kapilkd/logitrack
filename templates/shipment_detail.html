@@ -1,0 +1,379 @@
+{% extends "base.html" %}
+{% block title %}{{ shipment.shipment_number }} — LogiTrack{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/shipments.css') }}" />
+{% endblock %}
+{% block content %}
+<div class="profile-shell">
+  {% include '_sidebar.html' %}
+
+  <section class="profile-section">
+    <div class="profile-container">
+
+      <!-- Header -->
+      <div class="profile-header">
+        <div class="profile-user-info">
+          <div class="profile-meta">
+            <span class="profile-name">{{ shipment.shipment_number }}</span>
+            <span class="profile-meta-sep">·</span>
+            <span class="profile-email">{{ shipment.origin or '—' }} → {{ shipment.destination or '—' }}</span>
+            <span class="profile-meta-sep">·</span>
+            <span class="status-badge status-badge--{{ shipment.status | lower | replace('_', '-') }}">{{ shipment.status }}</span>
+          </div>
+        </div>
+        <div class="header-actions">
+          <a href="{{ url_for('edit_shipment', id=shipment.id) }}" class="txn-btn txn-btn--edit">Edit Shipment</a>
+          <a href="{{ url_for('shipments') }}" class="back-link">← All Shipments</a>
+        </div>
+      </div>
+
+      <!-- Shipment meta cards -->
+      <div class="profile-stats">
+        <div class="stat-card">
+          <span class="stat-label">Carrier</span>
+          <span class="stat-value stat-value--sm">{{ shipment.carrier or '—' }}</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">ETD → ETA</span>
+          <span class="stat-value stat-value--sm">{{ shipment.etd or '—' }} → {{ shipment.eta or '—' }}</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Incoterms</span>
+          <span class="stat-value stat-value--sm">{{ shipment.incoterms or '—' }}</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Total Expenses</span>
+          <span class="stat-value">₹{{ "%.2f"|format(total_expenses) }}</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Payables</span>
+          <span class="stat-value amount-payable">₹{{ "%.2f"|format(payables) }}</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Receivables</span>
+          <span class="stat-value amount-receivable">₹{{ "%.2f"|format(receivables) }}</span>
+        </div>
+      </div>
+
+      {% if shipment.port_of_loading or shipment.port_of_discharge or shipment.description %}
+      <div class="profile-card detail-meta-card">
+        {% if shipment.port_of_loading or shipment.port_of_discharge %}
+        <div class="detail-meta-row">
+          <span class="detail-meta-label">Port of Loading</span>
+          <span class="detail-meta-value">{{ shipment.port_of_loading or '—' }}</span>
+          <span class="detail-meta-label">Port of Discharge</span>
+          <span class="detail-meta-value">{{ shipment.port_of_discharge or '—' }}</span>
+        </div>
+        {% endif %}
+        {% if shipment.description %}
+        <div class="detail-meta-row">
+          <span class="detail-meta-label">Notes</span>
+          <span class="detail-meta-value">{{ shipment.description }}</span>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <!-- Vendor Assignments -->
+      <div class="profile-card">
+        <div class="card-header-row">
+          <h2 class="profile-card-title">Vendor Assignments</h2>
+          <button class="txn-btn txn-btn--edit" id="openAddVendorModal">+ Assign Vendor</button>
+        </div>
+        {% if vendors %}
+        <table class="txn-table">
+          <thead>
+            <tr>
+              <th>Vendor</th>
+              <th>Category</th>
+              <th>Role</th>
+              <th>Billing</th>
+              <th class="text-right">Amount</th>
+              <th>Invoice #</th>
+              <th>Due Date</th>
+              <th>Payment</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for v in vendors %}
+            <tr>
+              <td class="txn-desc">{{ v.vendor_name }}</td>
+              <td><span class="category-badge">{{ v.vendor_category | replace('_', ' ') }}</span></td>
+              <td><span class="role-badge role-badge--{{ v.relationship_type | lower | replace('_', '-') }}">{{ v.relationship_type }}</span></td>
+              <td><span class="billing-badge billing-badge--{{ v.billing_type | lower }}">{{ v.billing_type }}</span></td>
+              <td class="txn-amount text-right">₹{{ "%.2f"|format(v.amount) }}</td>
+              <td class="txn-desc">{{ v.invoice_number or '—' }}</td>
+              <td class="txn-date">{{ v.due_date or '—' }}</td>
+              <td>
+                <span class="payment-badge payment-badge--{{ v.payment_status | lower }}">{{ v.payment_status }}</span>
+              </td>
+              <td class="txn-actions">
+                <button class="txn-btn txn-btn--edit edit-sv-btn"
+                  data-id="{{ v.id }}"
+                  data-relationship-type="{{ v.relationship_type }}"
+                  data-billing-type="{{ v.billing_type }}"
+                  data-amount="{{ v.amount }}"
+                  data-currency="{{ v.currency }}"
+                  data-invoice-number="{{ v.invoice_number or '' }}"
+                  data-invoice-date="{{ v.invoice_date or '' }}"
+                  data-due-date="{{ v.due_date or '' }}"
+                  data-payment-status="{{ v.payment_status }}"
+                  data-notes="{{ v.notes or '' }}">Edit</button>
+                <button class="txn-btn txn-btn--delete delete-sv-btn" data-id="{{ v.id }}">Remove</button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="txn-empty">No vendors assigned to this shipment yet.</div>
+        {% endif %}
+      </div>
+
+      <!-- Expenses / Cost Lines -->
+      <div class="profile-card">
+        <div class="card-header-row">
+          <h2 class="profile-card-title">Expenses</h2>
+          <button class="txn-btn txn-btn--edit" id="openAddExpenseModal">+ Add Expense</button>
+        </div>
+        {% if expenses %}
+        <table class="txn-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Description</th>
+              <th>Category</th>
+              <th class="text-right">Amount</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in expenses %}
+            <tr>
+              <td class="txn-date">{{ e.date }}</td>
+              <td class="txn-desc">{{ e.description or '—' }}</td>
+              <td><span class="category-badge">{{ e.category }}</span></td>
+              <td class="txn-amount text-right">₹{{ "%.2f"|format(e.amount) }}</td>
+              <td class="txn-actions">
+                <button class="txn-btn txn-btn--edit edit-expense-btn"
+                  data-id="{{ e.id }}"
+                  data-date="{{ e.date }}"
+                  data-description="{{ e.description or '' }}"
+                  data-category="{{ e.category }}"
+                  data-amount="{{ e.amount }}">Edit</button>
+                <button class="txn-btn txn-btn--delete delete-expense-btn" data-id="{{ e.id }}">Delete</button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="txn-empty">No expenses recorded for this shipment yet.</div>
+        {% endif %}
+      </div>
+
+    </div>
+  </section>
+</div>
+
+<!-- ADD VENDOR MODAL -->
+<div class="modal-overlay" id="addVendorModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>Assign Vendor</h2>
+      <button class="close-modal" id="closeAddVendorModal">×</button>
+    </div>
+    <form method="POST" action="{{ url_for('add_shipment_vendor', shipment_id=shipment.id) }}">
+      <div class="form-group">
+        <label>Vendor</label>
+        <select name="vendor_id" required>
+          <option value="">— Select vendor —</option>
+          {% for v in all_vendors %}
+          <option value="{{ v.id }}">{{ v.vendor_name }} ({{ v.vendor_code }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Relationship Type</label>
+        <select name="relationship_type" required>
+          {% for r in relationship_types %}
+          <option value="{{ r }}">{{ r }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Billing Type</label>
+        <select name="billing_type" required>
+          {% for b in billing_types %}
+          <option value="{{ b }}">{{ b }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Amount</label>
+        <input type="number" step="0.01" name="amount" value="0" min="0" />
+      </div>
+      <div class="form-group">
+        <label>Currency</label>
+        <input type="text" name="currency" value="INR" maxlength="3" />
+      </div>
+      <div class="form-group">
+        <label>Invoice Number</label>
+        <input type="text" name="invoice_number" />
+      </div>
+      <div class="form-group">
+        <label>Invoice Date</label>
+        <input type="date" name="invoice_date" />
+      </div>
+      <div class="form-group">
+        <label>Due Date</label>
+        <input type="date" name="due_date" />
+      </div>
+      <div class="form-group">
+        <label>Payment Status</label>
+        <select name="payment_status">
+          {% for p in payment_statuses %}
+          <option value="{{ p }}">{{ p }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea name="notes"></textarea>
+      </div>
+      <button type="submit" class="modal-submit-btn">Assign Vendor</button>
+    </form>
+  </div>
+</div>
+
+<!-- EDIT VENDOR MODAL -->
+<div class="modal-overlay" id="editVendorModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>Edit Vendor Assignment</h2>
+      <button class="close-modal" id="closeEditVendorModal">×</button>
+    </div>
+    <form method="POST" id="editVendorForm">
+      <div class="form-group">
+        <label>Relationship Type</label>
+        <select name="relationship_type" id="editSvRelType" required>
+          {% for r in relationship_types %}
+          <option value="{{ r }}">{{ r }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Billing Type</label>
+        <select name="billing_type" id="editSvBillingType" required>
+          {% for b in billing_types %}
+          <option value="{{ b }}">{{ b }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Amount</label>
+        <input type="number" step="0.01" name="amount" id="editSvAmount" min="0" />
+      </div>
+      <div class="form-group">
+        <label>Currency</label>
+        <input type="text" name="currency" id="editSvCurrency" maxlength="3" />
+      </div>
+      <div class="form-group">
+        <label>Invoice Number</label>
+        <input type="text" name="invoice_number" id="editSvInvoiceNumber" />
+      </div>
+      <div class="form-group">
+        <label>Invoice Date</label>
+        <input type="date" name="invoice_date" id="editSvInvoiceDate" />
+      </div>
+      <div class="form-group">
+        <label>Due Date</label>
+        <input type="date" name="due_date" id="editSvDueDate" />
+      </div>
+      <div class="form-group">
+        <label>Payment Status</label>
+        <select name="payment_status" id="editSvPaymentStatus">
+          {% for p in payment_statuses %}
+          <option value="{{ p }}">{{ p }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea name="notes" id="editSvNotes"></textarea>
+      </div>
+      <button type="submit" class="modal-submit-btn">Save Changes</button>
+    </form>
+  </div>
+</div>
+
+<!-- ADD EXPENSE MODAL -->
+<div class="modal-overlay" id="addExpenseModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>Add Expense</h2>
+      <button class="close-modal" id="closeAddExpenseModal">×</button>
+    </div>
+    <form method="POST" action="{{ url_for('add_shipment_expense', shipment_id=shipment.id) }}">
+      <div class="form-group">
+        <label>Amount</label>
+        <input type="number" step="0.01" name="amount" required min="0.01" />
+      </div>
+      <div class="form-group">
+        <label>Category</label>
+        <select name="category" required>
+          {% for c in categories %}
+          <option value="{{ c }}">{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" name="date" required />
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <textarea name="description"></textarea>
+      </div>
+      <button type="submit" class="modal-submit-btn">Add Expense</button>
+    </form>
+  </div>
+</div>
+
+<!-- EDIT EXPENSE MODAL -->
+<div class="modal-overlay" id="editExpenseModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>Edit Expense</h2>
+      <button class="close-modal" id="closeEditExpenseModal">×</button>
+    </div>
+    <form method="POST" id="editExpenseForm">
+      <div class="form-group">
+        <label>Amount</label>
+        <input type="number" step="0.01" name="amount" id="editExpAmount" required min="0.01" />
+      </div>
+      <div class="form-group">
+        <label>Category</label>
+        <select name="category" id="editExpCategory" required>
+          {% for c in categories %}
+          <option value="{{ c }}">{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" name="date" id="editExpDate" required />
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <textarea name="description" id="editExpDescription"></textarea>
+      </div>
+      <button type="submit" class="modal-submit-btn">Save Expense</button>
+    </form>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/shipment_detail.js') }}"></script>
+{% endblock %}

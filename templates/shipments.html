@@ -2,51 +2,91 @@
 {% block title %}Shipments — LogiTrack{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/shipments.css') }}" />
 {% endblock %}
 {% block content %}
 <div class="profile-shell">
   {% include '_sidebar.html' %}
+
   <section class="profile-section">
     <div class="profile-container">
+
       <div class="profile-header">
         <div class="profile-user-info">
           <div class="profile-avatar">{{ user.initials }}</div>
           <div class="profile-meta">
             <span class="profile-name">{{ user.name }}</span>
             <span class="profile-meta-sep">·</span>
-            <span class="profile-email">{{ user.email }}</span>
+            <span class="profile-email">Shipments</span>
           </div>
         </div>
+        <a href="{{ url_for('add_shipment') }}" class="profile-add-btn">+ New Shipment</a>
       </div>
 
       <div class="profile-card">
         <h2 class="profile-card-title">All Shipments</h2>
-        <table class="txn-table">
+        {% if shipments %}
+        <table class="txn-table shipments-table">
           <thead>
             <tr>
-              <th>Date</th>
-              <th>Description</th>
-              <th>Category</th>
-              <th class="text-right">Amount</th>
+              <th>Shipment #</th>
+              <th>Route</th>
+              <th>Carrier</th>
+              <th>Status</th>
+              <th>ETD</th>
+              <th>ETA</th>
+              <th class="text-right">Vendors</th>
+              <th class="text-right">Payables</th>
+              <th class="text-right">Receivables</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
-            {% for txn in transactions %}
+            {% for s in shipments %}
             <tr>
-              <td class="txn-date">{{ txn.date }}</td>
-              <td class="txn-desc">{{ txn.description }}</td>
-              <td><span class="category-badge">{{ txn.category }}</span></td>
-              <td class="txn-amount text-right">{{ txn.amount }}</td>
-            </tr>
-            {% else %}
-            <tr>
-              <td colspan="4" class="txn-empty">No shipments found.</td>
+              <td>
+                <a href="{{ url_for('shipment_detail', id=s.id) }}" class="shipment-link">
+                  {{ s.shipment_number }}
+                </a>
+              </td>
+              <td class="txn-desc">
+                {% if s.origin or s.destination %}
+                  {{ s.origin or '—' }} → {{ s.destination or '—' }}
+                {% else %}—{% endif %}
+              </td>
+              <td class="txn-desc">{{ s.carrier or '—' }}</td>
+              <td><span class="status-badge status-badge--{{ s.status | lower | replace('_', '-') }}">{{ s.status }}</span></td>
+              <td class="txn-date">{{ s.etd or '—' }}</td>
+              <td class="txn-date">{{ s.eta or '—' }}</td>
+              <td class="text-right">{{ s.vendor_count }}</td>
+              <td class="text-right amount-payable">₹{{ "%.2f"|format(s.total_payables) }}</td>
+              <td class="text-right amount-receivable">₹{{ "%.2f"|format(s.total_receivables) }}</td>
+              <td class="txn-actions">
+                <a href="{{ url_for('shipment_detail', id=s.id) }}" class="txn-btn txn-btn--edit">View</a>
+                <a href="{{ url_for('edit_shipment', id=s.id) }}" class="txn-btn txn-btn--edit">Edit</a>
+                <button class="txn-btn txn-btn--delete delete-shipment-btn" data-id="{{ s.id }}">Delete</button>
+              </td>
             </tr>
             {% endfor %}
           </tbody>
         </table>
+        {% else %}
+        <div class="txn-empty">No shipments yet. <a href="{{ url_for('add_shipment') }}">Create your first shipment.</a></div>
+        {% endif %}
       </div>
+
     </div>
   </section>
 </div>
+
+<script>
+document.querySelectorAll('.delete-shipment-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (!confirm('Delete this shipment and all its vendor assignments? This cannot be undone.')) return;
+    fetch(`/shipments/${btn.dataset.id}/delete`, { method: 'POST' })
+      .then(r => r.json())
+      .then(d => { if (d.ok) location.reload(); });
+  });
+});
+</script>
 {% endblock %}
