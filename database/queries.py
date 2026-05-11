@@ -104,3 +104,32 @@ def get_category_breakdown(user_id, from_date=None, to_date=None):
             "pct": pct,
         })
     return result
+
+
+_VENDOR_TYPES = {"INBOUND", "OUTBOUND"}
+_VENDOR_STATUSES = {"ACTIVE", "INACTIVE", "BLOCKED"}
+_VENDOR_CATEGORIES = {
+    "CUSTOMER", "TRANSPORTER", "SHIPPER", "CONSIGNEE", "WAREHOUSE",
+    "CUSTOM_CLEARANCE_AGENT", "FREIGHT_FORWARDER", "PACKAGING_VENDOR",
+    "INSURANCE_PROVIDER", "SHIPPING_LINE", "AIR_CARRIER", "LOCAL_TRANSPORT",
+    "PORT_AGENT", "COURIER_PARTNER", "BILLING_PARTNER", "OTHER",
+}
+
+
+def get_filtered_vendors(vendor_type=None, vendor_category=None, vendor_status=None):
+    sql = "SELECT * FROM vendors WHERE 1=1"
+    params = []
+    if vendor_type in _VENDOR_TYPES:
+        sql += " AND vendor_type = ?"
+        params.append(vendor_type)
+    if vendor_category in _VENDOR_CATEGORIES:
+        sql += " AND vendor_category = ?"
+        params.append(vendor_category)
+    if vendor_status in _VENDOR_STATUSES:
+        sql += " AND status = ?"
+        params.append(vendor_status)
+    sql += " ORDER BY vendor_name ASC"
+    conn = get_db()
+    rows = conn.execute(sql, params).fetchall()
+    conn.close()
+    return rows
