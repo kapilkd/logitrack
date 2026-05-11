@@ -22,7 +22,7 @@ from database.db import (
     get_shipment_vendor_count, get_total_payables_by_shipment,
     get_total_receivables_by_shipment,
 )
-from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown
+from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_filtered_vendors
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
@@ -526,19 +526,30 @@ def vendors():
     if user is None:
         session.clear()
         return redirect(url_for("login"))
-    vendor_list = [dict(v) for v in get_all_vendors()]
+    filters = {
+        "vendor_type":     request.args.get("vendor_type", ""),
+        "vendor_category": request.args.get("vendor_category", ""),
+        "vendor_status":   request.args.get("vendor_status", ""),
+    }
+    vendor_list = [dict(v) for v in get_filtered_vendors(
+        vendor_type=filters["vendor_type"] or None,
+        vendor_category=filters["vendor_category"] or None,
+        vendor_status=filters["vendor_status"] or None,
+    )]
     active_count = sum(1 for v in vendor_list if v["status"] == "ACTIVE")
     stats = {
-        "total": len(vendor_list),
-        "active": active_count,
+        "total":    len(vendor_list),
+        "active":   active_count,
         "inactive": len(vendor_list) - active_count,
     }
+    all_vendors = [dict(v) for v in get_all_vendors()]
     return render_template(
         "vendors.html",
         user=user,
         vendors=vendor_list,
         stats=stats,
-        next_vendor_code=_next_vendor_code(vendor_list),
+        filters=filters,
+        next_vendor_code=_next_vendor_code(all_vendors),
     )
 
 

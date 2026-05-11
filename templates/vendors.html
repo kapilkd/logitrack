@@ -49,9 +49,59 @@ block head %}
         </div>
       </div>
 
+      <!-- Filter bar -->
+      <form class="vendor-filter-bar" method="get" action="{{ url_for('vendors') }}">
+        <div class="vendor-filter-group">
+          <label class="vendor-filter-label" for="filterType">Type</label>
+          <select class="vendor-filter-select" name="vendor_type" id="filterType">
+            <option value="">All types</option>
+            <option value="INBOUND" {% if filters.vendor_type == "INBOUND" %}selected{% endif %}>Inbound</option>
+            <option value="OUTBOUND" {% if filters.vendor_type == "OUTBOUND" %}selected{% endif %}>Outbound</option>
+          </select>
+        </div>
+        <div class="vendor-filter-group">
+          <label class="vendor-filter-label" for="filterCategory">Category</label>
+          <select class="vendor-filter-select" name="vendor_category" id="filterCategory">
+            <option value="">All categories</option>
+            <option value="CUSTOMER" {% if filters.vendor_category == "CUSTOMER" %}selected{% endif %}>Customer</option>
+            <option value="TRANSPORTER" {% if filters.vendor_category == "TRANSPORTER" %}selected{% endif %}>Transporter</option>
+            <option value="SHIPPER" {% if filters.vendor_category == "SHIPPER" %}selected{% endif %}>Shipper</option>
+            <option value="CONSIGNEE" {% if filters.vendor_category == "CONSIGNEE" %}selected{% endif %}>Consignee</option>
+            <option value="WAREHOUSE" {% if filters.vendor_category == "WAREHOUSE" %}selected{% endif %}>Warehouse</option>
+            <option value="CUSTOM_CLEARANCE_AGENT" {% if filters.vendor_category == "CUSTOM_CLEARANCE_AGENT" %}selected{% endif %}>Custom Clearance Agent</option>
+            <option value="FREIGHT_FORWARDER" {% if filters.vendor_category == "FREIGHT_FORWARDER" %}selected{% endif %}>Freight Forwarder</option>
+            <option value="PACKAGING_VENDOR" {% if filters.vendor_category == "PACKAGING_VENDOR" %}selected{% endif %}>Packaging Vendor</option>
+            <option value="INSURANCE_PROVIDER" {% if filters.vendor_category == "INSURANCE_PROVIDER" %}selected{% endif %}>Insurance Provider</option>
+            <option value="SHIPPING_LINE" {% if filters.vendor_category == "SHIPPING_LINE" %}selected{% endif %}>Shipping Line</option>
+            <option value="AIR_CARRIER" {% if filters.vendor_category == "AIR_CARRIER" %}selected{% endif %}>Air Carrier</option>
+            <option value="LOCAL_TRANSPORT" {% if filters.vendor_category == "LOCAL_TRANSPORT" %}selected{% endif %}>Local Transport</option>
+            <option value="PORT_AGENT" {% if filters.vendor_category == "PORT_AGENT" %}selected{% endif %}>Port Agent</option>
+            <option value="COURIER_PARTNER" {% if filters.vendor_category == "COURIER_PARTNER" %}selected{% endif %}>Courier Partner</option>
+            <option value="BILLING_PARTNER" {% if filters.vendor_category == "BILLING_PARTNER" %}selected{% endif %}>Billing Partner</option>
+            <option value="OTHER" {% if filters.vendor_category == "OTHER" %}selected{% endif %}>Other</option>
+          </select>
+        </div>
+        <div class="vendor-filter-group">
+          <label class="vendor-filter-label" for="filterStatus">Status</label>
+          <select class="vendor-filter-select" name="vendor_status" id="filterStatus">
+            <option value="">All statuses</option>
+            <option value="ACTIVE" {% if filters.vendor_status == "ACTIVE" %}selected{% endif %}>Active</option>
+            <option value="INACTIVE" {% if filters.vendor_status == "INACTIVE" %}selected{% endif %}>Inactive</option>
+            <option value="BLOCKED" {% if filters.vendor_status == "BLOCKED" %}selected{% endif %}>Blocked</option>
+          </select>
+        </div>
+        <button type="submit" class="vendor-filter-btn">Apply</button>
+        {% if filters.vendor_type or filters.vendor_category or filters.vendor_status %}
+        <a href="{{ url_for('vendors') }}" class="vendor-filter-clear">Clear filters</a>
+        {% endif %}
+      </form>
+
       <!-- Vendor list -->
       <div class="profile-card">
-        <h2 class="profile-card-title">All Vendors</h2>
+        <h2 class="profile-card-title">
+          {% if filters.vendor_type or filters.vendor_category or filters.vendor_status %}Filtered Vendors{% else %}All Vendors{% endif %}
+          <span class="vendor-count">({{ stats.total }})</span>
+        </h2>
         <table class="txn-table vendors-table">
           <thead>
             <tr>
