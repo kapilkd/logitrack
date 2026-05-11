@@ -34,9 +34,15 @@
           <span class="stat-label">Carrier</span>
           <span class="stat-value stat-value--sm">{{ shipment.carrier or '—' }}</span>
         </div>
-        <div class="stat-card">
-          <span class="stat-label">ETD → ETA</span>
-          <span class="stat-value stat-value--sm">{{ shipment.etd or '—' }} → {{ shipment.eta or '—' }}</span>
+        <div class="stat-card stat-card--etd-eta">
+          <div class="stat-date-item">
+            <span class="stat-label">ETD</span>
+            <span class="stat-value stat-value--sm">{{ shipment.etd or '—' }}</span>
+          </div>
+          <div class="stat-date-item">
+            <span class="stat-label">ETA</span>
+            <span class="stat-value stat-value--sm">{{ shipment.eta or '—' }}</span>
+          </div>
         </div>
         <div class="stat-card">
           <span class="stat-label">Incoterms</span>

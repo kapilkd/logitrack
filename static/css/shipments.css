@@ -21,11 +21,34 @@
     white-space: nowrap;
 }
 
-.status-badge--draft        { background: var(--border-soft); color: var(--ink-muted); }
-.status-badge--active       { background: var(--accent-light); color: var(--accent); }
-.status-badge--in-transit   { background: var(--accent-2-light); color: var(--accent-2); }
-.status-badge--delivered    { background: #dcfce7; color: #166534; }
-.status-badge--cancelled    { background: var(--danger-light); color: var(--danger); }
+/* planning */
+.status-badge--draft               { background: var(--border-soft);    color: var(--ink-muted); }
+.status-badge--booked              { background: #e0e7ff;               color: #3730a3; }
+/* pre-sail movement */
+.status-badge--pickup-pending      { background: #e0f2fe;               color: #0369a1; }
+.status-badge--picked-up           { background: #bae6fd;               color: #075985; }
+.status-badge--in-transit          { background: var(--accent-2-light); color: var(--accent-2); }
+.status-badge--at-warehouse        { background: #e0f2fe;               color: #0369a1; }
+.status-badge--port-in             { background: #cffafe;               color: #0e7490; }
+.status-badge--port-out            { background: #a5f3fc;               color: #0e7490; }
+.status-badge--sailed              { background: #bae6fd;               color: #075985; }
+.status-badge--arrived             { background: var(--accent-light);   color: var(--accent); }
+/* customs — caution */
+.status-badge--customs-clearance   { background: #fef9c3;               color: #854d0e; }
+.status-badge--customs-hold        { background: var(--accent-2-light); color: var(--accent-2); }
+.status-badge--destination-customs { background: #fef9c3;               color: #854d0e; }
+/* last mile */
+.status-badge--out-for-delivery    { background: var(--accent-light);   color: var(--accent); }
+/* terminal — success */
+.status-badge--delivered           { background: #dcfce7;               color: #166534; }
+.status-badge--partially-delivered { background: #d1fae5;               color: #065f46; }
+.status-badge--closed              { background: #f1f5f9;               color: #475569; }
+/* terminal — problem */
+.status-badge--returned            { background: var(--danger-light);   color: var(--danger); }
+.status-badge--cancelled           { background: var(--danger-light);   color: var(--danger); }
+/* paused */
+.status-badge--on-hold             { background: var(--accent-2-light); color: var(--accent-2); }
+.status-badge--delayed             { background: #fef9c3;               color: #854d0e; }
 
 /* ── Role badges ─────────────────────────────────────── */
 .role-badge {
@@ -193,6 +216,28 @@
     grid-template-columns: repeat(6, 1fr);
 }
 
+/* Stack label above value in shipment detail stat cards */
+.profile-stats .stat-card {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 0.3rem;
+    padding: 1rem 1.25rem;
+}
+
+/* ETD/ETA card: two date items side by side */
+.stat-card--etd-eta {
+    flex-direction: row !important;
+    align-items: flex-start !important;
+    gap: 1.5rem !important;
+}
+
+.stat-date-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
 /* ── Modal form group overrides ──────────────────────── */
 .form-group {
     margin-bottom: 1rem;
@@ -225,6 +270,129 @@
 .form-group select:focus,
 .form-group textarea:focus {
     border-color: var(--accent);
+}
+
+/* ── Clickable status badge ──────────────────────────── */
+.status-badge--clickable {
+    cursor: pointer;
+    transition: opacity 0.15s, box-shadow 0.15s;
+}
+
+.status-badge--clickable:hover {
+    opacity: 0.82;
+    box-shadow: 0 0 0 2px var(--border);
+}
+
+.status-badge--clickable:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* ── Status dropdown ─────────────────────────────────── */
+.status-dropdown {
+    position: absolute;
+    z-index: 200;
+    background: var(--paper-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.10);
+    min-width: 200px;
+    max-height: 320px;
+    overflow-y: auto;
+    padding: 0.3rem 0;
+}
+
+.status-dropdown-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.status-dropdown-item {
+    display: flex;
+    align-items: center;
+    padding: 0.35rem 0.75rem;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.status-dropdown-item:hover {
+    background: var(--paper);
+}
+
+.status-dropdown-item--current {
+    background: var(--border-soft);
+}
+
+.status-dropdown-item--current::after {
+    content: '✓';
+    margin-left: auto;
+    font-size: 0.75rem;
+    color: var(--accent);
+    padding-left: 0.5rem;
+}
+
+.status-dropdown-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 0.25rem 0;
+}
+
+/* ── Closed shipments collapsible card ───────────────── */
+.closed-shipments-card {
+    padding: 0;
+}
+
+.closed-shipments-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 1rem 2rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: color 0.15s;
+}
+
+.closed-shipments-toggle:hover {
+    color: var(--ink);
+}
+
+.closed-toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.closed-count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--border-soft);
+    color: var(--ink-muted);
+    font-size: 0.7rem;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 0.1rem 0.5rem;
+    min-width: 1.5rem;
+}
+
+.closed-toggle-chevron {
+    font-size: 1rem;
+    color: var(--ink-muted);
+    transition: transform 0.2s;
+}
+
+.closed-shipments-body {
+    padding: 0 2rem 1.5rem;
+    border-top: 1px solid var(--border-soft);
 }
 
 .form-group textarea { resize: vertical; min-height: 64px; }

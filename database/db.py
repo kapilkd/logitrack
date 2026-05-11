@@ -563,7 +563,14 @@ def delete_contact(contact_id):
 # Shipment CRUD                                                       #
 # ------------------------------------------------------------------ #
 
-SHIPMENT_STATUSES = ('DRAFT', 'ACTIVE', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED')
+SHIPMENT_STATUSES = (
+    'DRAFT', 'BOOKED', 'PICKUP_PENDING', 'PICKED_UP',
+    'IN_TRANSIT', 'AT_WAREHOUSE', 'CUSTOMS_CLEARANCE', 'CUSTOMS_HOLD',
+    'PORT_IN', 'PORT_OUT', 'SAILED', 'ARRIVED',
+    'DESTINATION_CUSTOMS', 'OUT_FOR_DELIVERY',
+    'DELIVERED', 'PARTIALLY_DELIVERED', 'RETURNED',
+    'CANCELLED', 'ON_HOLD', 'DELAYED', 'CLOSED',
+)
 INCOTERMS = ('EXW', 'FCA', 'FOB', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP')
 
 
@@ -616,9 +623,12 @@ def update_shipment(shipment_id, shipment_number, origin=None, destination=None,
     conn.close()
 
 
-def delete_shipment(shipment_id):
+def update_shipment_status(shipment_id, status):
     conn = get_db()
-    conn.execute("DELETE FROM shipments WHERE id = ?", (shipment_id,))
+    conn.execute(
+        "UPDATE shipments SET status=?, updated_at=datetime('now') WHERE id=?",
+        (status, shipment_id),
+    )
     conn.commit()
     conn.close()
 

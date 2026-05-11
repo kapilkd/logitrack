@@ -13,7 +13,7 @@ from database.db import (
     update_contact, delete_contact,
     SHIPMENT_STATUSES, INCOTERMS,
     create_shipment, get_shipment_by_id, get_shipments_by_user,
-    update_shipment, delete_shipment as db_delete_shipment, get_shipment_by_number,
+    update_shipment, update_shipment_status, get_shipment_by_number,
     get_expenses_by_shipment,
     RELATIONSHIP_TYPES, BILLING_TYPES, PAYMENT_STATUSES,
     create_shipment_vendor, get_shipment_vendor_by_id,
@@ -181,15 +181,18 @@ def shipments():
         session.clear()
         return redirect(url_for("login"))
     shipment_list = get_shipments_by_user(uid)
-    rows = []
+    active_rows, closed_rows = [], []
     for s in shipment_list:
-        rows.append({
+        enriched = {
             **dict(s),
             "vendor_count": get_shipment_vendor_count(s["id"]),
             "total_payables": get_total_payables_by_shipment(s["id"]),
             "total_receivables": get_total_receivables_by_shipment(s["id"]),
-        })
-    return render_template("shipments.html", user=user, shipments=rows)
+        }
+        (closed_rows if s["status"] == "CLOSED" else active_rows).append(enriched)
+    return render_template("shipments.html", user=user,
+        shipments=active_rows, closed_shipments=closed_rows,
+        statuses=SHIPMENT_STATUSES)
 
 
 @app.route("/expenses/add", methods=["GET", "POST"])
@@ -740,19 +743,21 @@ def edit_shipment(id):
     return redirect(url_for("shipment_detail", id=id))
 
 
-@app.route("/shipments/<int:id>/delete", methods=["POST"])
-def delete_shipment(id):
+@app.route("/shipments/<int:id>/status", methods=["POST"])
+def update_shipment_status_route(id):
     if not session.get("user_id"):
         return jsonify({"ok": False, "error": "Unauthorized"}), 401
-
     shipment = get_shipment_by_id(id)
     if shipment is None:
         abort(404)
     if shipment["user_id"] != session["user_id"]:
         abort(403)
-
-    db_delete_shipment(id)
-    return jsonify({"ok": True})
+    data = request.get_json(silent=True) or {}
+    new_status = data.get("status", "").strip()
+    if new_status not in SHIPMENT_STATUSES:
+        return jsonify({"ok": False, "error": "Invalid status"}), 400
+    update_shipment_status(id, new_status)
+    return jsonify({"ok": True, "status": new_status})
 
 
 @app.route("/shipments/<int:shipment_id>/expenses/add", methods=["POST"])

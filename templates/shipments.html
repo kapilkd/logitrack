@@ -23,6 +23,63 @@
         <a href="{{ url_for('add_shipment') }}" class="profile-add-btn">+ New Shipment</a>
       </div>
 
+      {% if closed_shipments %}
+      <div class="profile-card closed-shipments-card">
+        <button class="closed-shipments-toggle" id="closedToggle"
+                aria-expanded="false" aria-controls="closedShipmentsBody">
+          <span class="closed-toggle-label">
+            Closed Shipments
+            <span class="closed-count-badge">{{ closed_shipments | length }}</span>
+          </span>
+          <span class="closed-toggle-chevron">▾</span>
+        </button>
+        <div class="closed-shipments-body" id="closedShipmentsBody" hidden>
+          <table class="txn-table shipments-table">
+            <thead>
+              <tr>
+                <th>Shipment #</th>
+                <th>Route</th>
+                <th>Carrier</th>
+                <th>Status</th>
+                <th>ETD</th>
+                <th>ETA</th>
+                <th class="text-right">Vendors</th>
+                <th class="text-right">Payables</th>
+                <th class="text-right">Receivables</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for s in closed_shipments %}
+              <tr>
+                <td>
+                  <a href="{{ url_for('shipment_detail', id=s.id) }}" class="shipment-link">
+                    {{ s.shipment_number }}
+                  </a>
+                </td>
+                <td class="txn-desc">
+                  {% if s.origin or s.destination %}
+                    {{ s.origin or '—' }} → {{ s.destination or '—' }}
+                  {% else %}—{% endif %}
+                </td>
+                <td class="txn-desc">{{ s.carrier or '—' }}</td>
+                <td><span class="status-badge status-badge--closed">{{ s.status }}</span></td>
+                <td class="txn-date">{{ s.etd or '—' }}</td>
+                <td class="txn-date">{{ s.eta or '—' }}</td>
+                <td class="text-right">{{ s.vendor_count }}</td>
+                <td class="text-right amount-payable">₹{{ "%.2f"|format(s.total_payables) }}</td>
+                <td class="text-right amount-receivable">₹{{ "%.2f"|format(s.total_receivables) }}</td>
+                <td class="txn-actions">
+                  <a href="{{ url_for('shipment_detail', id=s.id) }}" class="txn-btn txn-btn--edit">View</a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
+
       <div class="profile-card">
         <h2 class="profile-card-title">All Shipments</h2>
         {% if shipments %}
@@ -55,7 +112,16 @@
                 {% else %}—{% endif %}
               </td>
               <td class="txn-desc">{{ s.carrier or '—' }}</td>
-              <td><span class="status-badge status-badge--{{ s.status | lower | replace('_', '-') }}">{{ s.status }}</span></td>
+              <td>
+                <span class="status-badge status-badge--{{ s.status | lower | replace('_', '-') }} status-badge--clickable"
+                      data-id="{{ s.id }}"
+                      data-status="{{ s.status }}"
+                      role="button"
+                      tabindex="0"
+                      title="Click to change status">
+                  {{ s.status }}
+                </span>
+              </td>
               <td class="txn-date">{{ s.etd or '—' }}</td>
               <td class="txn-date">{{ s.eta or '—' }}</td>
               <td class="text-right">{{ s.vendor_count }}</td>
@@ -64,7 +130,6 @@
               <td class="txn-actions">
                 <a href="{{ url_for('shipment_detail', id=s.id) }}" class="txn-btn txn-btn--edit">View</a>
                 <a href="{{ url_for('edit_shipment', id=s.id) }}" class="txn-btn txn-btn--edit">Edit</a>
-                <button class="txn-btn txn-btn--delete delete-shipment-btn" data-id="{{ s.id }}">Delete</button>
               </td>
             </tr>
             {% endfor %}
@@ -79,14 +144,21 @@
   </section>
 </div>
 
-<script>
-document.querySelectorAll('.delete-shipment-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    if (!confirm('Delete this shipment and all its vendor assignments? This cannot be undone.')) return;
-    fetch(`/shipments/${btn.dataset.id}/delete`, { method: 'POST' })
-      .then(r => r.json())
-      .then(d => { if (d.ok) location.reload(); });
-  });
-});
-</script>
+<div id="statusDropdown" class="status-dropdown" hidden>
+  <ul class="status-dropdown-list" role="listbox">
+    {% for s in statuses %}{% if s != 'CLOSED' %}
+    <li class="status-dropdown-item" data-value="{{ s }}" role="option">
+      <span class="status-badge status-badge--{{ s | lower | replace('_', '-') }}">{{ s }}</span>
+    </li>
+    {% endif %}{% endfor %}
+    <li class="status-dropdown-divider" role="separator"></li>
+    <li class="status-dropdown-item" data-value="CLOSED" role="option">
+      <span class="status-badge status-badge--closed">CLOSED</span>
+    </li>
+  </ul>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/shipments.js') }}"></script>
 {% endblock %}
