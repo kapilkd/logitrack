@@ -1,0 +1,181 @@
+{% extends "base.html" %} {% block title %}Billing — LogiTrack{% endblock %} {%
+block head %}
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/profile.css') }}"
+/>
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/billing.css') }}"
+/>
+{% endblock %} {% block content %}
+<div class="profile-shell">
+  {% include '_sidebar.html' %}
+
+  <section class="profile-section">
+    <div class="profile-container">
+
+      <!-- Page title -->
+      <h2 class="billing-page-title">Billing</h2>
+
+      <!-- Stats + Filters row -->
+      <div class="billing-top-row">
+
+        <!-- Stat cards: 2x2 grid -->
+        <div class="billing-stats-grid">
+          <div class="stat-card billing-stat-card">
+            <span class="stat-label">Total Payable</span>
+            <span class="stat-value amount-payable">₹{{ "%.2f"|format(stats.total_payable) }}</span>
+          </div>
+          <div class="stat-card billing-stat-card">
+            <span class="stat-label">Total Receivable</span>
+            <span class="stat-value amount-receivable">₹{{ "%.2f"|format(stats.total_receivable) }}</span>
+          </div>
+          <div class="stat-card billing-stat-card">
+            <span class="stat-label">Pending Amount</span>
+            <span class="stat-value">₹{{ "%.2f"|format(stats.pending_amount) }}</span>
+          </div>
+          <div class="stat-card billing-stat-card">
+            <span class="stat-label">Overdue Records</span>
+            <span class="stat-value{% if stats.overdue_count > 0 %} amount-payable{% endif %}">{{ stats.overdue_count }}</span>
+          </div>
+        </div>
+
+        <!-- Filter card -->
+        <div class="billing-filter-card">
+          <form method="get" action="{{ url_for('billing') }}">
+            <div class="billing-filter-group">
+              <label class="billing-filter-label" for="filterPaymentStatus">Payment Status</label>
+              <select class="billing-filter-select" name="payment_status" id="filterPaymentStatus">
+                <option value="">All statuses</option>
+                {% for status in PAYMENT_STATUSES %}
+                <option value="{{ status }}" {% if filters.payment_status == status %}selected{% endif %}>
+                  {{ status | title }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="billing-filter-group">
+              <label class="billing-filter-label" for="filterBillingType">Billing Type</label>
+              <select class="billing-filter-select" name="billing_type" id="filterBillingType">
+                <option value="">All types</option>
+                {% for btype in BILLING_TYPES %}
+                <option value="{{ btype }}" {% if filters.billing_type == btype %}selected{% endif %}>
+                  {{ btype | title }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <button type="submit" class="billing-filter-btn">Apply</button>
+            {% if filters.payment_status or filters.billing_type %}
+            <a href="{{ url_for('billing') }}" class="billing-filter-clear">Clear filters</a>
+            {% endif %}
+          </form>
+        </div>
+
+      </div>
+      <!-- /.billing-top-row -->
+
+      <!-- Shipment billing list -->
+      {% for shipment in shipments %}
+      <div class="billing-shipment-card">
+        <div class="billing-shipment-header">
+          <div class="billing-shipment-meta">
+            <span class="billing-shipment-number">{{ shipment.shipment_number }}</span>
+            {% if shipment.origin or shipment.destination %}
+            <span class="billing-shipment-route">
+              {{ shipment.origin or '—' }} → {{ shipment.destination or '—' }}
+            </span>
+            {% endif %}
+            {% if shipment.shipment_date %}
+            <span class="billing-shipment-date">{{ shipment.shipment_date }}</span>
+            {% endif %}
+          </div>
+          <div class="billing-shipment-summary">
+            <span class="billing-summary-item">
+              <span class="billing-summary-label">Payable</span>
+              <span class="amount-payable">₹{{ "%.2f"|format(shipment.total_payable) }}</span>
+            </span>
+            <span class="billing-summary-sep">·</span>
+            <span class="billing-summary-item">
+              <span class="billing-summary-label">Receivable</span>
+              <span class="amount-receivable">₹{{ "%.2f"|format(shipment.total_receivable) }}</span>
+            </span>
+            <span class="billing-summary-sep">·</span>
+            <span class="billing-summary-item">
+              <span class="billing-summary-label">Vendors</span>
+              <span>{{ shipment.vendor_count }}</span>
+            </span>
+            {% if shipment.overdue_count > 0 %}
+            <span class="payment-badge payment-badge--overdue">{{ shipment.overdue_count }} overdue</span>
+            {% elif shipment.pending_count > 0 %}
+            <span class="payment-badge payment-badge--pending">{{ shipment.pending_count }} pending</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <table class="txn-table billing-vendor-table">
+          <thead>
+            <tr>
+              <th>Vendor</th>
+              <th>Category</th>
+              <th>Role</th>
+              <th>Billing</th>
+              <th class="text-right">Amount</th>
+              <th>Invoice #</th>
+              <th>Due Date</th>
+              <th>Payment</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for v in shipment.vendors %}
+            <tr>
+              <td class="txn-desc">
+                <div>{{ v.vendor_name }}</div>
+                <div class="billing-vendor-code">{{ v.vendor_code }}</div>
+              </td>
+              <td>
+                <span class="category-badge">
+                  {{ v.vendor_category | replace('_', ' ') | title }}
+                </span>
+              </td>
+              <td>
+                <span class="role-badge role-badge--{{ v.relationship_type | lower | replace('_', '-') }}">
+                  {{ v.relationship_type | replace('_', ' ') | title }}
+                </span>
+              </td>
+              <td>
+                <span class="billing-badge billing-badge--{{ v.billing_type | lower }}">
+                  {{ v.billing_type | title }}
+                </span>
+              </td>
+              <td class="txn-amount text-right">
+                {{ v.currency }} {{ "%.2f"|format(v.amount) }}
+              </td>
+              <td class="txn-desc">{{ v.invoice_number or '—' }}</td>
+              <td class="txn-date">{{ v.due_date or '—' }}</td>
+              <td>
+                <span class="payment-badge payment-badge--{{ v.payment_status | lower }}">
+                  {{ v.payment_status | title }}
+                </span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="billing-empty">
+        <p>No billing records found.</p>
+        {% if filters.payment_status or filters.billing_type %}
+        <p><a href="{{ url_for('billing') }}">Clear filters</a> to see all records.</p>
+        {% else %}
+        <p>Assign vendors to shipments to start tracking billing. <a href="{{ url_for('shipments') }}">Go to Shipments</a></p>
+        {% endif %}
+      </div>
+      {% endfor %}
+
+    </div>
+  </section>
+</div>
+{% endblock %}

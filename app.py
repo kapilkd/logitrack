@@ -22,7 +22,7 @@ from database.db import (
     get_shipment_vendor_count, get_total_payables_by_shipment,
     get_total_receivables_by_shipment,
 )
-from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_filtered_vendors
+from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_filtered_vendors, get_billing_stats, get_shipment_billing_list
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
@@ -570,7 +570,25 @@ def vendors():
 def billing():
     if not session.get("user_id"):
         return redirect(url_for("login"))
-    return render_template("placeholder.html", title="Billing")
+    uid = session["user_id"]
+    user = get_user_by_id(uid)
+    if user is None:
+        session.clear()
+        return redirect(url_for("login"))
+    payment_status = request.args.get("payment_status", "").strip() or None
+    billing_type   = request.args.get("billing_type",   "").strip() or None
+    stats     = get_billing_stats(uid)
+    shipments = get_shipment_billing_list(uid, payment_status=payment_status, billing_type=billing_type)
+    filters   = {"payment_status": payment_status or "", "billing_type": billing_type or ""}
+    return render_template(
+        "billing.html",
+        user=user,
+        stats=stats,
+        shipments=shipments,
+        filters=filters,
+        PAYMENT_STATUSES=PAYMENT_STATUSES,
+        BILLING_TYPES=BILLING_TYPES,
+    )
 
 
 @app.route("/emails")

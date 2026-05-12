@@ -3,7 +3,22 @@
     "allow": [
       "Bash(git stash *)",
       "Bash(python -m pytest tests/test_07-add-expense.py tests/test_08-edit-expense.py --tb=line -q)",
-      "Bash(python -m pytest tests/test_07-add-expense.py --tb=line -q)"
+      "Bash(python -m pytest tests/test_07-add-expense.py --tb=line -q)",
+      "Bash(python *)",
+      "Bash(timeout 3)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5001/billing)",
+      "Bash(Start-Sleep -Seconds 2)",
+      "Bash(curl -s -o NUL -w \"%{http_code}\" http://localhost:5001/billing)",
+      "Bash(curl *)",
+      "Bash(pytest *)",
+      "Bash(Get-Process -Name python -ErrorAction SilentlyContinue)",
+      "Bash(Stop-Process -Force)",
+      "Bash(pkill -f \"python app.py\")",
+      "Bash(netstat -ano)",
+      "Bash(taskkill *)",
+      "Bash(cmd /c \"taskkill /F /PID 25164\")",
+      "Bash(cmd /c \"taskkill /F /PID 25076\")",
+      "Bash(cmd /c \"taskkill /F /PID 31408\")"
     ]
   }
 }
