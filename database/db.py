@@ -667,6 +667,7 @@ def get_expenses_by_shipment(shipment_id):
 RELATIONSHIP_TYPES = ('CUSTOMER', 'TRANSPORTER', 'CONSIGNEE', 'CLEARING_AGENT')
 BILLING_TYPES      = ('PAYABLE', 'RECEIVABLE')
 PAYMENT_STATUSES   = ('PENDING', 'PARTIAL', 'PAID', 'OVERDUE')
+CURRENCIES         = ('INR', 'USD', 'EUR', 'GBP', 'AED', 'SGD', 'JPY', 'CNY')
 
 
 def create_shipment_vendor(vendor_id, shipment_id, relationship_type, billing_type,

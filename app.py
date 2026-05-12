@@ -15,7 +15,7 @@ from database.db import (
     create_shipment, get_shipment_by_id, get_shipments_by_user,
     update_shipment, update_shipment_status, get_shipment_by_number,
     get_expenses_by_shipment,
-    RELATIONSHIP_TYPES, BILLING_TYPES, PAYMENT_STATUSES,
+    RELATIONSHIP_TYPES, BILLING_TYPES, PAYMENT_STATUSES, CURRENCIES,
     create_shipment_vendor, get_shipment_vendor_by_id,
     get_vendors_by_shipment, update_shipment_vendor,
     delete_shipment_vendor as db_delete_shipment_vendor,
@@ -452,6 +452,19 @@ def get_vendor_contacts(vendor_id):
     return jsonify(contacts)
 
 
+@app.route("/vendors/<int:vendor_id>/info")
+def vendor_info(vendor_id):
+    if not session.get("user_id"):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+    vendor = get_vendor_row(vendor_id)
+    if vendor is None:
+        abort(404)
+    return jsonify({
+        "vendor_category": vendor["vendor_category"],
+        "currency": vendor["currency"] or "INR",
+    })
+
+
 @app.route("/vendors/<int:vendor_id>/contacts/add", methods=["POST"])
 def add_contact(vendor_id):
     if not session.get("user_id"):
@@ -668,7 +681,7 @@ def shipment_detail(id):
 
     expenses = get_expenses_by_shipment(id)
     vendors = get_vendors_by_shipment(id)
-    all_vendors = get_all_vendors()
+    all_vendors = [v for v in get_all_vendors() if v["status"] == "ACTIVE"]
     total_expenses = sum(e["amount"] for e in expenses)
     payables = get_total_payables_by_shipment(id)
     receivables = get_total_receivables_by_shipment(id)
@@ -686,6 +699,8 @@ def shipment_detail(id):
         relationship_types=RELATIONSHIP_TYPES,
         billing_types=BILLING_TYPES,
         payment_statuses=PAYMENT_STATUSES,
+        currencies=CURRENCIES,
+        today=date.today().isoformat(),
     )
 
 
@@ -893,7 +908,7 @@ def add_shipment_vendor(shipment_id):
     relationship_type = _f("relationship_type")
     billing_type = _f("billing_type")
 
-    if not vendor_id or relationship_type not in RELATIONSHIP_TYPES or billing_type not in BILLING_TYPES:
+    if not vendor_id or not relationship_type or billing_type not in BILLING_TYPES:
         return redirect(url_for("shipment_detail", id=shipment_id))
 
     payment_status = request.form.get("payment_status", "PENDING")
@@ -943,7 +958,7 @@ def edit_shipment_vendor(shipment_id, sv_id):
 
     relationship_type = _f("relationship_type")
     billing_type = _f("billing_type")
-    if relationship_type not in RELATIONSHIP_TYPES or billing_type not in BILLING_TYPES:
+    if not relationship_type or billing_type not in BILLING_TYPES:
         return redirect(url_for("shipment_detail", id=shipment_id))
 
     payment_status = request.form.get("payment_status", "PENDING")

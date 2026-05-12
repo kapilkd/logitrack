@@ -194,7 +194,7 @@
     <form method="POST" action="{{ url_for('add_shipment_vendor', shipment_id=shipment.id) }}">
       <div class="form-group">
         <label>Vendor</label>
-        <select name="vendor_id" required>
+        <select name="vendor_id" id="addVendorId" required>
           <option value="">— Select vendor —</option>
           {% for v in all_vendors %}
           <option value="{{ v.id }}">{{ v.vendor_name }} ({{ v.vendor_code }})</option>
@@ -203,11 +203,8 @@
       </div>
       <div class="form-group">
         <label>Relationship Type</label>
-        <select name="relationship_type" required>
-          {% for r in relationship_types %}
-          <option value="{{ r }}">{{ r }}</option>
-          {% endfor %}
-        </select>
+        <input type="text" id="addSvRelTypeDisplay" placeholder="Auto-filled on vendor selection" readonly />
+        <input type="hidden" name="relationship_type" id="addSvRelTypeHidden" />
       </div>
       <div class="form-group">
         <label>Billing Type</label>
@@ -223,7 +220,11 @@
       </div>
       <div class="form-group">
         <label>Currency</label>
-        <input type="text" name="currency" value="INR" maxlength="3" />
+        <select name="currency">
+          {% for c in currencies %}
+          <option value="{{ c }}" {% if c == 'INR' %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+        </select>
       </div>
       <div class="form-group">
         <label>Invoice Number</label>
@@ -231,11 +232,11 @@
       </div>
       <div class="form-group">
         <label>Invoice Date</label>
-        <input type="date" name="invoice_date" />
+        <input type="date" name="invoice_date" value="{{ today }}" />
       </div>
       <div class="form-group">
         <label>Due Date</label>
-        <input type="date" name="due_date" />
+        <input type="date" name="due_date" value="{{ today }}" />
       </div>
       <div class="form-group">
         <label>Payment Status</label>
@@ -264,11 +265,8 @@
     <form method="POST" id="editVendorForm">
       <div class="form-group">
         <label>Relationship Type</label>
-        <select name="relationship_type" id="editSvRelType" required>
-          {% for r in relationship_types %}
-          <option value="{{ r }}">{{ r }}</option>
-          {% endfor %}
-        </select>
+        <input type="text" id="editSvRelTypeDisplay" readonly />
+        <input type="hidden" name="relationship_type" id="editSvRelType" />
       </div>
       <div class="form-group">
         <label>Billing Type</label>
@@ -284,7 +282,11 @@
       </div>
       <div class="form-group">
         <label>Currency</label>
-        <input type="text" name="currency" id="editSvCurrency" maxlength="3" />
+        <select name="currency" id="editSvCurrency">
+          {% for c in currencies %}
+          <option value="{{ c }}">{{ c }}</option>
+          {% endfor %}
+        </select>
       </div>
       <div class="form-group">
         <label>Invoice Number</label>

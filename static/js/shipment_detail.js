@@ -20,14 +20,32 @@ window.addEventListener('click', e => {
 document.getElementById('openAddVendorModal')?.addEventListener('click', () => openModal('addVendorModal'));
 document.getElementById('closeAddVendorModal')?.addEventListener('click', () => closeModal('addVendorModal'));
 
+document.getElementById('addVendorId')?.addEventListener('change', function () {
+    const display = document.getElementById('addSvRelTypeDisplay');
+    const hidden  = document.getElementById('addSvRelTypeHidden');
+    if (!this.value) {
+        display.value = '';
+        hidden.value  = '';
+        return;
+    }
+    fetch(`/vendors/${this.value}/info`)
+        .then(r => r.json())
+        .then(data => {
+            hidden.value  = data.vendor_category;
+            display.value = data.vendor_category.replace(/_/g, ' ');
+        });
+});
+
 // Edit vendor modal
 document.getElementById('closeEditVendorModal')?.addEventListener('click', () => closeModal('editVendorModal'));
 
 document.querySelectorAll('.edit-sv-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         const svId = btn.dataset.id;
-        document.getElementById('editSvRelType').value       = btn.dataset.relationshipType;
-        document.getElementById('editSvBillingType').value   = btn.dataset.billingType;
+        const relType = btn.dataset.relationshipType;
+        document.getElementById('editSvRelType').value        = relType;
+        document.getElementById('editSvRelTypeDisplay').value = relType.replace(/_/g, ' ');
+        document.getElementById('editSvBillingType').value    = btn.dataset.billingType;
         document.getElementById('editSvAmount').value        = btn.dataset.amount;
         document.getElementById('editSvCurrency').value      = btn.dataset.currency;
         document.getElementById('editSvInvoiceNumber').value = btn.dataset.invoiceNumber;
