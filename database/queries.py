@@ -114,6 +114,8 @@ _VENDOR_CATEGORIES = {
     "INSURANCE_PROVIDER", "SHIPPING_LINE", "AIR_CARRIER", "LOCAL_TRANSPORT",
     "PORT_AGENT", "COURIER_PARTNER", "BILLING_PARTNER", "OTHER",
 }
+_VALID_PAYMENT_STATUSES = {"PENDING", "PARTIAL", "PAID", "OVERDUE"}
+_VALID_BILLING_TYPES = {"PAYABLE", "RECEIVABLE"}
 
 
 def get_filtered_vendors(vendor_type=None, vendor_category=None, vendor_status=None):
@@ -133,3 +135,111 @@ def get_filtered_vendors(vendor_type=None, vendor_category=None, vendor_status=N
     rows = conn.execute(sql, params).fetchall()
     conn.close()
     return rows
+
+
+def get_billing_stats(user_id):
+    conn = get_db()
+    row = conn.execute(
+        """
+        SELECT
+            COALESCE(SUM(CASE WHEN sv.billing_type = 'PAYABLE'
+                              THEN sv.amount ELSE 0 END), 0.0) AS total_payable,
+            COALESCE(SUM(CASE WHEN sv.billing_type = 'RECEIVABLE'
+                              THEN sv.amount ELSE 0 END), 0.0) AS total_receivable,
+            COALESCE(SUM(CASE WHEN sv.payment_status IN ('PENDING', 'PARTIAL', 'OVERDUE')
+                              THEN sv.amount ELSE 0 END), 0.0) AS pending_amount,
+            COUNT(CASE WHEN sv.payment_status = 'OVERDUE' THEN 1 END) AS overdue_count
+        FROM shipment_vendors sv
+        JOIN shipments s ON sv.shipment_id = s.id
+        WHERE s.user_id = ?
+        """,
+        (user_id,),
+    ).fetchone()
+    conn.close()
+    return {
+        "total_payable": row["total_payable"],
+        "total_receivable": row["total_receivable"],
+        "pending_amount": row["pending_amount"],
+        "overdue_count": int(row["overdue_count"]),
+    }
+
+
+def get_shipment_billing_list(user_id, payment_status=None, billing_type=None):
+    sql = """
+        SELECT
+            s.id AS shipment_id, s.shipment_number, s.origin, s.destination,
+            s.status AS shipment_status, s.shipment_date,
+            sv.id AS sv_id, sv.vendor_id, sv.relationship_type, sv.billing_type,
+            sv.amount, sv.currency, sv.invoice_number, sv.invoice_date,
+            sv.due_date, sv.payment_status,
+            v.vendor_name, v.vendor_code, v.vendor_category
+        FROM shipment_vendors sv
+        JOIN shipments s ON sv.shipment_id = s.id
+        JOIN vendors v ON sv.vendor_id = v.id
+        WHERE s.user_id = ?
+    """
+    params = [user_id]
+    if payment_status in _VALID_PAYMENT_STATUSES:
+        sql += " AND sv.payment_status = ?"
+        params.append(payment_status)
+    if billing_type in _VALID_BILLING_TYPES:
+        sql += " AND sv.billing_type = ?"
+        params.append(billing_type)
+    sql += " ORDER BY s.shipment_date DESC, s.id DESC, v.vendor_name ASC"
+
+    conn = get_db()
+    rows = conn.execute(sql, params).fetchall()
+    conn.close()
+
+    shipments_map = {}
+    order = []
+    for row in rows:
+        sid = row["shipment_id"]
+        if sid not in shipments_map:
+            shipments_map[sid] = {
+                "shipment_id": sid,
+                "shipment_number": row["shipment_number"],
+                "origin": row["origin"] or "",
+                "destination": row["destination"] or "",
+                "shipment_status": row["shipment_status"],
+                "shipment_date": row["shipment_date"] or "",
+                "total_payable": 0.0,
+                "total_receivable": 0.0,
+                "_vendor_ids": set(),
+                "vendor_count": 0,
+                "pending_count": 0,
+                "overdue_count": 0,
+                "vendors": [],
+            }
+            order.append(sid)
+        entry = shipments_map[sid]
+        if row["billing_type"] == "PAYABLE":
+            entry["total_payable"] += row["amount"]
+        else:
+            entry["total_receivable"] += row["amount"]
+        if row["payment_status"] in ("PENDING", "PARTIAL", "OVERDUE"):
+            entry["pending_count"] += 1
+        if row["payment_status"] == "OVERDUE":
+            entry["overdue_count"] += 1
+        entry["_vendor_ids"].add(row["vendor_id"])
+        entry["vendors"].append({
+            "sv_id": row["sv_id"],
+            "vendor_name": row["vendor_name"],
+            "vendor_code": row["vendor_code"],
+            "vendor_category": row["vendor_category"],
+            "relationship_type": row["relationship_type"],
+            "billing_type": row["billing_type"],
+            "amount": row["amount"],
+            "currency": row["currency"],
+            "invoice_number": row["invoice_number"] or "",
+            "invoice_date": row["invoice_date"] or "",
+            "due_date": row["due_date"] or "",
+            "payment_status": row["payment_status"],
+        })
+
+    result = []
+    for sid in order:
+        entry = shipments_map[sid]
+        entry["vendor_count"] = len(entry.pop("_vendor_ids"))
+        result.append(entry)
+    return result
