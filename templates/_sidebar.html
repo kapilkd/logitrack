@@ -108,7 +108,7 @@
       </button>
       <div class="sidebar-sub-nav">
         <a href="#" class="sidebar-sub-link">User Management</a>
-        <a href="#" class="sidebar-sub-link">System Settings</a>
+        <a href="{{ url_for('settings_company_profile') }}" class="sidebar-sub-link{% if request.endpoint == 'settings_company_profile' %} sidebar-sub-link--active{% endif %}">System Settings</a>
         <a href="#" class="sidebar-sub-link">Notification Settings</a>
       </div>
     </div>

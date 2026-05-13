@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}Company Profile — LogiTrack{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}" />
+{% endblock %}
+{% block content %}
+<div class="profile-shell">
+  {% include '_sidebar.html' %}
+
+  <section class="profile-section">
+    <div class="profile-container">
+
+      <h2 class="settings-page-title">Company Profile</h2>
+
+      {% if error %}
+      <div class="settings-alert settings-alert--error">{{ error }}</div>
+      {% endif %}
+      {% if success %}
+      <div class="settings-alert settings-alert--success">{{ success }}</div>
+      {% endif %}
+
+      <form method="POST" action="{{ url_for('settings_company_profile') }}">
+
+        <div class="settings-section">
+          <h3 class="settings-section-title">Basic Information</h3>
+          <div class="settings-form-grid">
+            <div class="form-group">
+              <label for="company_name">Company Name <span class="settings-required">*</span></label>
+              <input id="company_name" name="company_name" type="text" class="form-input"
+                value="{{ (form.company_name if form else (profile.company_name if profile else '')) or '' }}"
+                placeholder="Your company name" required>
+            </div>
+            <div class="form-group">
+              <label for="legal_name">Legal Name</label>
+              <input id="legal_name" name="legal_name" type="text" class="form-input"
+                value="{{ (form.legal_name if form else (profile.legal_name if profile else '')) or '' }}"
+                placeholder="Registered legal name">
+            </div>
+            <div class="form-group">
+              <label for="industry">Industry</label>
+              <input id="industry" name="industry" type="text" class="form-input"
+                value="{{ (form.industry if form else (profile.industry if profile else '')) or '' }}"
+                placeholder="e.g. Freight Forwarding, Export">
+            </div>
+            <div class="form-group">
+              <label for="website">Website</label>
+              <input id="website" name="website" type="url" class="form-input"
+                value="{{ (form.website if form else (profile.website if profile else '')) or '' }}"
+                placeholder="https://example.com">
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3 class="settings-section-title">Contact Details</h3>
+          <div class="settings-form-grid">
+            <div class="form-group">
+              <label for="email">Email</label>
+              <input id="email" name="email" type="email" class="form-input"
+                value="{{ (form.email if form else (profile.email if profile else '')) or '' }}"
+                placeholder="contact@company.com">
+            </div>
+            <div class="form-group">
+              <label for="phone">Phone</label>
+              <input id="phone" name="phone" type="text" class="form-input"
+                value="{{ (form.phone if form else (profile.phone if profile else '')) or '' }}"
+                placeholder="+91 00000 00000">
+            </div>
+            <div class="form-group">
+              <label for="address_line1">Address Line 1</label>
+              <input id="address_line1" name="address_line1" type="text" class="form-input"
+                value="{{ (form.address_line1 if form else (profile.address_line1 if profile else '')) or '' }}"
+                placeholder="Street / building">
+            </div>
+            <div class="form-group">
+              <label for="address_line2">Address Line 2</label>
+              <input id="address_line2" name="address_line2" type="text" class="form-input"
+                value="{{ (form.address_line2 if form else (profile.address_line2 if profile else '')) or '' }}"
+                placeholder="Area / locality">
+            </div>
+            <div class="form-group">
+              <label for="city">City</label>
+              <input id="city" name="city" type="text" class="form-input"
+                value="{{ (form.city if form else (profile.city if profile else '')) or '' }}"
+                placeholder="City">
+            </div>
+            <div class="form-group">
+              <label for="state">State</label>
+              <input id="state" name="state" type="text" class="form-input"
+                value="{{ (form.state if form else (profile.state if profile else '')) or '' }}"
+                placeholder="State / province">
+            </div>
+            <div class="form-group">
+              <label for="country">Country</label>
+              <input id="country" name="country" type="text" class="form-input"
+                value="{{ (form.country if form else (profile.country if profile else '')) or '' }}"
+                placeholder="Country">
+            </div>
+            <div class="form-group">
+              <label for="pincode">PIN / ZIP Code</label>
+              <input id="pincode" name="pincode" type="text" class="form-input"
+                value="{{ (form.pincode if form else (profile.pincode if profile else '')) or '' }}"
+                placeholder="000000">
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3 class="settings-section-title">Registration Numbers</h3>
+          <div class="settings-form-grid">
+            <div class="form-group">
+              <label for="gst_number">GST Number</label>
+              <input id="gst_number" name="gst_number" type="text" class="form-input"
+                value="{{ (form.gst_number if form else (profile.gst_number if profile else '')) or '' }}"
+                placeholder="22AAAAA0000A1Z5">
+            </div>
+            <div class="form-group">
+              <label for="pan_number">PAN Number</label>
+              <input id="pan_number" name="pan_number" type="text" class="form-input"
+                value="{{ (form.pan_number if form else (profile.pan_number if profile else '')) or '' }}"
+                placeholder="AAAAA0000A">
+            </div>
+            <div class="form-group">
+              <label for="iec_code">IEC Code</label>
+              <input id="iec_code" name="iec_code" type="text" class="form-input"
+                value="{{ (form.iec_code if form else (profile.iec_code if profile else '')) or '' }}"
+                placeholder="Import Export Code">
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3 class="settings-section-title">Defaults</h3>
+          <div class="settings-form-grid">
+            <div class="form-group">
+              <label for="currency">Default Currency</label>
+              <select id="currency" name="currency" class="form-input">
+                {% for c in currencies %}
+                <option value="{{ c }}" {% if c == ((form.currency if form else (profile.currency if profile else 'INR')) or 'INR') %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="incoterms">Default Incoterms</label>
+              <select id="incoterms" name="incoterms" class="form-input">
+                <option value="">— None —</option>
+                {% for t in incoterms %}
+                <option value="{{ t }}" {% if t == ((form.incoterms if form else (profile.incoterms if profile else '')) or '') %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-form-actions">
+          <button type="submit" class="btn-primary">Save Changes</button>
+        </div>
+
+      </form>
+
+    </div>
+  </section>
+</div>
+{% endblock %}

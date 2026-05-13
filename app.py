@@ -22,6 +22,7 @@ from database.db import (
     get_shipment_vendor_count, get_total_payables_by_shipment,
     get_total_receivables_by_shipment,
     log_alert,
+    get_company_profile, upsert_company_profile,
 )
 from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_filtered_vendors, get_billing_stats, get_shipment_billing_list, get_recent_alerts
 
@@ -652,9 +653,84 @@ def reports():
 
 @app.route("/settings")
 def settings():
+    return redirect(url_for("settings_company_profile"))
+
+
+@app.route("/settings/company-profile", methods=["GET", "POST"])
+def settings_company_profile():
     if not session.get("user_id"):
         return redirect(url_for("login"))
-    return render_template("placeholder.html", title="Settings", active_section="settings")
+    uid = session["user_id"]
+    user = get_user_by_id(uid)
+    if user is None:
+        session.clear()
+        return redirect(url_for("login"))
+
+    if request.method == "GET":
+        profile = get_company_profile(uid)
+        return render_template(
+            "settings_company_profile.html",
+            user=user,
+            profile=profile,
+            currencies=CURRENCIES,
+            incoterms=INCOTERMS,
+            active_section="settings",
+        )
+
+    def _f(key):
+        v = request.form.get(key, "").strip()
+        return v or None
+
+    company_name = (request.form.get("company_name") or "").strip()
+    if not company_name:
+        return render_template(
+            "settings_company_profile.html",
+            user=user,
+            profile=get_company_profile(uid),
+            currencies=CURRENCIES,
+            incoterms=INCOTERMS,
+            active_section="settings",
+            error="Company name is required.",
+            form=request.form,
+        )
+
+    upsert_company_profile(
+        user_id=uid,
+        company_name=company_name,
+        legal_name=_f("legal_name"),
+        industry=_f("industry"),
+        website=_f("website"),
+        email=_f("email"),
+        phone=_f("phone"),
+        address_line1=_f("address_line1"),
+        address_line2=_f("address_line2"),
+        city=_f("city"),
+        state=_f("state"),
+        country=_f("country"),
+        pincode=_f("pincode"),
+        gst_number=_f("gst_number"),
+        pan_number=_f("pan_number"),
+        iec_code=_f("iec_code"),
+        currency=request.form.get("currency", "INR"),
+        incoterms=_f("incoterms"),
+    )
+    log_alert(
+        user_id=uid,
+        entity_type="COMPANY_PROFILE",
+        entity_id=uid,
+        entity_label=company_name,
+        action="UPDATED",
+        description=f"Company profile updated for '{company_name}'",
+    )
+    return render_template(
+        "settings_company_profile.html",
+        user=user,
+        profile=get_company_profile(uid),
+        currencies=CURRENCIES,
+        incoterms=INCOTERMS,
+        active_section="settings",
+        success="Company profile saved.",
+    )
 
 
 EXPENSE_CATEGORIES = [
