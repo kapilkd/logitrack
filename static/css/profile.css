@@ -598,3 +598,83 @@
     background: var(--danger-light);
 }
 
+/* ── Sidebar accordion groups ────────────────────────────── */
+.sidebar-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-group-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    padding: 0.55rem 0.75rem;
+    border: none;
+    background: transparent;
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--ink-muted);
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s, color 0.15s;
+}
+
+.sidebar-group-toggle:hover {
+    background: var(--paper-warm);
+    color: var(--ink);
+}
+
+.sidebar-group.is-open .sidebar-group-toggle {
+    color: var(--ink);
+}
+
+.sidebar-group-label {
+    flex: 1;
+}
+
+.sidebar-toggle-arrow {
+    font-size: 0.75rem;
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+}
+
+.sidebar-group.is-open .sidebar-toggle-arrow {
+    transform: rotate(180deg);
+}
+
+.sidebar-sub-nav {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: max-height 0.25s ease, opacity 0.2s ease;
+}
+
+.sidebar-group.is-open .sidebar-sub-nav {
+    max-height: 500px;
+    opacity: 1;
+}
+
+.sidebar-sub-link {
+    display: block;
+    padding: 0.4rem 0.75rem 0.4rem 2.4rem;
+    font-size: 0.8rem;
+    color: var(--ink-muted);
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+    transition: background 0.15s, color 0.15s;
+}
+
+.sidebar-sub-link:hover {
+    background: var(--paper-warm);
+    color: var(--ink);
+}
+
+.sidebar-sub-link--active {
+    color: var(--accent);
+    font-weight: 500;
+}
+

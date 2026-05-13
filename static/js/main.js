@@ -1,1 +1,6 @@
-// main.js — JS added here as features are built
+// SIDEBAR ACCORDION
+document.querySelectorAll('.sidebar-group-toggle').forEach(toggle => {
+    toggle.addEventListener('click', () => {
+        toggle.closest('.sidebar-group').classList.toggle('is-open');
+    });
+});

@@ -1,37 +1,118 @@
 <aside class="profile-sidebar">
   <nav class="sidebar-nav">
-    <a href="{{ url_for('profile') }}"
-       class="sidebar-link{% if request.endpoint == 'profile' %} sidebar-link--active{% endif %}">
-      <span class="sidebar-icon">▦</span> Overview
-    </a>
-    <a href="{{ url_for('shipments') }}"
-       class="sidebar-link{% if request.endpoint == 'shipments' %} sidebar-link--active{% endif %}">
-      <span class="sidebar-icon">⬡</span> Shipments
-    </a>
-    <a href="{{ url_for('vendors') }}"
-       class="sidebar-link{% if request.endpoint == 'vendors' %} sidebar-link--active{% endif %}">
-      <span class="sidebar-icon">⬡</span> Vendors
-    </a>
-    <a href="{{ url_for('billing') }}"
-       class="sidebar-link{% if request.endpoint == 'billing' %} sidebar-link--active{% endif %}">
-      <span class="sidebar-icon">⬡</span> Billing
-    </a>
-    <a href="{{ url_for('emails') }}"
-       class="sidebar-link{% if request.endpoint == 'emails' %} sidebar-link--active{% endif %}">
-      <span class="sidebar-icon">⬡</span> Emails
-    </a>
-    <a href="{{ url_for('notifications') }}"
-       class="sidebar-link{% if request.endpoint == 'notifications' %} sidebar-link--active{% endif %}">
-      <span class="sidebar-icon">◎</span> Notifications
-    </a>
-    <a href="{{ url_for('reports') }}"
-       class="sidebar-link{% if request.endpoint == 'reports' %} sidebar-link--active{% endif %}">
-      <span class="sidebar-icon">◎</span> Reports
-    </a>
-    <a href="{{ url_for('settings') }}"
-       class="sidebar-link{% if request.endpoint == 'settings' %} sidebar-link--active{% endif %}">
-      <span class="sidebar-icon">⚙</span> Settings
-    </a>
+
+    <div class="sidebar-group{% if active_section == 'overview' %} is-open{% endif %}">
+      <button class="sidebar-group-toggle" type="button">
+        <span class="sidebar-icon">▦</span>
+        <span class="sidebar-group-label">Overview</span>
+        <span class="sidebar-toggle-arrow">▾</span>
+      </button>
+      <div class="sidebar-sub-nav">
+        <a href="{{ url_for('profile') }}"
+           class="sidebar-sub-link{% if request.endpoint == 'profile' %} sidebar-sub-link--active{% endif %}">Dashboard</a>
+        <a href="{{ url_for('profile') }}" class="sidebar-sub-link">Recent Activity</a>
+        <a href="{{ url_for('profile') }}" class="sidebar-sub-link">Quick Summary</a>
+      </div>
+    </div>
+
+    <div class="sidebar-group{% if active_section == 'shipments' %} is-open{% endif %}">
+      <button class="sidebar-group-toggle" type="button">
+        <span class="sidebar-icon">⬡</span>
+        <span class="sidebar-group-label">Shipments</span>
+        <span class="sidebar-toggle-arrow">▾</span>
+      </button>
+      <div class="sidebar-sub-nav">
+        <a href="{{ url_for('shipments') }}"
+           class="sidebar-sub-link{% if request.endpoint == 'shipments' %} sidebar-sub-link--active{% endif %}">All Shipments</a>
+        <a href="{{ url_for('add_shipment') }}"
+           class="sidebar-sub-link{% if request.endpoint == 'add_shipment' %} sidebar-sub-link--active{% endif %}">Create Shipment</a>
+        <a href="#" class="sidebar-sub-link">Tracking &amp; Delivery</a>
+        <a href="#" class="sidebar-sub-link">Shipment Documents</a>
+      </div>
+    </div>
+
+    <div class="sidebar-group{% if active_section == 'vendors' %} is-open{% endif %}">
+      <button class="sidebar-group-toggle" type="button">
+        <span class="sidebar-icon">⬡</span>
+        <span class="sidebar-group-label">Vendors</span>
+        <span class="sidebar-toggle-arrow">▾</span>
+      </button>
+      <div class="sidebar-sub-nav">
+        <a href="{{ url_for('vendors') }}"
+           class="sidebar-sub-link{% if request.endpoint == 'vendors' %} sidebar-sub-link--active{% endif %}">Vendor List</a>
+        <a href="#" class="sidebar-sub-link">Vendor Ledger</a>
+        <a href="#" class="sidebar-sub-link">Vendor Payments</a>
+      </div>
+    </div>
+
+    <div class="sidebar-group{% if active_section == 'billing' %} is-open{% endif %}">
+      <button class="sidebar-group-toggle" type="button">
+        <span class="sidebar-icon">⬡</span>
+        <span class="sidebar-group-label">Billing</span>
+        <span class="sidebar-toggle-arrow">▾</span>
+      </button>
+      <div class="sidebar-sub-nav">
+        <a href="{{ url_for('billing') }}"
+           class="sidebar-sub-link{% if request.endpoint == 'billing' %} sidebar-sub-link--active{% endif %}">Invoices</a>
+        <a href="#" class="sidebar-sub-link">Payables &amp; Receivables</a>
+        <a href="#" class="sidebar-sub-link">Expenses</a>
+      </div>
+    </div>
+
+    <div class="sidebar-group{% if active_section == 'emails' %} is-open{% endif %}">
+      <button class="sidebar-group-toggle" type="button">
+        <span class="sidebar-icon">⬡</span>
+        <span class="sidebar-group-label">Emails</span>
+        <span class="sidebar-toggle-arrow">▾</span>
+      </button>
+      <div class="sidebar-sub-nav">
+        <a href="{{ url_for('emails') }}"
+           class="sidebar-sub-link{% if request.endpoint == 'emails' %} sidebar-sub-link--active{% endif %}">Inbox</a>
+        <a href="#" class="sidebar-sub-link">Shipment Emails</a>
+        <a href="#" class="sidebar-sub-link">Templates</a>
+      </div>
+    </div>
+
+    <div class="sidebar-group{% if active_section == 'notifications' %} is-open{% endif %}">
+      <button class="sidebar-group-toggle" type="button">
+        <span class="sidebar-icon">◎</span>
+        <span class="sidebar-group-label">Notifications</span>
+        <span class="sidebar-toggle-arrow">▾</span>
+      </button>
+      <div class="sidebar-sub-nav">
+        <a href="{{ url_for('notifications') }}"
+           class="sidebar-sub-link{% if request.endpoint == 'notifications' %} sidebar-sub-link--active{% endif %}">Shipment Alerts</a>
+        <a href="#" class="sidebar-sub-link">Payment Alerts</a>
+        <a href="#" class="sidebar-sub-link">System Alerts</a>
+      </div>
+    </div>
+
+    <div class="sidebar-group{% if active_section == 'reports' %} is-open{% endif %}">
+      <button class="sidebar-group-toggle" type="button">
+        <span class="sidebar-icon">◎</span>
+        <span class="sidebar-group-label">Reports</span>
+        <span class="sidebar-toggle-arrow">▾</span>
+      </button>
+      <div class="sidebar-sub-nav">
+        <a href="#" class="sidebar-sub-link">Shipment Reports</a>
+        <a href="#" class="sidebar-sub-link">Financial Reports</a>
+        <a href="#" class="sidebar-sub-link">Vendor Reports</a>
+      </div>
+    </div>
+
+    <div class="sidebar-group{% if active_section == 'settings' %} is-open{% endif %}">
+      <button class="sidebar-group-toggle" type="button">
+        <span class="sidebar-icon">⚙</span>
+        <span class="sidebar-group-label">Settings</span>
+        <span class="sidebar-toggle-arrow">▾</span>
+      </button>
+      <div class="sidebar-sub-nav">
+        <a href="#" class="sidebar-sub-link">User Management</a>
+        <a href="#" class="sidebar-sub-link">System Settings</a>
+        <a href="#" class="sidebar-sub-link">Notification Settings</a>
+      </div>
+    </div>
+
   </nav>
   <div class="sidebar-footer">
     <a href="{{ url_for('logout') }}" class="sidebar-signout">Sign out</a>

@@ -169,6 +169,7 @@ def profile():
         to_date=to_date or "",
         active_preset=active_preset,
         presets=presets,
+        active_section="overview",
     )
 
 
@@ -193,7 +194,7 @@ def shipments():
         (closed_rows if s["status"] == "CLOSED" else active_rows).append(enriched)
     return render_template("shipments.html", user=user,
         shipments=active_rows, closed_shipments=closed_rows,
-        statuses=SHIPMENT_STATUSES)
+        statuses=SHIPMENT_STATUSES, active_section="shipments")
 
 
 @app.route("/expenses/add", methods=["GET", "POST"])
@@ -398,6 +399,8 @@ def edit_vendor(vendor_id):
     vendor = get_vendor_row(vendor_id)
     if vendor is None:
         abort(404)
+    if vendor["user_id"] != uid:
+        abort(403)
 
     vendor_name = request.form.get("vendor_name", "").strip()
     vendor_type = request.form.get("vendor_type", "").strip()
@@ -465,6 +468,8 @@ def get_vendor_contacts(vendor_id):
     vendor = get_vendor_row(vendor_id)
     if vendor is None:
         abort(404)
+    if vendor["user_id"] != session["user_id"]:
+        abort(403)
     contacts = [dict(c) for c in get_contacts_by_vendor(vendor_id)]
     return jsonify(contacts)
 
@@ -476,6 +481,8 @@ def vendor_info(vendor_id):
     vendor = get_vendor_row(vendor_id)
     if vendor is None:
         abort(404)
+    if vendor["user_id"] != session["user_id"]:
+        abort(403)
     return jsonify({
         "vendor_category": vendor["vendor_category"],
         "currency": vendor["currency"] or "INR",
@@ -489,6 +496,8 @@ def add_contact(vendor_id):
     vendor = get_vendor_row(vendor_id)
     if vendor is None:
         abort(404)
+    if vendor["user_id"] != session["user_id"]:
+        abort(403)
     name = request.form.get("name", "").strip()
     if not name:
         return redirect(url_for("vendors"))
@@ -513,6 +522,8 @@ def edit_contact(vendor_id, contact_id):
     vendor = get_vendor_row(vendor_id)
     if vendor is None:
         abort(404)
+    if vendor["user_id"] != session["user_id"]:
+        abort(403)
     contact = get_contact_by_id(contact_id)
     if contact is None or contact["vendor_id"] != vendor_id:
         abort(404)
@@ -540,6 +551,8 @@ def delete_contact_route(vendor_id, contact_id):
     vendor = get_vendor_row(vendor_id)
     if vendor is None:
         abort(404)
+    if vendor["user_id"] != session["user_id"]:
+        abort(403)
     contact = get_contact_by_id(contact_id)
     if contact is None or contact["vendor_id"] != vendor_id:
         abort(404)
@@ -580,6 +593,7 @@ def vendors():
         stats=stats,
         filters=filters,
         next_vendor_code=_next_vendor_code(all_vendors),
+        active_section="vendors",
     )
 
 
@@ -605,6 +619,7 @@ def billing():
         filters=filters,
         PAYMENT_STATUSES=PAYMENT_STATUSES,
         BILLING_TYPES=BILLING_TYPES,
+        active_section="billing",
     )
 
 
@@ -612,7 +627,7 @@ def billing():
 def emails():
     if not session.get("user_id"):
         return redirect(url_for("login"))
-    return render_template("placeholder.html", title="Emails")
+    return render_template("placeholder.html", title="Emails", active_section="emails")
 
 
 @app.route("/notifications")
@@ -625,21 +640,21 @@ def notifications():
         session.clear()
         return redirect(url_for("login"))
     alerts = get_recent_alerts(uid)
-    return render_template("notifications.html", user=user, alerts=alerts)
+    return render_template("notifications.html", user=user, alerts=alerts, active_section="notifications")
 
 
 @app.route("/reports")
 def reports():
     if not session.get("user_id"):
         return redirect(url_for("login"))
-    return render_template("placeholder.html", title="Reports")
+    return render_template("placeholder.html", title="Reports", active_section="reports")
 
 
 @app.route("/settings")
 def settings():
     if not session.get("user_id"):
         return redirect(url_for("login"))
-    return render_template("placeholder.html", title="Settings")
+    return render_template("placeholder.html", title="Settings", active_section="settings")
 
 
 EXPENSE_CATEGORIES = [
@@ -660,6 +675,7 @@ def add_shipment():
             statuses=SHIPMENT_STATUSES,
             incoterms=INCOTERMS,
             today=date.today().isoformat(),
+            active_section="shipments",
         )
 
     def _f(key):
@@ -675,6 +691,7 @@ def add_shipment():
             today=date.today().isoformat(),
             error="Shipment number is required.",
             form=request.form,
+            active_section="shipments",
         )
 
     if get_shipment_by_number(shipment_number):
@@ -685,6 +702,7 @@ def add_shipment():
             today=date.today().isoformat(),
             error="A shipment with that number already exists.",
             form=request.form,
+            active_section="shipments",
         )
 
     status = request.form.get("status", "DRAFT")
@@ -751,6 +769,7 @@ def shipment_detail(id):
         payment_statuses=PAYMENT_STATUSES,
         currencies=CURRENCIES,
         today=date.today().isoformat(),
+        active_section="shipments",
     )
 
 
@@ -771,6 +790,7 @@ def edit_shipment(id):
             shipment=shipment,
             statuses=SHIPMENT_STATUSES,
             incoterms=INCOTERMS,
+            active_section="shipments",
         )
 
     def _f(key):
@@ -785,6 +805,7 @@ def edit_shipment(id):
             statuses=SHIPMENT_STATUSES,
             incoterms=INCOTERMS,
             error="Shipment number is required.",
+            active_section="shipments",
         )
 
     existing = get_shipment_by_number(shipment_number)
@@ -795,6 +816,7 @@ def edit_shipment(id):
             statuses=SHIPMENT_STATUSES,
             incoterms=INCOTERMS,
             error="A shipment with that number already exists.",
+            active_section="shipments",
         )
 
     status = request.form.get("status", shipment["status"])
