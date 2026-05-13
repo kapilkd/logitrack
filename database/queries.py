@@ -243,3 +243,29 @@ def get_shipment_billing_list(user_id, payment_status=None, billing_type=None):
         entry["vendor_count"] = len(entry.pop("_vendor_ids"))
         result.append(entry)
     return result
+
+
+def get_recent_alerts(user_id, limit=50):
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT id, entity_type, entity_id, entity_label, action, description, created_at"
+        " FROM system_alerts WHERE user_id = ? ORDER BY created_at DESC LIMIT ?",
+        (user_id, limit),
+    ).fetchall()
+    conn.close()
+    result = []
+    for row in rows:
+        try:
+            formatted = datetime.strptime(row["created_at"][:16], "%Y-%m-%d %H:%M").strftime("%d %b %Y, %H:%M")
+        except (ValueError, TypeError):
+            formatted = row["created_at"] or ""
+        result.append({
+            "id": row["id"],
+            "entity_type": row["entity_type"],
+            "entity_id": row["entity_id"],
+            "entity_label": row["entity_label"] or "",
+            "action": row["action"],
+            "description": row["description"] or "",
+            "created_at": formatted,
+        })
+    return result

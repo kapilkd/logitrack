@@ -18,7 +18,8 @@
       "Bash(taskkill *)",
       "Bash(cmd /c \"taskkill /F /PID 25164\")",
       "Bash(cmd /c \"taskkill /F /PID 25076\")",
-      "Bash(cmd /c \"taskkill /F /PID 31408\")"
+      "Bash(cmd /c \"taskkill /F /PID 31408\")",
+      "Bash(not exist *)"
     ]
   }
 }
