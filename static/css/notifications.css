@@ -1,0 +1,160 @@
+/* ── Page title ────────────────────────────────────────────────────── */
+.notif-page-title {
+    font-family: var(--font-body);
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--ink);
+    margin: 0 0 0.75rem;
+}
+
+/* ── Alert feed container ──────────────────────────────────────────── */
+.notif-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    background: var(--paper-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+/* ── Individual alert row ──────────────────────────────────────────── */
+.notif-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid var(--border-soft);
+    flex-wrap: wrap;
+}
+
+.notif-item:last-child {
+    border-bottom: none;
+}
+
+.notif-item:hover {
+    background: var(--paper-warm);
+}
+
+/* ── Badge cluster ─────────────────────────────────────────────────── */
+.notif-badges {
+    display: flex;
+    gap: 0.35rem;
+    flex-shrink: 0;
+}
+
+/* ── Entity type badge ─────────────────────────────────────────────── */
+.notif-badge {
+    display: inline-block;
+    padding: 0.18rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: var(--border-soft);
+    color: var(--ink-muted);
+    white-space: nowrap;
+}
+
+.notif-badge--shipment {
+    background: var(--accent-light);
+    color: var(--accent);
+}
+
+.notif-badge--vendor {
+    background: var(--accent-2-light);
+    color: var(--accent-2);
+}
+
+.notif-badge--billing {
+    background: var(--paper-warm);
+    color: var(--ink-soft);
+    border: 1px solid var(--border);
+}
+
+/* ── Action badge ──────────────────────────────────────────────────── */
+.notif-action {
+    display: inline-block;
+    padding: 0.18rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    background: var(--border-soft);
+    color: var(--ink-muted);
+}
+
+.notif-action--created {
+    background: var(--accent-light);
+    color: var(--accent);
+}
+
+.notif-action--updated {
+    background: var(--accent-2-light);
+    color: var(--accent-2);
+}
+
+.notif-action--deleted {
+    background: var(--danger-light);
+    color: var(--danger);
+}
+
+.notif-action--status-changed {
+    background: var(--border-soft);
+    color: var(--ink-soft);
+    border: 1px solid var(--border);
+}
+
+/* ── Body (description) ────────────────────────────────────────────── */
+.notif-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.notif-desc {
+    font-size: 0.875rem;
+    color: var(--ink-soft);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+}
+
+/* ── Meta (label + timestamp) ──────────────────────────────────────── */
+.notif-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.1rem;
+    flex-shrink: 0;
+}
+
+.notif-label {
+    font-size: 0.75rem;
+    color: var(--ink-muted);
+    font-weight: 500;
+}
+
+.notif-time {
+    font-size: 0.72rem;
+    color: var(--ink-faint);
+    white-space: nowrap;
+}
+
+/* ── Empty state ───────────────────────────────────────────────────── */
+.notif-empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--ink-muted);
+    background: var(--paper-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+}
+
+.notif-empty p {
+    margin: 0.4rem 0;
+    font-size: 0.9rem;
+}

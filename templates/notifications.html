@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Notifications — LogiTrack{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/notifications.css') }}" />
+{% endblock %}
+{% block content %}
+<div class="profile-shell">
+  {% include '_sidebar.html' %}
+
+  <section class="profile-section">
+    <div class="profile-container">
+
+      <h2 class="notif-page-title">Notifications</h2>
+
+      {% if alerts %}
+      <div class="notif-feed">
+        {% for alert in alerts %}
+        <div class="notif-item">
+          <div class="notif-badges">
+            <span class="notif-badge notif-badge--{{ alert.entity_type | lower }}">
+              {{ alert.entity_type }}
+            </span>
+            <span class="notif-action notif-action--{{ alert.action | lower | replace('_', '-') }}">
+              {{ alert.action | replace('_', ' ') }}
+            </span>
+          </div>
+          <div class="notif-body">
+            <span class="notif-desc">{{ alert.description if alert.description else alert.entity_label }}</span>
+          </div>
+          <div class="notif-meta">
+            <span class="notif-label">{{ alert.entity_label }}</span>
+            <span class="notif-time">{{ alert.created_at }}</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="notif-empty">
+        <p>No system alerts yet.</p>
+        <p>Actions like creating shipments, updating vendors, or modifying billing entries will appear here.</p>
+      </div>
+      {% endif %}
+
+    </div>
+  </section>
+</div>
+{% endblock %}

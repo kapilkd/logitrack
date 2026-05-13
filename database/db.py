@@ -117,6 +117,17 @@ def init_db(path=None):
             payment_status    TEXT    NOT NULL DEFAULT 'PENDING',
             notes             TEXT
         );
+
+        CREATE TABLE IF NOT EXISTS system_alerts (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id      INTEGER NOT NULL REFERENCES users(id),
+            entity_type  TEXT    NOT NULL,
+            entity_id    INTEGER,
+            entity_label TEXT,
+            action       TEXT    NOT NULL,
+            description  TEXT,
+            created_at   TEXT    DEFAULT (datetime('now'))
+        );
     """)
     conn.commit()
     try:
@@ -778,3 +789,18 @@ def get_total_receivables_by_shipment(shipment_id):
     ).fetchone()[0]
     conn.close()
     return float(total)
+
+
+def log_alert(user_id, entity_type, entity_id, entity_label, action, description=None):
+    try:
+        conn = get_db()
+        conn.execute(
+            "INSERT INTO system_alerts"
+            " (user_id, entity_type, entity_id, entity_label, action, description)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (user_id, entity_type, entity_id, entity_label, action, description),
+        )
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass

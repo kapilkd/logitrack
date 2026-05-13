@@ -21,8 +21,9 @@ from database.db import (
     delete_shipment_vendor as db_delete_shipment_vendor,
     get_shipment_vendor_count, get_total_payables_by_shipment,
     get_total_receivables_by_shipment,
+    log_alert,
 )
-from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_filtered_vendors, get_billing_stats, get_shipment_billing_list
+from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_filtered_vendors, get_billing_stats, get_shipment_billing_list, get_recent_alerts
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
@@ -374,6 +375,14 @@ def add_vendor():
             notes=_f("notes"),
             created_by=uid,
         )
+        log_alert(
+            user_id=uid,
+            entity_type="VENDOR",
+            entity_id=None,
+            entity_label=vendor_name,
+            action="CREATED",
+            description=f"Vendor '{vendor_name}' created",
+        )
     except Exception:
         pass
 
@@ -437,6 +446,14 @@ def edit_vendor(vendor_id):
         payment_terms_days=_num("payment_terms_days", int, 0),
         notes=_f("notes"),
         updated_by=uid,
+    )
+    log_alert(
+        user_id=uid,
+        entity_type="VENDOR",
+        entity_id=vendor_id,
+        entity_label=vendor_name,
+        action="UPDATED",
+        description=f"Vendor '{vendor_name}' updated",
     )
     return redirect(url_for("vendors"))
 
@@ -602,7 +619,13 @@ def emails():
 def notifications():
     if not session.get("user_id"):
         return redirect(url_for("login"))
-    return render_template("placeholder.html", title="Notifications")
+    uid = session["user_id"]
+    user = get_user_by_id(uid)
+    if user is None:
+        session.clear()
+        return redirect(url_for("login"))
+    alerts = get_recent_alerts(uid)
+    return render_template("notifications.html", user=user, alerts=alerts)
 
 
 @app.route("/reports")
@@ -682,6 +705,15 @@ def add_shipment():
         port_of_discharge=_f("port_of_discharge"),
         incoterms=_f("incoterms"),
         description=_f("description"),
+    )
+    _new_ship = get_shipment_by_number(shipment_number)
+    log_alert(
+        user_id=session["user_id"],
+        entity_type="SHIPMENT",
+        entity_id=_new_ship["id"] if _new_ship else None,
+        entity_label=shipment_number,
+        action="CREATED",
+        description=f"Shipment {shipment_number} created",
     )
     return redirect(url_for("shipments"))
 
@@ -784,6 +816,14 @@ def edit_shipment(id):
         incoterms=_f("incoterms"),
         description=_f("description"),
     )
+    log_alert(
+        user_id=session["user_id"],
+        entity_type="SHIPMENT",
+        entity_id=id,
+        entity_label=shipment_number,
+        action="UPDATED",
+        description=f"Shipment {shipment_number} updated",
+    )
     return redirect(url_for("shipment_detail", id=id))
 
 
@@ -801,6 +841,14 @@ def update_shipment_status_route(id):
     if new_status not in SHIPMENT_STATUSES:
         return jsonify({"ok": False, "error": "Invalid status"}), 400
     update_shipment_status(id, new_status)
+    log_alert(
+        user_id=session["user_id"],
+        entity_type="SHIPMENT",
+        entity_id=id,
+        entity_label=shipment["shipment_number"],
+        action="STATUS_CHANGED",
+        description=f"Shipment {shipment['shipment_number']} status changed to {new_status}",
+    )
     return jsonify({"ok": True, "status": new_status})
 
 
@@ -946,6 +994,16 @@ def add_shipment_vendor(shipment_id):
         payment_status=payment_status,
         notes=_f("notes"),
     )
+    _sv_vendor = get_vendor_row(vendor_id)
+    _sv_vendor_name = _sv_vendor["vendor_name"] if _sv_vendor else str(vendor_id)
+    log_alert(
+        user_id=session["user_id"],
+        entity_type="BILLING",
+        entity_id=None,
+        entity_label=f"{_sv_vendor_name} / {shipment['shipment_number']}",
+        action="CREATED",
+        description=f"Billing entry created: {_sv_vendor_name} on {shipment['shipment_number']}",
+    )
     return redirect(url_for("shipment_detail", id=shipment_id))
 
 
@@ -995,6 +1053,16 @@ def edit_shipment_vendor(shipment_id, sv_id):
         payment_status=payment_status,
         notes=_f("notes"),
     )
+    _sv_vendor = get_vendor_row(sv["vendor_id"])
+    _sv_vendor_name = _sv_vendor["vendor_name"] if _sv_vendor else str(sv["vendor_id"])
+    log_alert(
+        user_id=session["user_id"],
+        entity_type="BILLING",
+        entity_id=sv_id,
+        entity_label=f"{_sv_vendor_name} / {shipment['shipment_number']}",
+        action="UPDATED",
+        description=f"Billing entry updated: {_sv_vendor_name} on {shipment['shipment_number']}",
+    )
     return redirect(url_for("shipment_detail", id=shipment_id))
 
 
@@ -1014,6 +1082,14 @@ def delete_shipment_vendor_route(shipment_id, sv_id):
         abort(404)
 
     db_delete_shipment_vendor(sv_id)
+    log_alert(
+        user_id=session["user_id"],
+        entity_type="BILLING",
+        entity_id=None,
+        entity_label=f"Billing entry on {shipment['shipment_number']}",
+        action="DELETED",
+        description=f"Billing entry deleted on shipment {shipment['shipment_number']}",
+    )
     return jsonify({"ok": True})
 
 
