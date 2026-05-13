@@ -128,6 +128,30 @@ def init_db(path=None):
             description  TEXT,
             created_at   TEXT    DEFAULT (datetime('now'))
         );
+
+        CREATE TABLE IF NOT EXISTS company_profiles (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id        INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+            company_name   TEXT,
+            legal_name     TEXT,
+            industry       TEXT,
+            website        TEXT,
+            email          TEXT,
+            phone          TEXT,
+            address_line1  TEXT,
+            address_line2  TEXT,
+            city           TEXT,
+            state          TEXT,
+            country        TEXT,
+            pincode        TEXT,
+            gst_number     TEXT,
+            pan_number     TEXT,
+            iec_code       TEXT,
+            currency       TEXT    NOT NULL DEFAULT 'INR',
+            incoterms      TEXT,
+            created_at     TEXT    DEFAULT (datetime('now')),
+            updated_at     TEXT
+        );
     """)
     conn.commit()
     try:
@@ -804,3 +828,45 @@ def log_alert(user_id, entity_type, entity_id, entity_label, action, description
         conn.close()
     except Exception:
         pass
+
+
+def get_company_profile(user_id):
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM company_profiles WHERE user_id = ?", (user_id,)
+    ).fetchone()
+    conn.close()
+    return row
+
+
+def upsert_company_profile(user_id, company_name, legal_name=None, industry=None,
+                           website=None, email=None, phone=None, address_line1=None,
+                           address_line2=None, city=None, state=None, country=None,
+                           pincode=None, gst_number=None, pan_number=None, iec_code=None,
+                           currency="INR", incoterms=None):
+    conn = get_db()
+    existing = conn.execute(
+        "SELECT id FROM company_profiles WHERE user_id = ?", (user_id,)
+    ).fetchone()
+    if existing:
+        conn.execute(
+            "UPDATE company_profiles SET company_name=?, legal_name=?, industry=?,"
+            " website=?, email=?, phone=?, address_line1=?, address_line2=?, city=?,"
+            " state=?, country=?, pincode=?, gst_number=?, pan_number=?, iec_code=?,"
+            " currency=?, incoterms=?, updated_at=datetime('now') WHERE user_id=?",
+            (company_name, legal_name, industry, website, email, phone,
+             address_line1, address_line2, city, state, country, pincode,
+             gst_number, pan_number, iec_code, currency, incoterms, user_id),
+        )
+    else:
+        conn.execute(
+            "INSERT INTO company_profiles (user_id, company_name, legal_name, industry,"
+            " website, email, phone, address_line1, address_line2, city, state, country,"
+            " pincode, gst_number, pan_number, iec_code, currency, incoterms)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (user_id, company_name, legal_name, industry, website, email, phone,
+             address_line1, address_line2, city, state, country, pincode,
+             gst_number, pan_number, iec_code, currency, incoterms),
+        )
+    conn.commit()
+    conn.close()
