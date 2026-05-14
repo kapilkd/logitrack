@@ -20,7 +20,31 @@
       <div class="settings-alert settings-alert--success">{{ success }}</div>
       {% endif %}
 
-      <form method="POST" action="{{ url_for('settings_company_profile') }}">
+      <form method="POST" action="{{ url_for('settings_company_profile') }}" enctype="multipart/form-data">
+
+        <div class="settings-section">
+          <h3 class="settings-section-title">Company Branding</h3>
+          <div class="settings-logo-row">
+            <div class="settings-logo-preview-wrap">
+              {% if profile and profile.logo_path %}
+              <img id="logo-preview" class="settings-logo-img" src="{{ url_for('static', filename=profile.logo_path) }}" alt="Company logo">
+              {% else %}
+              <div id="logo-preview" class="settings-logo-placeholder">
+                <span>No logo</span>
+              </div>
+              {% endif %}
+            </div>
+            <div class="settings-logo-controls">
+              <label class="settings-logo-label" for="company_logo">
+                <span class="btn-secondary-sm">Choose logo</span>
+                <input id="company_logo" name="company_logo" type="file"
+                  accept=".png,.jpg,.jpeg,.gif,.webp,.svg" class="settings-logo-file-input"
+                  onchange="previewLogo(this)">
+              </label>
+              <p class="settings-logo-hint">PNG, JPG, GIF, WebP or SVG · shown on invoices and documents</p>
+            </div>
+          </div>
+        </div>
 
         <div class="settings-section">
           <h3 class="settings-section-title">Basic Information</h3>
@@ -153,6 +177,16 @@
           </div>
         </div>
 
+        <div class="settings-section">
+          <h3 class="settings-section-title">Billing Terms &amp; Conditions</h3>
+          <div class="form-group settings-full-width">
+            <label for="billing_terms">Terms &amp; Conditions for Billing</label>
+            <textarea id="billing_terms" name="billing_terms" class="form-input settings-textarea"
+              placeholder="Enter your standard billing terms, payment conditions, disclaimers, etc.">{{ (form.billing_terms if form else (profile.billing_terms if profile else '')) or '' }}</textarea>
+            <p class="settings-field-hint">Printed on invoices and billing documents sent to clients.</p>
+          </div>
+        </div>
+
         <div class="settings-form-actions">
           <button type="submit" class="btn-primary">Save Changes</button>
         </div>
@@ -162,4 +196,26 @@
     </div>
   </section>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+function previewLogo(input) {
+  if (!input.files || !input.files[0]) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var el = document.getElementById('logo-preview');
+    if (el.tagName === 'IMG') {
+      el.src = e.target.result;
+    } else {
+      var img = document.createElement('img');
+      img.id = 'logo-preview';
+      img.className = 'settings-logo-img';
+      img.alt = 'Company logo';
+      img.src = e.target.result;
+      el.parentNode.replaceChild(img, el);
+    }
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+</script>
 {% endblock %}

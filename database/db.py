@@ -149,6 +149,8 @@ def init_db(path=None):
             iec_code       TEXT,
             currency       TEXT    NOT NULL DEFAULT 'INR',
             incoterms      TEXT,
+            logo_path      TEXT,
+            billing_terms  TEXT,
             created_at     TEXT    DEFAULT (datetime('now')),
             updated_at     TEXT
         );
@@ -159,6 +161,16 @@ def init_db(path=None):
             "ALTER TABLE expenses ADD COLUMN"
             " shipment_id INTEGER REFERENCES shipments(id) ON DELETE SET NULL"
         )
+        conn.commit()
+    except Exception:
+        pass
+    try:
+        conn.execute("ALTER TABLE company_profiles ADD COLUMN logo_path TEXT")
+        conn.commit()
+    except Exception:
+        pass
+    try:
+        conn.execute("ALTER TABLE company_profiles ADD COLUMN billing_terms TEXT")
         conn.commit()
     except Exception:
         pass
@@ -843,7 +855,8 @@ def upsert_company_profile(user_id, company_name, legal_name=None, industry=None
                            website=None, email=None, phone=None, address_line1=None,
                            address_line2=None, city=None, state=None, country=None,
                            pincode=None, gst_number=None, pan_number=None, iec_code=None,
-                           currency="INR", incoterms=None):
+                           currency="INR", incoterms=None, logo_path=None,
+                           billing_terms=None):
     conn = get_db()
     existing = conn.execute(
         "SELECT id FROM company_profiles WHERE user_id = ?", (user_id,)
@@ -853,20 +866,24 @@ def upsert_company_profile(user_id, company_name, legal_name=None, industry=None
             "UPDATE company_profiles SET company_name=?, legal_name=?, industry=?,"
             " website=?, email=?, phone=?, address_line1=?, address_line2=?, city=?,"
             " state=?, country=?, pincode=?, gst_number=?, pan_number=?, iec_code=?,"
-            " currency=?, incoterms=?, updated_at=datetime('now') WHERE user_id=?",
+            " currency=?, incoterms=?, logo_path=?, billing_terms=?,"
+            " updated_at=datetime('now') WHERE user_id=?",
             (company_name, legal_name, industry, website, email, phone,
              address_line1, address_line2, city, state, country, pincode,
-             gst_number, pan_number, iec_code, currency, incoterms, user_id),
+             gst_number, pan_number, iec_code, currency, incoterms,
+             logo_path, billing_terms, user_id),
         )
     else:
         conn.execute(
             "INSERT INTO company_profiles (user_id, company_name, legal_name, industry,"
             " website, email, phone, address_line1, address_line2, city, state, country,"
-            " pincode, gst_number, pan_number, iec_code, currency, incoterms)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            " pincode, gst_number, pan_number, iec_code, currency, incoterms,"
+            " logo_path, billing_terms)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (user_id, company_name, legal_name, industry, website, email, phone,
              address_line1, address_line2, city, state, country, pincode,
-             gst_number, pan_number, iec_code, currency, incoterms),
+             gst_number, pan_number, iec_code, currency, incoterms,
+             logo_path, billing_terms),
         )
     conn.commit()
     conn.close()

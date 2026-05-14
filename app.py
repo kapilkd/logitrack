@@ -29,6 +29,10 @@ from database.queries import get_user_by_id, get_summary_stats, get_recent_trans
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
 
+_LOGO_UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "static", "uploads", "logos")
+os.makedirs(_LOGO_UPLOAD_FOLDER, exist_ok=True)
+_ALLOWED_LOGO_EXT = {"png", "jpg", "jpeg", "gif", "webp", "svg"}
+
 with app.app_context():
     init_db()
     seed_db()
@@ -694,6 +698,27 @@ def settings_company_profile():
             form=request.form,
         )
 
+    # Handle logo upload — keep existing path when no new file is submitted
+    existing_profile = get_company_profile(uid)
+    logo_path = existing_profile["logo_path"] if existing_profile else None
+    logo_file = request.files.get("company_logo")
+    if logo_file and logo_file.filename:
+        ext = logo_file.filename.rsplit(".", 1)[-1].lower() if "." in logo_file.filename else ""
+        if ext not in _ALLOWED_LOGO_EXT:
+            return render_template(
+                "settings_company_profile.html",
+                user=user,
+                profile=existing_profile,
+                currencies=CURRENCIES,
+                incoterms=INCOTERMS,
+                active_section="settings",
+                error="Logo must be a PNG, JPG, GIF, WebP, or SVG file.",
+                form=request.form,
+            )
+        filename = f"logo_{uid}.{ext}"
+        logo_file.save(os.path.join(_LOGO_UPLOAD_FOLDER, filename))
+        logo_path = f"uploads/logos/{filename}"
+
     upsert_company_profile(
         user_id=uid,
         company_name=company_name,
@@ -713,6 +738,8 @@ def settings_company_profile():
         iec_code=_f("iec_code"),
         currency=request.form.get("currency", "INR"),
         incoterms=_f("incoterms"),
+        logo_path=logo_path,
+        billing_terms=_f("billing_terms"),
     )
     log_alert(
         user_id=uid,
