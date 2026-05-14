@@ -307,6 +307,27 @@
     white-space: nowrap;
 }
 
+/* ── Print bill button ─────────────────────────────────────────────────── */
+.billing-print-btn {
+    display: inline-block;
+    padding: 3px 10px;
+    background: var(--accent-light);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    margin-left: 0.5rem;
+    transition: background 0.15s, color 0.15s;
+}
+
+.billing-print-btn:hover {
+    background: var(--accent);
+    color: #fff;
+}
+
 /* ── Empty state ───────────────────────────────────────────────────────── */
 .billing-empty {
     text-align: center;

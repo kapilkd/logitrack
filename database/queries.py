@@ -245,6 +245,28 @@ def get_shipment_billing_list(user_id, payment_status=None, billing_type=None):
     return result
 
 
+def get_shipment_bill_vendors(shipment_id):
+    conn = get_db()
+    rows = conn.execute(
+        """
+        SELECT sv.id AS sv_id, sv.relationship_type, sv.billing_type, sv.amount, sv.currency,
+               sv.invoice_number, sv.invoice_date, sv.due_date, sv.payment_status, sv.notes,
+               v.vendor_name, v.vendor_code, v.vendor_category, v.vendor_type,
+               v.company_name, v.owner_name, v.email AS vendor_email, v.phone AS vendor_phone,
+               v.address_line1, v.address_line2, v.city, v.state, v.country, v.pincode,
+               v.gst_number, v.pan_number, v.iec_code,
+               v.bank_name, v.account_number, v.ifsc_code, v.upi_id
+        FROM shipment_vendors sv
+        JOIN vendors v ON sv.vendor_id = v.id
+        WHERE sv.shipment_id = ?
+        ORDER BY v.vendor_name ASC
+        """,
+        (shipment_id,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
 def get_recent_alerts(user_id, limit=50):
     conn = get_db()
     rows = conn.execute(
