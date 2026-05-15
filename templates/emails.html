@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Inbox — LogiTrack{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/emails.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="emails-shell">
+  {% include '_sidebar.html' %}
+
+  <div class="emails-main">
+
+    {% for category, message in flashes %}
+    <div class="flash-banner {{ category }}">{{ message }}</div>
+    {% endfor %}
+
+    <div class="emails-header">
+      <h1 class="emails-title">Inbox</h1>
+      <div class="emails-actions">
+        {% if gmail_account %}
+        <a href="{{ url_for('emails_sync') }}" class="btn btn-secondary btn-sm">
+          ↻ Sync Inbox
+        </a>
+        {% endif %}
+        <a href="{{ url_for('gmail_settings') }}" class="btn btn-secondary btn-sm">
+          ⚙ Gmail Settings
+        </a>
+      </div>
+    </div>
+
+    {% if not gmail_account %}
+    <div class="no-account-banner">
+      <span class="banner-icon">✉</span>
+      <div>
+        <p><strong>Gmail not connected.</strong> Connect your Gmail account to sync your inbox and send emails directly from LogiTrack.</p>
+        <a href="{{ url_for('gmail_settings') }}" class="btn btn-primary btn-sm">Connect Gmail</a>
+      </div>
+    </div>
+    {% else %}
+
+    <div class="emails-body">
+
+      <!-- Email list -->
+      <div class="email-list-card">
+        <div class="card-header">
+          All Emails
+          <span class="email-count-badge">{{ email_list | length }}</span>
+        </div>
+
+        {% if email_list %}
+          {% for em in email_list %}
+          <a href="{{ url_for('email_detail', email_id=em['id']) }}" class="email-item {% if em['direction'] == 'OUTBOUND' %}outbound{% endif %}">
+            <div>
+              <div class="email-sender">
+                {% if em['direction'] == 'OUTBOUND' %}
+                  To: {{ em['to_email'] or '—' }}
+                {% else %}
+                  {{ em['from_name'] or em['from_email'] or '(unknown sender)' }}
+                {% endif %}
+              </div>
+              <div class="email-subject">{{ em['subject'] or '(no subject)' }}</div>
+              <div class="email-snippet">{{ em['snippet'] or '' }}</div>
+            </div>
+            <div class="email-meta">
+              <span class="email-date">
+                {{ (em['received_at'] or em['sent_at'] or em['synced_at'] or '')[:10] }}
+              </span>
+              <span class="direction-badge {{ em['direction'] | lower }}">
+                {{ em['direction'] | lower }}
+              </span>
+            </div>
+          </a>
+          {% endfor %}
+        {% else %}
+          <div class="email-empty">
+            <p>No emails yet.</p>
+            <p>Click <strong>Sync Inbox</strong> to fetch your latest Gmail messages.</p>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Compose form -->
+      <div class="compose-card">
+        <div class="card-header">Compose Email</div>
+        <form class="compose-form" method="POST" action="{{ url_for('emails_send') }}">
+          <div class="compose-field">
+            <label for="compose-to">To</label>
+            <input
+              id="compose-to"
+              type="email"
+              name="to"
+              list="vendor-emails"
+              placeholder="recipient@example.com"
+              required
+            >
+            <datalist id="vendor-emails">
+              {% for contact in contact_emails %}
+              <option value="{{ contact['email'] }}">{{ contact['name'] }} — {{ contact['vendor_name'] }}</option>
+              {% endfor %}
+            </datalist>
+          </div>
+          <div class="compose-field">
+            <label for="compose-subject">Subject</label>
+            <input id="compose-subject" type="text" name="subject" placeholder="Email subject" required>
+          </div>
+          <div class="compose-field">
+            <label for="compose-body">Body</label>
+            <textarea id="compose-body" name="body" placeholder="Write your message…" required></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary">Send Email</button>
+        </form>
+      </div>
+
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/emails.js') }}"></script>
+{% endblock %}

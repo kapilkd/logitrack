@@ -154,6 +154,66 @@ def init_db(path=None):
             created_at     TEXT    DEFAULT (datetime('now')),
             updated_at     TEXT
         );
+
+        CREATE TABLE IF NOT EXISTS gmail_accounts (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id             INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+            gmail_email         TEXT    NOT NULL,
+            google_account_id   TEXT,
+            access_token        TEXT    NOT NULL,
+            refresh_token       TEXT    NOT NULL,
+            token_expiry        TEXT,
+            scope               TEXT,
+            is_connected        INTEGER DEFAULT 1,
+            created_at          TEXT    DEFAULT (datetime('now')),
+            updated_at          TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS emails (
+            id                INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id           INTEGER NOT NULL REFERENCES users(id),
+            gmail_message_id  TEXT    NOT NULL UNIQUE,
+            gmail_thread_id   TEXT,
+            direction         TEXT    NOT NULL,
+            from_email        TEXT,
+            from_name         TEXT,
+            to_email          TEXT,
+            to_name           TEXT,
+            cc                TEXT,
+            bcc               TEXT,
+            subject           TEXT,
+            body_plain        TEXT,
+            body_html         TEXT,
+            snippet           TEXT,
+            status            TEXT    DEFAULT 'RECEIVED',
+            label_names       TEXT,
+            has_attachments   INTEGER DEFAULT 0,
+            received_at       TEXT,
+            sent_at           TEXT,
+            synced_at         TEXT    DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS email_attachments (
+            id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+            email_id             INTEGER NOT NULL REFERENCES emails(id) ON DELETE CASCADE,
+            filename             TEXT,
+            mime_type            TEXT,
+            gmail_attachment_id  TEXT,
+            file_path            TEXT,
+            created_at           TEXT    DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS email_ai_processing (
+            id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+            email_id           INTEGER NOT NULL REFERENCES emails(id) ON DELETE CASCADE,
+            ai_summary         TEXT,
+            detected_category  TEXT,
+            extracted_entities TEXT,
+            shipment_reference TEXT,
+            invoice_reference  TEXT,
+            processing_status  TEXT    DEFAULT 'PENDING',
+            created_at         TEXT    DEFAULT (datetime('now'))
+        );
     """)
     conn.commit()
     try:
@@ -846,6 +906,193 @@ def get_company_profile(user_id):
     conn = get_db()
     row = conn.execute(
         "SELECT * FROM company_profiles WHERE user_id = ?", (user_id,)
+    ).fetchone()
+    conn.close()
+    return row
+
+
+def get_all_contact_emails_by_user(user_id):
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT vc.email, vc.name, v.vendor_name"
+        " FROM vendor_contacts vc"
+        " JOIN vendors v ON vc.vendor_id = v.id"
+        " WHERE v.user_id = ? AND vc.email IS NOT NULL AND vc.email != ''"
+        " ORDER BY vc.name ASC",
+        (user_id,),
+    ).fetchall()
+    conn.close()
+    return rows
+
+
+# ------------------------------------------------------------------ #
+# Gmail account CRUD                                                  #
+# ------------------------------------------------------------------ #
+
+def upsert_gmail_account(user_id, gmail_email, google_account_id,
+                          access_token_enc, refresh_token_enc,
+                          token_expiry=None, scope=None):
+    conn = get_db()
+    existing = conn.execute(
+        "SELECT id FROM gmail_accounts WHERE user_id = ?", (user_id,)
+    ).fetchone()
+    if existing:
+        conn.execute(
+            "UPDATE gmail_accounts SET gmail_email=?, google_account_id=?,"
+            " access_token=?, refresh_token=?, token_expiry=?, scope=?,"
+            " is_connected=1, updated_at=datetime('now') WHERE user_id=?",
+            (gmail_email, google_account_id, access_token_enc, refresh_token_enc,
+             token_expiry, scope, user_id),
+        )
+    else:
+        conn.execute(
+            "INSERT INTO gmail_accounts"
+            " (user_id, gmail_email, google_account_id, access_token, refresh_token,"
+            "  token_expiry, scope, is_connected)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, 1)",
+            (user_id, gmail_email, google_account_id, access_token_enc,
+             refresh_token_enc, token_expiry, scope),
+        )
+    conn.commit()
+    conn.close()
+
+
+def get_gmail_account(user_id):
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM gmail_accounts WHERE user_id = ? AND is_connected = 1",
+        (user_id,),
+    ).fetchone()
+    conn.close()
+    return row
+
+
+def delete_gmail_account(user_id):
+    conn = get_db()
+    conn.execute("DELETE FROM gmail_accounts WHERE user_id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+
+
+# ------------------------------------------------------------------ #
+# Email CRUD                                                          #
+# ------------------------------------------------------------------ #
+
+def save_email(user_id, gmail_message_id, gmail_thread_id=None,
+               direction="INBOUND", from_email=None, from_name=None,
+               to_email=None, to_name=None, cc=None, bcc=None,
+               subject=None, body_plain=None, body_html=None,
+               snippet=None, status="RECEIVED", label_names=None,
+               has_attachments=0, received_at=None, sent_at=None):
+    conn = get_db()
+    cursor = conn.execute(
+        "INSERT OR IGNORE INTO emails"
+        " (user_id, gmail_message_id, gmail_thread_id, direction,"
+        "  from_email, from_name, to_email, to_name, cc, bcc,"
+        "  subject, body_plain, body_html, snippet, status,"
+        "  label_names, has_attachments, received_at, sent_at)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (user_id, gmail_message_id, gmail_thread_id, direction,
+         from_email, from_name, to_email, to_name, cc, bcc,
+         subject, body_plain, body_html, snippet, status,
+         label_names, has_attachments, received_at, sent_at),
+    )
+    conn.commit()
+    email_id = cursor.lastrowid if cursor.rowcount > 0 else None
+    conn.close()
+    return email_id
+
+
+def get_emails_by_user(user_id, limit=50, direction=None):
+    conn = get_db()
+    if direction:
+        rows = conn.execute(
+            "SELECT * FROM emails WHERE user_id = ? AND direction = ?"
+            " ORDER BY COALESCE(received_at, sent_at, synced_at) DESC LIMIT ?",
+            (user_id, direction, limit),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM emails WHERE user_id = ?"
+            " ORDER BY COALESCE(received_at, sent_at, synced_at) DESC LIMIT ?",
+            (user_id, limit),
+        ).fetchall()
+    conn.close()
+    return rows
+
+
+def get_email_by_id(email_id):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM emails WHERE id = ?", (email_id,)).fetchone()
+    conn.close()
+    return row
+
+
+def get_email_by_gmail_id(gmail_message_id):
+    conn = get_db()
+    row = conn.execute(
+        "SELECT id FROM emails WHERE gmail_message_id = ?", (gmail_message_id,)
+    ).fetchone()
+    conn.close()
+    return row
+
+
+def get_emails_by_thread(gmail_thread_id, user_id):
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM emails WHERE gmail_thread_id = ? AND user_id = ?"
+        " ORDER BY COALESCE(received_at, sent_at, synced_at) ASC",
+        (gmail_thread_id, user_id),
+    ).fetchall()
+    conn.close()
+    return rows
+
+
+def save_email_attachment(email_id, filename=None, mime_type=None,
+                           gmail_attachment_id=None, file_path=None):
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO email_attachments"
+        " (email_id, filename, mime_type, gmail_attachment_id, file_path)"
+        " VALUES (?, ?, ?, ?, ?)",
+        (email_id, filename, mime_type, gmail_attachment_id, file_path),
+    )
+    conn.commit()
+    conn.close()
+
+
+def upsert_ai_processing(email_id, ai_summary=None, detected_category=None,
+                          extracted_entities=None, shipment_reference=None,
+                          invoice_reference=None, processing_status="DONE"):
+    conn = get_db()
+    existing = conn.execute(
+        "SELECT id FROM email_ai_processing WHERE email_id = ?", (email_id,)
+    ).fetchone()
+    if existing:
+        conn.execute(
+            "UPDATE email_ai_processing SET ai_summary=?, detected_category=?,"
+            " extracted_entities=?, shipment_reference=?, invoice_reference=?,"
+            " processing_status=? WHERE email_id=?",
+            (ai_summary, detected_category, extracted_entities,
+             shipment_reference, invoice_reference, processing_status, email_id),
+        )
+    else:
+        conn.execute(
+            "INSERT INTO email_ai_processing"
+            " (email_id, ai_summary, detected_category, extracted_entities,"
+            "  shipment_reference, invoice_reference, processing_status)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (email_id, ai_summary, detected_category, extracted_entities,
+             shipment_reference, invoice_reference, processing_status),
+        )
+    conn.commit()
+    conn.close()
+
+
+def get_ai_processing(email_id):
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM email_ai_processing WHERE email_id = ?", (email_id,)
     ).fetchone()
     conn.close()
     return row
