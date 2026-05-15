@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}{{ email['subject'] or '(no subject)' }} — LogiTrack{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/emails.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="email-detail-shell">
+  {% include '_sidebar.html' %}
+
+  <div class="email-detail-main">
+
+    {% for category, message in flashes %}
+    <div class="flash-banner {{ category }}">{{ message }}</div>
+    {% endfor %}
+
+    <a href="{{ url_for('emails') }}" class="email-detail-back">← Back to Inbox</a>
+
+    <div class="email-detail-grid">
+
+      <!-- Left: email content -->
+      <div>
+        <div class="email-card">
+          <div class="email-card-header">
+            <h2 class="email-card-subject">{{ email['subject'] or '(no subject)' }}</h2>
+            <div class="email-meta-row">
+              <strong>From:</strong>
+              {{ email['from_name'] or '' }} &lt;{{ email['from_email'] or '—' }}&gt;
+            </div>
+            <div class="email-meta-row">
+              <strong>To:</strong> {{ email['to_email'] or '—' }}
+              {% if email['cc'] %}
+              &nbsp;· <strong>CC:</strong> {{ email['cc'] }}
+              {% endif %}
+            </div>
+            <div class="email-meta-row">
+              <strong>Date:</strong>
+              {{ (email['received_at'] or email['sent_at'] or email['synced_at'] or '')[:19] | replace('T', ' ') }}
+              &nbsp;·
+              <span class="direction-badge {{ email['direction'] | lower }}">{{ email['direction'] | lower }}</span>
+            </div>
+          </div>
+          <div class="email-card-body">
+            <pre class="email-body-text">{{ email['body_plain'] or '(no plain text body)' }}</pre>
+          </div>
+        </div>
+
+        {% if thread | length > 1 %}
+        <div style="margin-top:1.25rem;">
+          <h3 style="font-size:0.9375rem;font-weight:600;margin:0 0 0.75rem;color:var(--text-secondary,#555);">
+            Thread ({{ thread | length }} messages)
+          </h3>
+          {% for t in thread %}
+          {% if t['id'] != email['id'] %}
+          <div class="email-card" style="margin-bottom:0.75rem;opacity:0.85;">
+            <div class="email-card-header" style="padding:0.75rem 1.25rem;">
+              <div class="email-meta-row" style="margin:0;">
+                <strong>{{ t['from_name'] or t['from_email'] or 'Unknown' }}</strong>
+                &nbsp;·&nbsp;
+                {{ (t['received_at'] or t['sent_at'] or '')[:10] }}
+                &nbsp;·&nbsp;
+                <span class="direction-badge {{ t['direction'] | lower }}">{{ t['direction'] | lower }}</span>
+              </div>
+            </div>
+            <div class="email-card-body" style="padding:0.75rem 1.25rem;">
+              <pre class="email-body-text" style="max-height:120px;overflow:hidden;">{{ (t['body_plain'] or '')[:400] }}{% if (t['body_plain'] or '') | length > 400 %}…{% endif %}</pre>
+            </div>
+          </div>
+          {% endif %}
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Right panel -->
+      <div class="email-right-panel">
+
+        <!-- AI analysis card -->
+        <div class="ai-card">
+          <div class="ai-card-header">
+            <span class="ai-card-title">
+              <span class="ai-icon">✦</span> AI Analysis
+            </span>
+            <button
+              id="process-btn"
+              class="btn btn-primary btn-sm"
+              onclick="processEmail({{ email['id'] }})"
+              {% if not ai_result or ai_result['processing_status'] == 'FAILED' %}
+              {% else %}disabled{% endif %}
+            >
+              {% if ai_result and ai_result['processing_status'] == 'DONE' %}Re-process{% else %}Process with AI{% endif %}
+            </button>
+          </div>
+          <div class="ai-card-body">
+            <div class="ai-spinner" id="ai-spinner"></div>
+
+            {% if ai_result and ai_result['processing_status'] == 'DONE' %}
+            <div id="ai-result-panel">
+              <p class="ai-result-summary">{{ ai_result['ai_summary'] or '' }}</p>
+              {% if ai_result['detected_category'] %}
+              <span class="ai-category-badge {{ ai_result['detected_category'] }}">
+                {{ ai_result['detected_category'] | replace('_', ' ') }}
+              </span>
+              {% endif %}
+              <div class="ai-refs">
+                {% if ai_result['shipment_reference'] %}
+                <div class="ai-ref-row">
+                  <span class="ai-ref-label">Shipment:</span>
+                  <span class="ai-ref-value">{{ ai_result['shipment_reference'] }}</span>
+                </div>
+                {% endif %}
+                {% if ai_result['invoice_reference'] %}
+                <div class="ai-ref-row">
+                  <span class="ai-ref-label">Invoice:</span>
+                  <span class="ai-ref-value">{{ ai_result['invoice_reference'] }}</span>
+                </div>
+                {% endif %}
+              </div>
+            </div>
+            {% else %}
+            <div class="ai-placeholder" id="ai-result-panel">
+              Click <strong>Process with AI</strong> to extract logistics insights from this email.
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Reply compose card -->
+        {% if gmail_account %}
+        <div class="reply-card">
+          <div class="reply-card-header">Reply</div>
+          <form class="reply-form" method="POST" action="{{ url_for('emails_send') }}">
+            <input type="hidden" name="to" value="{{ email['from_email'] or '' }}">
+            <input type="hidden" name="subject" value="Re: {{ email['subject'] or '' }}">
+            {% if email['gmail_thread_id'] %}
+            <input type="hidden" name="reply_thread_id" value="{{ email['gmail_thread_id'] }}">
+            {% endif %}
+
+            <div class="compose-field">
+              <label>To</label>
+              <input type="text" value="{{ email['from_email'] or '' }}" disabled style="opacity:0.65;">
+            </div>
+            <div class="compose-field">
+              <label for="reply-body">Body</label>
+              <textarea id="reply-body" name="body" placeholder="Write your reply…" required></textarea>
+            </div>
+            <div class="reply-ai-row">
+              <button type="submit" class="btn btn-primary btn-sm">Send Reply</button>
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                id="generate-reply-btn"
+                onclick="generateReply({{ email['id'] }})"
+              >✦ Generate with AI</button>
+            </div>
+            <div id="reply-spinner" class="ai-loading" style="display:none;">
+              <div class="ai-spinner" style="display:block;"></div>
+              Generating reply…
+            </div>
+          </form>
+        </div>
+        {% else %}
+        <div class="reply-card">
+          <div class="reply-card-header">Reply</div>
+          <div style="padding:1rem 1.25rem;font-size:0.875rem;color:var(--text-secondary,#6b7280);">
+            <a href="{{ url_for('gmail_settings') }}">Connect Gmail</a> to send replies.
+          </div>
+        </div>
+        {% endif %}
+
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const EMAIL_ID = {{ email['id'] }};
+</script>
+<script src="{{ url_for('static', filename='js/emails.js') }}"></script>
+{% endblock %}

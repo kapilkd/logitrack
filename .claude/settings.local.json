@@ -19,7 +19,9 @@
       "Bash(cmd /c \"taskkill /F /PID 25164\")",
       "Bash(cmd /c \"taskkill /F /PID 25076\")",
       "Bash(cmd /c \"taskkill /F /PID 31408\")",
-      "Bash(not exist *)"
+      "Bash(not exist *)",
+      "Bash(Get-ChildItem *)",
+      "PowerShell(Get-ChildItem -Path \"D:\\\\claude\\\\logitrack\" -File | Where-Object {$_.Name -match \"\\(credentials|token|oauth|google\\)\" } | Select-Object Name; if \\($?\\) { Write-Output \"Checked directory\" } else { Write-Output \"No matching files found\" })"
     ]
   }
 }

@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Gmail Integration — LogiTrack{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/emails.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="settings-shell">
+  {% include '_sidebar.html' %}
+
+  <div class="settings-main">
+
+    {% for category, message in flashes %}
+    <div class="flash-banner {{ category }}">{{ message }}</div>
+    {% endfor %}
+
+    <div class="emails-header" style="margin-bottom:1.5rem;">
+      <h1 class="emails-title">Gmail Integration</h1>
+    </div>
+
+    <!-- Connection status -->
+    <div class="settings-card">
+      <h2>Account Connection</h2>
+
+      {% if account %}
+      <div class="connection-status connected">
+        <span class="status-dot online"></span>
+        <span class="status-label">Connected</span>
+        <span class="status-email">{{ account['gmail_email'] }}</span>
+      </div>
+      <form method="POST" action="{{ url_for('gmail_disconnect') }}" style="margin-top:0.75rem;"
+            onsubmit="return confirm('Disconnect Gmail account {{ account['gmail_email'] }}?')">
+        <button type="submit" class="btn btn-danger btn-sm">Disconnect Gmail</button>
+      </form>
+      {% else %}
+      <div class="connection-status disconnected">
+        <span class="status-dot offline"></span>
+        <span class="status-label">Not connected</span>
+      </div>
+
+      <!-- Prerequisite checks -->
+      <div style="margin: 1rem 0;">
+        <div class="prereq-check {% if has_creds_file %}ok{% else %}fail{% endif %}">
+          <span class="check-icon">{% if has_creds_file %}✔{% else %}✗{% endif %}</span>
+          <span>
+            <strong>credentials.json</strong> —
+            {% if has_creds_file %}found{% else %}not found (place it at the project root){% endif %}
+          </span>
+        </div>
+        <div class="prereq-check {% if has_token_key %}ok{% else %}fail{% endif %}">
+          <span class="check-icon">{% if has_token_key %}✔{% else %}✗{% endif %}</span>
+          <span>
+            <strong>GMAIL_TOKEN_KEY</strong> env var —
+            {% if has_token_key %}set{% else %}not set{% endif %}
+          </span>
+        </div>
+      </div>
+
+      {% if has_creds_file and has_token_key %}
+      <a href="{{ url_for('gmail_connect') }}" class="btn btn-primary">Connect Gmail Account</a>
+      {% else %}
+      <button class="btn btn-primary" disabled>Connect Gmail Account</button>
+      <p style="font-size:0.8125rem;color:var(--text-secondary,#6b7280);margin:0.5rem 0 0;">
+        Complete the setup steps below before connecting.
+      </p>
+      {% endif %}
+      {% endif %}
+    </div>
+
+    <!-- Setup instructions -->
+    {% if not account %}
+    <div class="settings-card">
+      <h2>Google Cloud Setup</h2>
+      <ol class="setup-steps">
+        <li>Go to <strong>console.cloud.google.com</strong> → Create a new project named <em>logitrack</em>.</li>
+        <li>Navigate to <strong>APIs &amp; Services → Library</strong> → search for <strong>Gmail API</strong> → Enable.</li>
+        <li>Go to <strong>APIs &amp; Services → OAuth consent screen</strong> → External → fill in App Name and your support email → Save.</li>
+        <li>Go to <strong>APIs &amp; Services → Credentials</strong> → Create Credentials → <strong>OAuth 2.0 Client ID</strong> → Application type: <strong>Web application</strong>.</li>
+        <li>Under <em>Authorised redirect URIs</em>, add: <code>http://localhost:5001/auth/gmail/callback</code></li>
+        <li>Click <strong>Download JSON</strong>, rename the file to <code>credentials.json</code>, and place it in the project root directory (same folder as <code>app.py</code>).</li>
+        <li>Generate a Fernet encryption key by running in Python:
+          <br><code>from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())</code>
+        </li>
+        <li>Set the env var in your shell before starting the server:
+          <br><code>set GMAIL_TOKEN_KEY=&lt;your-key&gt;</code> (Windows CMD)
+          <br>or <code>$env:GMAIL_TOKEN_KEY="&lt;your-key&gt;"</code> (PowerShell)
+        </li>
+        <li>Restart the server, then click <strong>Connect Gmail Account</strong> above.</li>
+      </ol>
+    </div>
+
+    <div class="settings-card">
+      <h2>AI Processing Setup</h2>
+      <p style="font-size:0.875rem;color:var(--text-secondary,#555);margin:0 0 0.75rem;">
+        Email AI analysis (summarisation, entity extraction, reply generation) uses the Claude API.
+      </p>
+      <ol class="setup-steps">
+        <li>Get your API key from <strong>console.anthropic.com</strong>.</li>
+        <li>Set the env var:
+          <br><code>set ANTHROPIC_API_KEY=&lt;your-key&gt;</code> (Windows CMD)
+          <br>or <code>$env:ANTHROPIC_API_KEY="&lt;your-key&gt;"</code> (PowerShell)
+        </li>
+        <li>Restart the server. AI features on the email detail page will then be active.</li>
+      </ol>
+    </div>
+    {% endif %}
+
+    {% if account %}
+    <div class="settings-card">
+      <h2>Usage</h2>
+      <ul class="setup-steps">
+        <li>Go to <a href="{{ url_for('emails') }}">Inbox</a> and click <strong>Sync Inbox</strong> to fetch your latest Gmail messages.</li>
+        <li>Click any email to view its full content and run AI analysis.</li>
+        <li>Use the <strong>Compose Email</strong> panel to send emails — vendor contacts are pre-filled in the To field.</li>
+        <li>On the email detail page, click <strong>Process with AI</strong> to extract shipment references, invoice numbers, and a summary.</li>
+        <li>Click <strong>Generate Reply</strong> to get a Claude-written reply suggestion.</li>
+      </ul>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/emails.js') }}"></script>
+{% endblock %}

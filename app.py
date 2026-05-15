@@ -1,8 +1,9 @@
 import math
 import os
 import re
-from datetime import date, timedelta
-from flask import Flask, abort, jsonify, redirect, render_template, request, session, url_for
+import secrets
+from datetime import date, datetime, timedelta
+from flask import Flask, abort, flash, get_flashed_messages, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 from database.db import (
     get_db, init_db, seed_db, get_user_by_email, create_user,
@@ -23,8 +24,20 @@ from database.db import (
     get_total_receivables_by_shipment,
     log_alert,
     get_company_profile, upsert_company_profile,
+    get_all_contact_emails_by_user,
+    upsert_gmail_account, get_gmail_account, delete_gmail_account,
+    save_email, get_emails_by_user, get_email_by_id,
+    get_emails_by_thread, upsert_ai_processing, get_ai_processing,
 )
 from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_filtered_vendors, get_billing_stats, get_shipment_billing_list, get_recent_alerts, get_shipment_bill_vendors
+from gmail_utils import (
+    GMAIL_AVAILABLE, SCOPES, credentials_file_exists,
+    encrypt_token, decrypt_token, sync_inbox, send_gmail, parse_message,
+)
+from ai_utils import ANTHROPIC_AVAILABLE, process_email_with_claude, generate_reply_with_claude
+
+# Allow OAuth over HTTP in development
+os.environ.setdefault("OAUTHLIB_INSECURE_TRANSPORT", "1")
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
@@ -659,7 +672,321 @@ def shipment_bill_print(id):
 def emails():
     if not session.get("user_id"):
         return redirect(url_for("login"))
-    return render_template("placeholder.html", title="Emails", active_section="emails")
+    uid = session["user_id"]
+    user = get_user_by_id(uid)
+    if user is None:
+        session.clear()
+        return redirect(url_for("login"))
+    gmail_account = get_gmail_account(uid)
+    email_list = get_emails_by_user(uid, limit=50) if gmail_account else []
+    contact_emails = get_all_contact_emails_by_user(uid)
+    flashes = get_flashed_messages(with_categories=True)
+    return render_template(
+        "emails.html",
+        user=user,
+        gmail_account=gmail_account,
+        email_list=email_list,
+        contact_emails=contact_emails,
+        flashes=flashes,
+        active_section="emails",
+    )
+
+
+@app.route("/emails/sync")
+def emails_sync():
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    uid = session["user_id"]
+    account = get_gmail_account(uid)
+    if not account:
+        flash("Connect your Gmail account first.", "error")
+        return redirect(url_for("emails"))
+    try:
+        count = sync_inbox(uid, account)
+        flash(f"Synced {count} new email(s).", "success")
+    except Exception as exc:
+        flash(f"Sync failed: {exc}", "error")
+    return redirect(url_for("emails"))
+
+
+@app.route("/emails/send", methods=["POST"])
+def emails_send():
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    uid = session["user_id"]
+    user = get_user_by_id(uid)
+    if user is None:
+        session.clear()
+        return redirect(url_for("login"))
+    account = get_gmail_account(uid)
+    if not account:
+        flash("Connect your Gmail account first.", "error")
+        return redirect(url_for("emails"))
+
+    to = request.form.get("to", "").strip()
+    subject = request.form.get("subject", "").strip()
+    body = request.form.get("body", "").strip()
+    reply_thread_id = request.form.get("reply_thread_id") or None
+
+    if not to or not subject or not body:
+        flash("To, Subject, and Body are all required.", "error")
+        return redirect(url_for("emails"))
+
+    try:
+        sent = send_gmail(account, to=to, subject=subject, body=body,
+                          reply_to_thread_id=reply_thread_id)
+        now = datetime.utcnow().isoformat()
+        save_email(
+            user_id=uid,
+            gmail_message_id=sent.get("id", f"sent-{secrets.token_hex(8)}"),
+            gmail_thread_id=sent.get("threadId"),
+            direction="OUTBOUND",
+            from_email=account["gmail_email"],
+            to_email=to,
+            subject=subject,
+            body_plain=body,
+            status="SENT",
+            sent_at=now,
+        )
+        log_alert(uid, "EMAIL", None, subject, "SENT", f"Email sent to {to}")
+        flash(f"Email sent to {to}.", "success")
+    except Exception as exc:
+        flash(f"Failed to send email: {exc}", "error")
+    return redirect(url_for("emails"))
+
+
+@app.route("/emails/<int:email_id>")
+def email_detail(email_id):
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    uid = session["user_id"]
+    user = get_user_by_id(uid)
+    if user is None:
+        session.clear()
+        return redirect(url_for("login"))
+    email = get_email_by_id(email_id)
+    if email is None:
+        abort(404)
+    if email["user_id"] != uid:
+        abort(403)
+    ai_result = get_ai_processing(email_id)
+    thread = []
+    if email["gmail_thread_id"]:
+        thread = get_emails_by_thread(email["gmail_thread_id"], uid)
+    account = get_gmail_account(uid)
+    flashes = get_flashed_messages(with_categories=True)
+    return render_template(
+        "email_detail.html",
+        user=user,
+        email=email,
+        ai_result=ai_result,
+        thread=thread,
+        gmail_account=account,
+        flashes=flashes,
+        active_section="emails",
+    )
+
+
+@app.route("/emails/<int:email_id>/process", methods=["POST"])
+def email_process(email_id):
+    if not session.get("user_id"):
+        return jsonify({"ok": False, "error": "Not logged in"}), 401
+    uid = session["user_id"]
+    email = get_email_by_id(email_id)
+    if email is None:
+        return jsonify({"ok": False, "error": "Not found"}), 404
+    if email["user_id"] != uid:
+        return jsonify({"ok": False, "error": "Forbidden"}), 403
+    if not ANTHROPIC_AVAILABLE:
+        return jsonify({"ok": False, "error": "Anthropic package not installed"}), 500
+
+    result = process_email_with_claude(email)
+    if result.get("processing_status") == "FAILED":
+        upsert_ai_processing(email_id, processing_status="FAILED")
+        return jsonify({"ok": False, "error": result.get("error", "Processing failed")}), 500
+
+    upsert_ai_processing(
+        email_id=email_id,
+        ai_summary=result.get("summary"),
+        detected_category=result.get("detected_category"),
+        extracted_entities=result.get("extracted_entities"),
+        shipment_reference=result.get("shipment_reference"),
+        invoice_reference=result.get("invoice_reference"),
+        processing_status="DONE",
+    )
+    return jsonify({
+        "ok": True,
+        "summary": result.get("summary"),
+        "detected_category": result.get("detected_category"),
+        "extracted_entities": result.get("extracted_entities"),
+        "shipment_reference": result.get("shipment_reference"),
+        "invoice_reference": result.get("invoice_reference"),
+    })
+
+
+@app.route("/emails/<int:email_id>/auto-reply", methods=["POST"])
+def email_auto_reply(email_id):
+    if not session.get("user_id"):
+        return jsonify({"ok": False, "error": "Not logged in"}), 401
+    uid = session["user_id"]
+    email = get_email_by_id(email_id)
+    if email is None:
+        return jsonify({"ok": False, "error": "Not found"}), 404
+    if email["user_id"] != uid:
+        return jsonify({"ok": False, "error": "Forbidden"}), 403
+    if not ANTHROPIC_AVAILABLE:
+        return jsonify({"ok": False, "error": "Anthropic package not installed"}), 500
+
+    tone = request.form.get("tone", "professional")
+    thread = [email]
+    if email["gmail_thread_id"]:
+        thread = get_emails_by_thread(email["gmail_thread_id"], uid) or [email]
+
+    try:
+        reply_text = generate_reply_with_claude(list(reversed(thread)), tone=tone)
+        return jsonify({"ok": True, "reply_text": reply_text})
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+
+# ------------------------------------------------------------------ #
+# Gmail OAuth routes                                                  #
+# ------------------------------------------------------------------ #
+
+@app.route("/settings/gmail")
+def gmail_settings():
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    uid = session["user_id"]
+    user = get_user_by_id(uid)
+    if user is None:
+        session.clear()
+        return redirect(url_for("login"))
+    account = get_gmail_account(uid)
+    has_creds_file = credentials_file_exists()
+    has_token_key = bool(os.environ.get("GMAIL_TOKEN_KEY", "").strip())
+    flashes = get_flashed_messages(with_categories=True)
+    return render_template(
+        "settings_gmail.html",
+        user=user,
+        account=account,
+        has_creds_file=has_creds_file,
+        has_token_key=has_token_key,
+        flashes=flashes,
+        active_section="settings",
+    )
+
+
+@app.route("/auth/gmail/connect")
+def gmail_connect():
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    if not GMAIL_AVAILABLE:
+        flash("Google API packages are not installed. Run: pip install -r requirements.txt", "error")
+        return redirect(url_for("gmail_settings"))
+    if not credentials_file_exists():
+        flash("credentials.json not found. Download it from Google Cloud Console.", "error")
+        return redirect(url_for("gmail_settings"))
+    if not os.environ.get("GMAIL_TOKEN_KEY", "").strip():
+        flash("GMAIL_TOKEN_KEY environment variable is not set.", "error")
+        return redirect(url_for("gmail_settings"))
+
+    try:
+        from google_auth_oauthlib.flow import Flow
+        flow = Flow.from_client_secrets_file(
+            "credentials.json",
+            scopes=SCOPES,
+            redirect_uri=url_for("gmail_callback", _external=True),
+        )
+        state = secrets.token_urlsafe(32)
+        session["gmail_oauth_state"] = state
+        auth_url, _ = flow.authorization_url(
+            access_type="offline",
+            state=state,
+            prompt="consent",
+            include_granted_scopes="true",
+        )
+        return redirect(auth_url)
+    except Exception as exc:
+        flash(f"OAuth error: {exc}", "error")
+        return redirect(url_for("gmail_settings"))
+
+
+@app.route("/auth/gmail/callback")
+def gmail_callback():
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    stored_state = session.pop("gmail_oauth_state", None)
+    incoming_state = request.args.get("state")
+    if not stored_state or stored_state != incoming_state:
+        flash("OAuth state mismatch. Please try connecting again.", "error")
+        return redirect(url_for("gmail_settings"))
+
+    error = request.args.get("error")
+    if error:
+        flash(f"Google denied access: {error}", "error")
+        return redirect(url_for("gmail_settings"))
+
+    try:
+        from google_auth_oauthlib.flow import Flow
+        flow = Flow.from_client_secrets_file(
+            "credentials.json",
+            scopes=SCOPES,
+            state=stored_state,
+            redirect_uri=url_for("gmail_callback", _external=True),
+        )
+        flow.fetch_token(authorization_response=request.url)
+        creds = flow.credentials
+
+        uid = session["user_id"]
+        gmail_email = None
+        try:
+            from googleapiclient.discovery import build as _build
+            svc = _build("oauth2", "v2", credentials=creds)
+            info = svc.userinfo().get().execute()
+            gmail_email = info.get("email")
+        except Exception:
+            gmail_email = creds.client_id  # fallback
+
+        upsert_gmail_account(
+            user_id=uid,
+            gmail_email=gmail_email or "",
+            google_account_id=gmail_email,
+            access_token_enc=encrypt_token(creds.token),
+            refresh_token_enc=encrypt_token(creds.refresh_token or ""),
+            token_expiry=creds.expiry.isoformat() if creds.expiry else None,
+            scope=" ".join(creds.scopes) if creds.scopes else None,
+        )
+        log_alert(uid, "GMAIL", None, gmail_email, "CONNECTED",
+                  f"Gmail account {gmail_email} connected")
+        flash(f"Gmail account {gmail_email} connected successfully.", "success")
+    except Exception as exc:
+        flash(f"Failed to complete OAuth: {exc}", "error")
+
+    return redirect(url_for("gmail_settings"))
+
+
+@app.route("/auth/gmail/disconnect", methods=["POST"])
+def gmail_disconnect():
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    uid = session["user_id"]
+    account = get_gmail_account(uid)
+    if account:
+        try:
+            import urllib.request
+            token = decrypt_token(account["access_token"])
+            url = f"https://oauth2.googleapis.com/revoke?token={token}"
+            urllib.request.urlopen(url)
+        except Exception:
+            pass
+        gmail_email = account["gmail_email"]
+        delete_gmail_account(uid)
+        log_alert(uid, "GMAIL", None, gmail_email, "DISCONNECTED",
+                  f"Gmail account {gmail_email} disconnected")
+        flash("Gmail account disconnected.", "success")
+    return redirect(url_for("gmail_settings"))
 
 
 @app.route("/notifications")
