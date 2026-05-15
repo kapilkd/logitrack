@@ -24,7 +24,7 @@ from database.db import (
     log_alert,
     get_company_profile, upsert_company_profile,
 )
-from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_filtered_vendors, get_billing_stats, get_shipment_billing_list, get_recent_alerts
+from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_filtered_vendors, get_billing_stats, get_shipment_billing_list, get_recent_alerts, get_shipment_bill_vendors
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
@@ -625,6 +625,33 @@ def billing():
         PAYMENT_STATUSES=PAYMENT_STATUSES,
         BILLING_TYPES=BILLING_TYPES,
         active_section="billing",
+    )
+
+
+@app.route("/shipments/<int:id>/bill/print")
+def shipment_bill_print(id):
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    uid = session["user_id"]
+    shipment = get_shipment_by_id(id)
+    if shipment is None:
+        abort(404)
+    if shipment["user_id"] != uid:
+        abort(403)
+    vendors = get_shipment_bill_vendors(id)
+    company = get_company_profile(uid)
+    user = get_user_by_id(uid)
+    total_payable = get_total_payables_by_shipment(id)
+    total_receivable = get_total_receivables_by_shipment(id)
+    return render_template(
+        "bill_print.html",
+        shipment=shipment,
+        vendors=vendors,
+        company=company,
+        user=user,
+        total_payable=total_payable,
+        total_receivable=total_receivable,
+        today=date.today().isoformat(),
     )
 
 

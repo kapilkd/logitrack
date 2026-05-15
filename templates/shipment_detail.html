@@ -23,6 +23,7 @@
           </div>
         </div>
         <div class="header-actions">
+          <a href="{{ url_for('shipment_bill_print', id=shipment.id) }}" target="_blank" class="txn-btn txn-btn--edit">Print Bill</a>
           <a href="{{ url_for('edit_shipment', id=shipment.id) }}" class="txn-btn txn-btn--edit">Edit Shipment</a>
           <a href="{{ url_for('shipments') }}" class="back-link">← All Shipments</a>
         </div>

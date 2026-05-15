@@ -111,6 +111,7 @@ block head %}
             {% elif shipment.pending_count > 0 %}
             <span class="payment-badge payment-badge--pending">{{ shipment.pending_count }} pending</span>
             {% endif %}
+            <a href="{{ url_for('shipment_bill_print', id=shipment.shipment_id) }}" target="_blank" class="billing-print-btn">Print Bill</a>
           </div>
         </div>
 

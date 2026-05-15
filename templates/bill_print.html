@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bill — {{ shipment.shipment_number }} — LogiTrack</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/bill_print.css') }}" />
+</head>
+<body>
+
+  <div class="bill-actions no-print">
+    <button onclick="window.print()" class="bill-print-btn">Print / Save PDF</button>
+    <a href="{{ url_for('shipment_detail', id=shipment.id) }}" class="bill-back-link">← Back to Shipment</a>
+  </div>
+
+  <div class="bill-page">
+
+    <!-- Bill Header -->
+    <div class="bill-header">
+      <div class="bill-from">
+        {% if company %}
+        <div class="bill-company-name">{{ company.company_name }}</div>
+        {% if company.legal_name and company.legal_name != company.company_name %}
+        <div class="bill-company-sub">{{ company.legal_name }}</div>
+        {% endif %}
+        {% if company.address_line1 %}
+        <div class="bill-address">
+          {{ company.address_line1 }}{% if company.address_line2 %}, {{ company.address_line2 }}{% endif %}
+        </div>
+        {% endif %}
+        {% if company.city or company.state or company.country %}
+        <div class="bill-address">
+          {{ [company.city, company.state, company.country] | select | join(', ') }}
+          {% if company.pincode %} — {{ company.pincode }}{% endif %}
+        </div>
+        {% endif %}
+        {% if company.gst_number %}<div class="bill-tax-id">GST: {{ company.gst_number }}</div>{% endif %}
+        {% if company.pan_number %}<div class="bill-tax-id">PAN: {{ company.pan_number }}</div>{% endif %}
+        {% if company.iec_code %}<div class="bill-tax-id">IEC: {{ company.iec_code }}</div>{% endif %}
+        {% if company.email or company.phone %}
+        <div class="bill-contact">
+          {% if company.email %}{{ company.email }}{% endif %}
+          {% if company.email and company.phone %} · {% endif %}
+          {% if company.phone %}{{ company.phone }}{% endif %}
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="bill-company-name">{{ user.name }}</div>
+        <div class="bill-company-sub">LogiTrack Account</div>
+        {% endif %}
+      </div>
+
+      <div class="bill-title-block">
+        <div class="bill-title">SHIPMENT BILL</div>
+        <div class="bill-meta-row">
+          <span class="bill-meta-label">Shipment No.</span>
+          <span class="bill-meta-value">{{ shipment.shipment_number }}</span>
+        </div>
+        <div class="bill-meta-row">
+          <span class="bill-meta-label">Print Date</span>
+          <span class="bill-meta-value">{{ today }}</span>
+        </div>
+        {% if shipment.shipment_date %}
+        <div class="bill-meta-row">
+          <span class="bill-meta-label">Shipment Date</span>
+          <span class="bill-meta-value">{{ shipment.shipment_date }}</span>
+        </div>
+        {% endif %}
+        <div class="bill-meta-row">
+          <span class="bill-meta-label">Status</span>
+          <span class="bill-meta-value bill-status bill-status--{{ shipment.status | lower | replace('_', '-') }}">
+            {{ shipment.status }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Shipment Details -->
+    <div class="bill-section">
+      <div class="bill-section-title">Shipment Details</div>
+      <div class="bill-detail-grid">
+        <div class="bill-detail-item">
+          <span class="bill-detail-label">Origin</span>
+          <span class="bill-detail-value">{{ shipment.origin or '—' }}</span>
+        </div>
+        <div class="bill-detail-item">
+          <span class="bill-detail-label">Destination</span>
+          <span class="bill-detail-value">{{ shipment.destination or '—' }}</span>
+        </div>
+        {% if shipment.carrier %}
+        <div class="bill-detail-item">
+          <span class="bill-detail-label">Carrier</span>
+          <span class="bill-detail-value">{{ shipment.carrier }}</span>
+        </div>
+        {% endif %}
+        {% if shipment.incoterms %}
+        <div class="bill-detail-item">
+          <span class="bill-detail-label">Incoterms</span>
+          <span class="bill-detail-value">{{ shipment.incoterms }}</span>
+        </div>
+        {% endif %}
+        {% if shipment.etd %}
+        <div class="bill-detail-item">
+          <span class="bill-detail-label">ETD</span>
+          <span class="bill-detail-value">{{ shipment.etd }}</span>
+        </div>
+        {% endif %}
+        {% if shipment.eta %}
+        <div class="bill-detail-item">
+          <span class="bill-detail-label">ETA</span>
+          <span class="bill-detail-value">{{ shipment.eta }}</span>
+        </div>
+        {% endif %}
+        {% if shipment.port_of_loading %}
+        <div class="bill-detail-item">
+          <span class="bill-detail-label">Port of Loading</span>
+          <span class="bill-detail-value">{{ shipment.port_of_loading }}</span>
+        </div>
+        {% endif %}
+        {% if shipment.port_of_discharge %}
+        <div class="bill-detail-item">
+          <span class="bill-detail-label">Port of Discharge</span>
+          <span class="bill-detail-value">{{ shipment.port_of_discharge }}</span>
+        </div>
+        {% endif %}
+      </div>
+      {% if shipment.description %}
+      <div class="bill-notes">
+        <span class="bill-detail-label">Notes: </span>{{ shipment.description }}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Vendor Billing Table -->
+    {% if vendors %}
+    <div class="bill-section">
+      <div class="bill-section-title">Vendor Billing</div>
+      <table class="bill-table">
+        <thead>
+          <tr>
+            <th class="col-vendor">Vendor</th>
+            <th class="col-role">Role</th>
+            <th class="col-billing">Billing</th>
+            <th class="col-invoice">Invoice #</th>
+            <th class="col-dates">Invoice Date</th>
+            <th class="col-dates">Due Date</th>
+            <th class="col-amount text-right">Amount</th>
+            <th class="col-status">Payment</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for v in vendors %}
+          <tr>
+            <td class="col-vendor">
+              <div class="bill-vendor-name">{{ v.vendor_name }}</div>
+              <div class="bill-vendor-sub">{{ v.vendor_code }}</div>
+              {% if v.company_name and v.company_name != v.vendor_name %}
+              <div class="bill-vendor-sub">{{ v.company_name }}</div>
+              {% endif %}
+              {% if v.gst_number %}
+              <div class="bill-vendor-sub">GST: {{ v.gst_number }}</div>
+              {% endif %}
+              {% if v.city or v.country %}
+              <div class="bill-vendor-sub">{{ [v.city, v.state, v.country] | select | join(', ') }}</div>
+              {% endif %}
+            </td>
+            <td class="col-role">
+              <span class="bill-badge bill-badge--role">{{ v.relationship_type | replace('_', ' ') | title }}</span>
+              <div class="bill-vendor-sub">{{ v.vendor_category | replace('_', ' ') | title }}</div>
+            </td>
+            <td class="col-billing">
+              <span class="bill-badge bill-badge--{{ v.billing_type | lower }}">{{ v.billing_type | title }}</span>
+            </td>
+            <td class="col-invoice">{{ v.invoice_number or '—' }}</td>
+            <td class="col-dates">{{ v.invoice_date or '—' }}</td>
+            <td class="col-dates">{{ v.due_date or '—' }}</td>
+            <td class="col-amount text-right">
+              <span class="bill-amount bill-amount--{{ v.billing_type | lower }}">
+                {{ v.currency }} {{ "%.2f"|format(v.amount) }}
+              </span>
+            </td>
+            <td class="col-status">
+              <span class="bill-badge bill-badge--{{ v.payment_status | lower }}">{{ v.payment_status | title }}</span>
+            </td>
+          </tr>
+          {% if v.notes %}
+          <tr class="bill-notes-row">
+            <td colspan="8" class="bill-notes-cell">Note: {{ v.notes }}</td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="bill-total-row">
+            <td colspan="6" class="bill-total-label">Total Payable</td>
+            <td class="text-right bill-amount bill-amount--payable">INR {{ "%.2f"|format(total_payable) }}</td>
+            <td></td>
+          </tr>
+          <tr class="bill-total-row">
+            <td colspan="6" class="bill-total-label">Total Receivable</td>
+            <td class="text-right bill-amount bill-amount--receivable">INR {{ "%.2f"|format(total_receivable) }}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    {% else %}
+    <div class="bill-section">
+      <p class="bill-empty">No vendor billing records assigned to this shipment.</p>
+    </div>
+    {% endif %}
+
+    <!-- Vendor Bank Details -->
+    {% set has_bank = vendors | selectattr('bank_name') | list %}
+    {% if has_bank %}
+    <div class="bill-section">
+      <div class="bill-section-title">Vendor Bank Details</div>
+      {% for v in vendors %}
+      {% if v.bank_name or v.account_number or v.upi_id %}
+      <div class="bill-bank-block">
+        <div class="bill-bank-vendor">{{ v.vendor_name }} ({{ v.vendor_code }})</div>
+        <div class="bill-bank-row">
+          {% if v.bank_name %}<span class="bill-detail-label">Bank: </span>{{ v.bank_name }} &nbsp;{% endif %}
+          {% if v.account_number %}<span class="bill-detail-label">Account: </span>{{ v.account_number }} &nbsp;{% endif %}
+          {% if v.ifsc_code %}<span class="bill-detail-label">IFSC: </span>{{ v.ifsc_code }} &nbsp;{% endif %}
+          {% if v.upi_id %}<span class="bill-detail-label">UPI: </span>{{ v.upi_id }}{% endif %}
+        </div>
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Footer -->
+    <div class="bill-footer">
+      <div class="bill-footer-note">Generated by LogiTrack · {{ today }}</div>
+    </div>
+
+  </div>
+</body>
+</html>
