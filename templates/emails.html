@@ -21,13 +21,10 @@
       <h1 class="emails-title">Inbox</h1>
       <div class="emails-actions">
         {% if gmail_account %}
-        <a href="{{ url_for('emails_sync') }}" class="btn btn-secondary btn-sm">
-          ↻ Sync Inbox
-        </a>
+        <a href="{{ url_for('emails_sync') }}" class="btn btn-secondary btn-sm">↻ Sync Inbox</a>
+        <button type="button" class="btn btn-primary btn-sm" onclick="openComposeModal()">+ Compose</button>
         {% endif %}
-        <a href="{{ url_for('gmail_settings') }}" class="btn btn-secondary btn-sm">
-          ⚙ Gmail Settings
-        </a>
+        <a href="{{ url_for('gmail_settings') }}" class="btn btn-secondary btn-sm">⚙ Gmail Settings</a>
       </div>
     </div>
 
@@ -42,37 +39,77 @@
     {% else %}
 
     <div class="emails-body">
-
-      <!-- Email list -->
       <div class="email-list-card">
         <div class="card-header">
           All Emails
           <span class="email-count-badge">{{ email_list | length }}</span>
         </div>
 
-        {% if email_list %}
-          {% for em in email_list %}
-          <a href="{{ url_for('email_detail', email_id=em['id']) }}" class="email-item {% if em['direction'] == 'OUTBOUND' %}outbound{% endif %}">
-            <div>
-              <div class="email-sender">
-                {% if em['direction'] == 'OUTBOUND' %}
-                  To: {{ em['to_email'] or '—' }}
-                {% else %}
-                  {{ em['from_name'] or em['from_email'] or '(unknown sender)' }}
+        {% if thread_groups %}
+          {% for grp in thread_groups %}
+          {% set em = grp['latest'] %}
+          <div class="thread-group" id="thread-{{ loop.index }}">
+
+            <a href="{{ url_for('email_detail', email_id=em['id']) }}"
+               class="email-item {% if em['direction'] == 'OUTBOUND' %}outbound{% endif %}">
+              <div class="email-item-text">
+                <div class="email-sender">
+                  {% if em['direction'] == 'OUTBOUND' %}
+                    To: {{ em['to_email'] or '—' }}
+                  {% else %}
+                    {{ em['from_name'] or em['from_email'] or '(unknown sender)' }}
+                  {% endif %}
+                </div>
+                <div class="email-subject">{{ em['subject'] or '(no subject)' }}</div>
+                <div class="email-snippet">{{ em['snippet'] or '' }}</div>
+              </div>
+              <div class="email-meta">
+                <span class="email-date">
+                  {{ (em['received_at'] or em['sent_at'] or em['synced_at'] or '')[:10] }}
+                </span>
+                <span class="direction-badge {{ em['direction'] | lower }}">
+                  {{ em['direction'] | lower }}
+                </span>
+                {% if grp['extras'] %}
+                <button type="button"
+                        class="thread-toggle-btn"
+                        onclick="toggleThread(event, 'thread-{{ loop.index }}')">
+                  +{{ grp['extras'] | length }}
+                </button>
                 {% endif %}
               </div>
-              <div class="email-subject">{{ em['subject'] or '(no subject)' }}</div>
-              <div class="email-snippet">{{ em['snippet'] or '' }}</div>
+            </a>
+
+            {% if grp['extras'] %}
+            <div class="thread-extras" id="thread-{{ loop.index }}-extras" hidden>
+              {% for ex in grp['extras'] %}
+              <a href="{{ url_for('email_detail', email_id=ex['id']) }}"
+                 class="email-item email-item--thread-child {% if ex['direction'] == 'OUTBOUND' %}outbound{% endif %}">
+                <div class="email-item-text">
+                  <div class="email-sender">
+                    {% if ex['direction'] == 'OUTBOUND' %}
+                      To: {{ ex['to_email'] or '—' }}
+                    {% else %}
+                      {{ ex['from_name'] or ex['from_email'] or '(unknown sender)' }}
+                    {% endif %}
+                  </div>
+                  <div class="email-subject">{{ ex['subject'] or '(no subject)' }}</div>
+                  <div class="email-snippet">{{ ex['snippet'] or '' }}</div>
+                </div>
+                <div class="email-meta">
+                  <span class="email-date">
+                    {{ (ex['received_at'] or ex['sent_at'] or ex['synced_at'] or '')[:10] }}
+                  </span>
+                  <span class="direction-badge {{ ex['direction'] | lower }}">
+                    {{ ex['direction'] | lower }}
+                  </span>
+                </div>
+              </a>
+              {% endfor %}
             </div>
-            <div class="email-meta">
-              <span class="email-date">
-                {{ (em['received_at'] or em['sent_at'] or em['synced_at'] or '')[:10] }}
-              </span>
-              <span class="direction-badge {{ em['direction'] | lower }}">
-                {{ em['direction'] | lower }}
-              </span>
-            </div>
-          </a>
+            {% endif %}
+
+          </div>
           {% endfor %}
         {% else %}
           <div class="email-empty">
@@ -81,40 +118,51 @@
           </div>
         {% endif %}
       </div>
+    </div>
 
-      <!-- Compose form -->
-      <div class="compose-card">
-        <div class="card-header">Compose Email</div>
+    <!-- Compose Modal -->
+    <div id="compose-modal" class="modal-overlay" hidden aria-modal="true" role="dialog"
+         aria-labelledby="compose-modal-title">
+      <div class="modal-panel">
+        <div class="modal-header">
+          <span id="compose-modal-title" class="modal-title">New Email</span>
+          <button type="button" class="modal-close-btn" onclick="closeComposeModal()" aria-label="Close">&times;</button>
+        </div>
         <form class="compose-form" method="POST" action="{{ url_for('emails_send') }}">
           <div class="compose-field">
-            <label for="compose-to">To</label>
-            <input
-              id="compose-to"
-              type="email"
-              name="to"
-              list="vendor-emails"
-              placeholder="recipient@example.com"
-              required
-            >
-            <datalist id="vendor-emails">
+            <label for="modal-to">To</label>
+            <input id="modal-to" type="email" name="to" list="vendor-emails-modal"
+                   placeholder="recipient@example.com" required>
+            <datalist id="vendor-emails-modal">
               {% for contact in contact_emails %}
               <option value="{{ contact['email'] }}">{{ contact['name'] }} — {{ contact['vendor_name'] }}</option>
               {% endfor %}
             </datalist>
           </div>
           <div class="compose-field">
-            <label for="compose-subject">Subject</label>
-            <input id="compose-subject" type="text" name="subject" placeholder="Email subject" required>
+            <label for="modal-cc">CC</label>
+            <input id="modal-cc" type="text" name="cc" placeholder="cc@example.com (optional)">
           </div>
           <div class="compose-field">
-            <label for="compose-body">Body</label>
-            <textarea id="compose-body" name="body" placeholder="Write your message…" required></textarea>
+            <label for="modal-bcc">BCC</label>
+            <input id="modal-bcc" type="text" name="bcc" placeholder="bcc@example.com (optional)">
           </div>
-          <button type="submit" class="btn btn-primary">Send Email</button>
+          <div class="compose-field">
+            <label for="modal-subject">Subject</label>
+            <input id="modal-subject" type="text" name="subject" placeholder="Email subject" required>
+          </div>
+          <div class="compose-field">
+            <label for="modal-body">Body</label>
+            <textarea id="modal-body" name="body" placeholder="Write your message…" required></textarea>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" onclick="closeComposeModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary">Send Email</button>
+          </div>
         </form>
       </div>
-
     </div>
+
     {% endif %}
 
   </div>

@@ -128,33 +128,47 @@
           </div>
         </div>
 
+        <!-- Reply / Reply All / Forward actions -->
+        {% if gmail_account %}
+        <div class="reply-actions-bar">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="setReplyMode('reply')">↩ Reply</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="setReplyMode('reply-all')">↩↩ Reply All</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="setReplyMode('forward')">→ Forward</button>
+        </div>
+        {% endif %}
+
         <!-- Reply compose card -->
         {% if gmail_account %}
         <div class="reply-card">
-          <div class="reply-card-header">Reply</div>
-          <form class="reply-form" method="POST" action="{{ url_for('emails_send') }}">
-            <input type="hidden" name="to" value="{{ email['from_email'] or '' }}">
-            <input type="hidden" name="subject" value="Re: {{ email['subject'] or '' }}">
-            {% if email['gmail_thread_id'] %}
-            <input type="hidden" name="reply_thread_id" value="{{ email['gmail_thread_id'] }}">
-            {% endif %}
+          <div class="reply-card-header" id="reply-card-header">Reply</div>
+          <form class="reply-form" id="reply-form" method="POST" action="{{ url_for('emails_send') }}">
+            <input type="hidden" id="reply-thread-id" name="reply_thread_id"
+                   value="{{ email['gmail_thread_id'] or '' }}">
+            <input type="hidden" id="reply-subject-hidden" name="subject"
+                   value="Re: {{ email['subject'] or '' }}">
 
             <div class="compose-field">
-              <label>To</label>
-              <input type="text" value="{{ email['from_email'] or '' }}" disabled style="opacity:0.65;">
+              <label for="reply-to">To</label>
+              <input id="reply-to" type="text" name="to"
+                     value="{{ email['from_email'] or '' }}" required>
+            </div>
+            <div class="compose-field">
+              <label for="reply-cc">CC</label>
+              <input id="reply-cc" type="text" name="cc" placeholder="optional">
+            </div>
+            <div class="compose-field">
+              <label for="reply-bcc">BCC</label>
+              <input id="reply-bcc" type="text" name="bcc" placeholder="optional">
             </div>
             <div class="compose-field">
               <label for="reply-body">Body</label>
               <textarea id="reply-body" name="body" placeholder="Write your reply…" required></textarea>
             </div>
             <div class="reply-ai-row">
-              <button type="submit" class="btn btn-primary btn-sm">Send Reply</button>
-              <button
-                type="button"
-                class="btn btn-secondary btn-sm"
-                id="generate-reply-btn"
-                onclick="generateReply({{ email['id'] }})"
-              >✦ Generate with AI</button>
+              <button type="submit" class="btn btn-primary btn-sm">Send</button>
+              <button type="button" class="btn btn-secondary btn-sm"
+                      id="generate-reply-btn"
+                      onclick="generateReply({{ email['id'] }})">✦ Generate with AI</button>
             </div>
             <div id="reply-spinner" class="ai-loading" style="display:none;">
               <div class="ai-spinner" style="display:block;"></div>
@@ -181,6 +195,15 @@
 {% block scripts %}
 <script>
   const EMAIL_ID = {{ email['id'] }};
+  const EMAIL_DATA = {
+    from_email:      {{ email['from_email']      | tojson }},
+    to_email:        {{ email['to_email']         | tojson }},
+    cc:              {{ email['cc']               | tojson }},
+    subject:         {{ email['subject']          | tojson }},
+    body_plain:      {{ email['body_plain']        | tojson }},
+    gmail_thread_id: {{ email['gmail_thread_id']  | tojson }},
+  };
+  const OWN_EMAIL = {{ gmail_account['gmail_email'] | tojson if gmail_account else 'null' }};
 </script>
 <script src="{{ url_for('static', filename='js/emails.js') }}"></script>
 {% endblock %}

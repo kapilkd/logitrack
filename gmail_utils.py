@@ -133,7 +133,7 @@ def sync_inbox(user_id, account_row, max_results=50):
     return synced
 
 
-def send_gmail(account_row, to, subject, body, reply_to_thread_id=None):
+def send_gmail(account_row, to, subject, body, reply_to_thread_id=None, cc=None, bcc=None):
     """Send an email via Gmail API. Returns sent message data from the API."""
     service = build_gmail_service(account_row)
 
@@ -141,6 +141,10 @@ def send_gmail(account_row, to, subject, body, reply_to_thread_id=None):
     msg["to"] = to
     msg["from"] = account_row["gmail_email"]
     msg["subject"] = subject
+    if cc:
+        msg["cc"] = cc
+    if bcc:
+        msg["bcc"] = bcc
     msg.attach(MIMEText(body, "plain"))
 
     raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()

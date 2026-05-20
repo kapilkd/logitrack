@@ -1,6 +1,18 @@
 import math
 import os
 import re
+
+# Load .env file using stdlib — no python-dotenv needed
+_env_path = os.path.join(os.path.dirname(__file__), ".env")
+if os.path.exists(_env_path):
+    with open(_env_path) as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _, _v = _line.partition("=")
+                _k = _k.strip()
+                _v = _v.strip().strip('"').strip("'")
+                os.environ.setdefault(_k, _v)
 import secrets
 from datetime import date, datetime, timedelta
 from flask import Flask, abort, flash, get_flashed_messages, jsonify, redirect, render_template, request, session, url_for
@@ -41,6 +53,9 @@ os.environ.setdefault("OAUTHLIB_INSECURE_TRANSPORT", "1")
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SECURE"] = False
 
 _LOGO_UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "static", "uploads", "logos")
 os.makedirs(_LOGO_UPLOAD_FOLDER, exist_ok=True)
@@ -681,11 +696,23 @@ def emails():
     email_list = get_emails_by_user(uid, limit=50) if gmail_account else []
     contact_emails = get_all_contact_emails_by_user(uid)
     flashes = get_flashed_messages(with_categories=True)
+
+    from collections import OrderedDict
+    thread_map = OrderedDict()
+    for em in email_list:
+        key = em['gmail_thread_id'] or f"subj:{em['subject'] or ''}"
+        thread_map.setdefault(key, []).append(em)
+    thread_groups = [
+        {'latest': msgs[0], 'extras': msgs[1:]}
+        for msgs in thread_map.values()
+    ]
+
     return render_template(
         "emails.html",
         user=user,
         gmail_account=gmail_account,
         email_list=email_list,
+        thread_groups=thread_groups,
         contact_emails=contact_emails,
         flashes=flashes,
         active_section="emails",
@@ -727,6 +754,8 @@ def emails_send():
     subject = request.form.get("subject", "").strip()
     body = request.form.get("body", "").strip()
     reply_thread_id = request.form.get("reply_thread_id") or None
+    cc  = request.form.get("cc",  "").strip() or None
+    bcc = request.form.get("bcc", "").strip() or None
 
     if not to or not subject or not body:
         flash("To, Subject, and Body are all required.", "error")
@@ -734,7 +763,7 @@ def emails_send():
 
     try:
         sent = send_gmail(account, to=to, subject=subject, body=body,
-                          reply_to_thread_id=reply_thread_id)
+                          reply_to_thread_id=reply_thread_id, cc=cc, bcc=bcc)
         now = datetime.utcnow().isoformat()
         save_email(
             user_id=uid,
@@ -743,6 +772,7 @@ def emails_send():
             direction="OUTBOUND",
             from_email=account["gmail_email"],
             to_email=to,
+            cc=cc,
             subject=subject,
             body_plain=body,
             status="SENT",
@@ -881,9 +911,6 @@ def gmail_settings():
 def gmail_connect():
     if not session.get("user_id"):
         return redirect(url_for("login"))
-    if not GMAIL_AVAILABLE:
-        flash("Google API packages are not installed. Run: pip install -r requirements.txt", "error")
-        return redirect(url_for("gmail_settings"))
     if not credentials_file_exists():
         flash("credentials.json not found. Download it from Google Cloud Console.", "error")
         return redirect(url_for("gmail_settings"))
@@ -899,14 +926,14 @@ def gmail_connect():
             redirect_uri=url_for("gmail_callback", _external=True),
         )
         state = secrets.token_urlsafe(32)
-        session["gmail_oauth_state"] = state
         auth_url, _ = flow.authorization_url(
             access_type="offline",
             state=state,
-            prompt="consent",
-            include_granted_scopes="true",
+            prompt="select_account consent",
         )
-        return redirect(auth_url)
+        resp = redirect(auth_url)
+        resp.set_cookie("oauth_state", state, httponly=True, samesite="Lax", max_age=600)
+        return resp
     except Exception as exc:
         flash(f"OAuth error: {exc}", "error")
         return redirect(url_for("gmail_settings"))
@@ -917,7 +944,7 @@ def gmail_callback():
     if not session.get("user_id"):
         return redirect(url_for("login"))
 
-    stored_state = session.pop("gmail_oauth_state", None)
+    stored_state = request.cookies.get("oauth_state")
     incoming_state = request.args.get("state")
     if not stored_state or stored_state != incoming_state:
         flash("OAuth state mismatch. Please try connecting again.", "error")
@@ -964,7 +991,9 @@ def gmail_callback():
     except Exception as exc:
         flash(f"Failed to complete OAuth: {exc}", "error")
 
-    return redirect(url_for("gmail_settings"))
+    resp = redirect(url_for("gmail_settings"))
+    resp.delete_cookie("oauth_state")
+    return resp
 
 
 @app.route("/auth/gmail/disconnect", methods=["POST"])

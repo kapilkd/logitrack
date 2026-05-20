@@ -82,16 +82,9 @@
     font-size: 0.9375rem;
 }
 
-/* Two-column layout: email list + compose */
+/* Inbox body — single column now that compose is a modal */
 .emails-body {
-    display: grid;
-    grid-template-columns: 1fr 380px;
-    gap: 1.5rem;
-    align-items: start;
-}
-
-@media (max-width: 900px) {
-    .emails-body { grid-template-columns: 1fr; }
+    display: block;
 }
 
 /* Email list */
@@ -132,6 +125,45 @@
     color: inherit;
     transition: background 0.15s;
     cursor: pointer;
+}
+
+/* Thread grouping */
+.thread-group {
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+.thread-group:last-child { border-bottom: none; }
+.thread-group .email-item { border-bottom: none; }
+
+.thread-extras .email-item--thread-child {
+    background: var(--bg-hover, #f9fafb);
+    padding-left: 2.25rem;
+    border-top: 1px solid var(--border-color, #e5e7eb);
+}
+
+.thread-toggle-btn {
+    background: var(--accent-light, #ede9fe);
+    color: var(--accent, #7c3aed);
+    border: none;
+    border-radius: 20px;
+    padding: 0.1rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s;
+    flex-shrink: 0;
+    line-height: 1.6;
+}
+.thread-toggle-btn:hover,
+.thread-toggle-btn--open {
+    background: var(--accent, #7c3aed);
+    color: #fff;
+}
+
+/* Overflow fix: text wrapper must shrink within grid cell */
+.email-item-text {
+    min-width: 0;
+    overflow: hidden;
 }
 
 .email-item:last-child { border-bottom: none; }
@@ -274,6 +306,82 @@
 .compose-field textarea {
     resize: vertical;
     min-height: 140px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Compose modal                                                        */
+/* ------------------------------------------------------------------ */
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.modal-overlay[hidden] { display: none; }
+
+body.modal-open { overflow: hidden; }
+
+.modal-panel {
+    background: var(--card-bg, #fff);
+    border-radius: 12px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    width: 100%;
+    max-width: 520px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+    flex-shrink: 0;
+}
+
+.modal-title {
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: var(--text-primary, #111);
+}
+
+.modal-close-btn {
+    background: none;
+    border: none;
+    font-size: 1.375rem;
+    cursor: pointer;
+    color: var(--text-secondary, #6b7280);
+    line-height: 1;
+    padding: 0.125rem 0.4rem;
+    border-radius: 4px;
+    font-family: inherit;
+    transition: background 0.15s;
+}
+.modal-close-btn:hover {
+    background: var(--bg-hover, #f3f4f6);
+    color: var(--text-primary, #111);
+}
+
+.modal-panel .compose-form {
+    padding: 1.25rem;
+    flex: 1;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    padding-top: 0.25rem;
 }
 
 /* ------------------------------------------------------------------ */
@@ -474,6 +582,13 @@
     font-family: monospace;
     color: var(--text-primary, #111);
     word-break: break-all;
+}
+
+/* Reply action buttons bar */
+.reply-actions-bar {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
 }
 
 /* Reply compose card */
