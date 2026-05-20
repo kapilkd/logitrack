@@ -44,29 +44,28 @@
             </div>
           </div>
           <div class="email-card-body">
-            <pre class="email-body-text">{{ email['body_plain'] or '(no plain text body)' }}</pre>
+            <div class="email-body-text">{{ email['body_plain'] or '(no plain text body)' }}</div>
           </div>
         </div>
 
         {% if thread | length > 1 %}
-        <div style="margin-top:1.25rem;">
-          <h3 style="font-size:0.9375rem;font-weight:600;margin:0 0 0.75rem;color:var(--text-secondary,#555);">
-            Thread ({{ thread | length }} messages)
+        <div style="margin-top:0.75rem;">
+          <h3 style="font-size:0.8125rem;font-weight:600;margin:0 0 0.5rem;color:var(--text-secondary,#555);text-transform:uppercase;letter-spacing:0.04em;">
+            Thread · {{ thread | length }} messages
           </h3>
           {% for t in thread %}
           {% if t['id'] != email['id'] %}
-          <div class="email-card" style="margin-bottom:0.75rem;opacity:0.85;">
-            <div class="email-card-header" style="padding:0.75rem 1.25rem;">
-              <div class="email-meta-row" style="margin:0;">
+          <div class="email-card" style="margin-bottom:0.5rem;opacity:0.82;">
+            <div class="email-card-header" style="padding:0.5rem 1rem;">
+              <div class="email-meta-row" style="margin:0;font-size:0.8rem;">
                 <strong>{{ t['from_name'] or t['from_email'] or 'Unknown' }}</strong>
-                &nbsp;·&nbsp;
+                <span style="color:var(--border-soft)">·</span>
                 {{ (t['received_at'] or t['sent_at'] or '')[:10] }}
-                &nbsp;·&nbsp;
                 <span class="direction-badge {{ t['direction'] | lower }}">{{ t['direction'] | lower }}</span>
               </div>
             </div>
-            <div class="email-card-body" style="padding:0.75rem 1.25rem;">
-              <pre class="email-body-text" style="max-height:120px;overflow:hidden;">{{ (t['body_plain'] or '')[:400] }}{% if (t['body_plain'] or '') | length > 400 %}…{% endif %}</pre>
+            <div class="email-card-body" style="padding:0.6rem 1rem;">
+              <div class="email-body-text email-body-text--preview">{{ (t['body_plain'] or '')[:1500] }}{% if (t['body_plain'] or '') | length > 1500 %}…{% endif %}</div>
             </div>
           </div>
           {% endif %}
@@ -150,7 +149,7 @@
             <div class="compose-field">
               <label for="reply-to">To</label>
               <input id="reply-to" type="text" name="to"
-                     value="{{ email['from_email'] or '' }}" required>
+                     value="{{ email['to_email'] or '' if email['direction'] == 'OUTBOUND' else (email['from_email'] if email['from_email'] and 'googleusercontent.com' not in email['from_email'] else '') }}" required>
             </div>
             <div class="compose-field">
               <label for="reply-cc">CC</label>
@@ -202,6 +201,7 @@
     subject:         {{ email['subject']          | tojson }},
     body_plain:      {{ email['body_plain']        | tojson }},
     gmail_thread_id: {{ email['gmail_thread_id']  | tojson }},
+    direction:       {{ email['direction']        | tojson }},
   };
   const OWN_EMAIL = {{ gmail_account['gmail_email'] | tojson if gmail_account else 'null' }};
 </script>

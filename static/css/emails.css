@@ -9,7 +9,7 @@
 
 .emails-main {
     flex: 1;
-    padding: 2rem 2.5rem;
+    padding: 1.5rem 2rem;
     overflow: auto;
     background: var(--bg-page, #f8f9fa);
 }
@@ -19,7 +19,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
     gap: 1rem;
     flex-wrap: wrap;
 }
@@ -118,8 +118,9 @@
 .email-item {
     display: grid;
     grid-template-columns: 1fr auto;
-    gap: 0.5rem;
-    padding: 0.875rem 1.25rem;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.65rem 1.25rem;
     border-bottom: 1px solid var(--border-color, #e5e7eb);
     text-decoration: none;
     color: inherit;
@@ -199,10 +200,11 @@
 
 .email-meta {
     display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 0.25rem;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.35rem;
     flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .email-date {
@@ -236,6 +238,75 @@
 .direction-badge.outbound {
     background: var(--color-info-bg, #dbeafe);
     color: var(--color-info, #1e40af);
+}
+
+/* ── Shipment link badge (inbox list) ─────────────────── */
+.email-shipment-badge {
+    display: inline-block;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    white-space: nowrap;
+    text-decoration: none;
+    line-height: 1.6;
+    background: var(--border-soft);
+    color: var(--ink-muted);
+    cursor: default;
+}
+a.email-shipment-badge {
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+a.email-shipment-badge:hover { opacity: 0.8; }
+
+.email-shipment-badge--unmatched {
+    background: transparent;
+    color: var(--ink-faint);
+    font-weight: 400;
+}
+
+.email-shipment-badge--scan {
+    background: transparent;
+    color: var(--ink-faint);
+    border: 1px dashed var(--border-soft);
+    cursor: pointer;
+    text-decoration: none;
+    font-weight: 500;
+}
+.email-shipment-badge--scan:hover {
+    color: var(--accent-2);
+    border-color: var(--accent-2);
+    opacity: 1;
+}
+
+.email-shipment-badge.status--draft {
+    background: var(--border-soft);
+    color: var(--ink-muted);
+}
+.email-shipment-badge.status--in-transit,
+.email-shipment-badge.status--on-hold,
+.email-shipment-badge.status--customs-hold {
+    background: var(--accent-2-light);
+    color: var(--accent-2);
+}
+.email-shipment-badge.status--arrived,
+.email-shipment-badge.status--out-for-delivery {
+    background: var(--accent-light);
+    color: var(--accent);
+}
+.email-shipment-badge.status--delivered {
+    background: #dcfce7;
+    color: #166534;
+}
+.email-shipment-badge.status--closed {
+    background: #f1f5f9;
+    color: #475569;
+}
+.email-shipment-badge.status--cancelled,
+.email-shipment-badge.status--returned {
+    background: var(--danger-light);
+    color: var(--danger);
 }
 
 .email-empty {
@@ -395,7 +466,7 @@ body.modal-open { overflow: hidden; }
 
 .email-detail-main {
     flex: 1;
-    padding: 2rem 2.5rem;
+    padding: 1.25rem 1.75rem;
     overflow: auto;
     background: var(--bg-page, #f8f9fa);
 }
@@ -404,10 +475,10 @@ body.modal-open { overflow: hidden; }
     display: inline-flex;
     align-items: center;
     gap: 0.375rem;
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
     color: var(--text-secondary, #6b7280);
     text-decoration: none;
-    margin-bottom: 1.25rem;
+    margin-bottom: 0.75rem;
     transition: color 0.15s;
 }
 
@@ -415,8 +486,8 @@ body.modal-open { overflow: hidden; }
 
 .email-detail-grid {
     display: grid;
-    grid-template-columns: 1fr 360px;
-    gap: 1.5rem;
+    grid-template-columns: 1fr 320px;
+    gap: 1rem;
     align-items: start;
 }
 
@@ -432,49 +503,58 @@ body.modal-open { overflow: hidden; }
 }
 
 .email-card-header {
-    padding: 1.25rem 1.5rem;
+    padding: 0.875rem 1.25rem;
     border-bottom: 1px solid var(--border-color, #e5e7eb);
 }
 
 .email-card-subject {
-    font-size: 1.125rem;
+    font-size: 1rem;
     font-weight: 600;
     color: var(--text-primary, #111);
-    margin: 0 0 0.75rem;
+    margin: 0 0 0.5rem;
 }
 
 .email-meta-row {
     display: flex;
-    gap: 0.5rem;
-    font-size: 0.8125rem;
+    gap: 0.4rem;
+    font-size: 0.8rem;
     color: var(--text-secondary, #6b7280);
-    margin: 0.25rem 0;
+    margin: 0.15rem 0;
     flex-wrap: wrap;
+    align-items: center;
 }
 
 .email-meta-row strong { color: var(--text-primary, #111); }
 
 .email-card-body {
-    padding: 1.25rem 1.5rem;
+    padding: 1rem 1.25rem;
 }
 
 .email-body-text {
     font-family: "DM Sans", system-ui, sans-serif;
-    font-size: 0.875rem;
-    line-height: 1.7;
+    font-size: 0.8375rem;
+    line-height: 1.65;
     color: var(--text-primary, #111);
     white-space: pre-wrap;
     word-break: break-word;
+    overflow-wrap: break-word;
     margin: 0;
+    max-width: 100%;
+}
+
+.email-body-text--preview {
+    opacity: 0.78;
+    font-size: 0.8rem;
+    line-height: 1.55;
 }
 
 /* Right panel */
 .email-right-panel {
     display: flex;
     flex-direction: column;
-    gap: 1.25rem;
+    gap: 0.75rem;
     position: sticky;
-    top: 1.5rem;
+    top: 1rem;
 }
 
 /* AI analysis card */

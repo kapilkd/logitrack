@@ -41,7 +41,7 @@ from database.db import (
     save_email, get_emails_by_user, get_email_by_id,
     get_emails_by_thread, upsert_ai_processing, get_ai_processing,
 )
-from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_filtered_vendors, get_billing_stats, get_shipment_billing_list, get_recent_alerts, get_shipment_bill_vendors
+from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_filtered_vendors, get_billing_stats, get_shipment_billing_list, get_recent_alerts, get_shipment_bill_vendors, get_emails_with_shipment_links
 from gmail_utils import (
     GMAIL_AVAILABLE, SCOPES, credentials_file_exists,
     encrypt_token, decrypt_token, sync_inbox, send_gmail, parse_message,
@@ -693,7 +693,7 @@ def emails():
         session.clear()
         return redirect(url_for("login"))
     gmail_account = get_gmail_account(uid)
-    email_list = get_emails_by_user(uid, limit=50) if gmail_account else []
+    email_list = get_emails_with_shipment_links(uid) if gmail_account else []
     contact_emails = get_all_contact_emails_by_user(uid)
     flashes = get_flashed_messages(with_categories=True)
 

@@ -70,6 +70,19 @@
                 <span class="direction-badge {{ em['direction'] | lower }}">
                   {{ em['direction'] | lower }}
                 </span>
+                {% if em['linked_shipment_id'] %}
+                <a href="{{ url_for('shipment_detail', id=em['linked_shipment_id']) }}"
+                   class="email-shipment-badge status--{{ em['linked_shipment_status'] | lower | replace('_', '-') }}"
+                   onclick="event.stopPropagation()">
+                  {{ em['linked_shipment_number'] }} · {{ em['linked_shipment_status'] | replace('_', ' ') | title }}
+                </a>
+                {% elif em['ai_status'] == 'DONE' %}
+                <span class="email-shipment-badge email-shipment-badge--unmatched">no shipment</span>
+                {% else %}
+                <a href="{{ url_for('email_detail', email_id=em['id']) }}"
+                   class="email-shipment-badge email-shipment-badge--scan"
+                   onclick="event.stopPropagation()">✦ scan</a>
+                {% endif %}
                 {% if grp['extras'] %}
                 <button type="button"
                         class="thread-toggle-btn"
@@ -103,6 +116,19 @@
                   <span class="direction-badge {{ ex['direction'] | lower }}">
                     {{ ex['direction'] | lower }}
                   </span>
+                  {% if ex['linked_shipment_id'] %}
+                  <a href="{{ url_for('shipment_detail', id=ex['linked_shipment_id']) }}"
+                     class="email-shipment-badge status--{{ ex['linked_shipment_status'] | lower | replace('_', '-') }}"
+                     onclick="event.stopPropagation()">
+                    {{ ex['linked_shipment_number'] }} · {{ ex['linked_shipment_status'] | replace('_', ' ') | title }}
+                  </a>
+                  {% elif ex['ai_status'] == 'DONE' %}
+                  <span class="email-shipment-badge email-shipment-badge--unmatched">no shipment</span>
+                  {% else %}
+                  <a href="{{ url_for('email_detail', email_id=ex['id']) }}"
+                     class="email-shipment-badge email-shipment-badge--scan"
+                     onclick="event.stopPropagation()">✦ scan</a>
+                  {% endif %}
                 </div>
               </a>
               {% endfor %}
