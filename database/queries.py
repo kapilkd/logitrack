@@ -291,3 +291,42 @@ def get_recent_alerts(user_id, limit=50):
             "created_at": formatted,
         })
     return result
+
+
+def get_emails_with_shipment_links(user_id, limit=100):
+    conn = get_db()
+    rows = conn.execute(
+        """
+        SELECT
+            e.id,
+            e.gmail_message_id,
+            e.gmail_thread_id,
+            e.direction,
+            e.from_email,
+            e.from_name,
+            e.to_email,
+            e.subject,
+            e.snippet,
+            e.received_at,
+            e.sent_at,
+            e.synced_at,
+            eap.shipment_reference,
+            eap.processing_status    AS ai_status,
+            s.id                     AS linked_shipment_id,
+            s.shipment_number        AS linked_shipment_number,
+            s.status                 AS linked_shipment_status,
+            s.origin                 AS linked_shipment_origin,
+            s.destination            AS linked_shipment_destination
+        FROM emails e
+        LEFT JOIN email_ai_processing eap ON eap.email_id = e.id
+        LEFT JOIN shipments s
+               ON s.shipment_number = eap.shipment_reference
+              AND s.user_id = ?
+        WHERE e.user_id = ?
+        ORDER BY COALESCE(e.received_at, e.sent_at, e.synced_at) DESC
+        LIMIT ?
+        """,
+        (user_id, user_id, limit),
+    ).fetchall()
+    conn.close()
+    return rows

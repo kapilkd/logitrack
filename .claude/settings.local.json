@@ -21,7 +21,11 @@
       "Bash(cmd /c \"taskkill /F /PID 31408\")",
       "Bash(not exist *)",
       "Bash(Get-ChildItem *)",
-      "PowerShell(Get-ChildItem -Path \"D:\\\\claude\\\\logitrack\" -File | Where-Object {$_.Name -match \"\\(credentials|token|oauth|google\\)\" } | Select-Object Name; if \\($?\\) { Write-Output \"Checked directory\" } else { Write-Output \"No matching files found\" })"
+      "PowerShell(Get-ChildItem -Path \"D:\\\\claude\\\\logitrack\" -File | Where-Object {$_.Name -match \"\\(credentials|token|oauth|google\\)\" } | Select-Object Name; if \\($?\\) { Write-Output \"Checked directory\" } else { Write-Output \"No matching files found\" })",
+      "Bash(cd /d D:\\\\claude\\\\logitrack)",
+      "Bash(sqlite3 logitrack.db \".schema email_ai_processing\")",
+      "Bash(sqlite3 logitrack.db \".schema emails\")",
+      "Bash(sqlite3 *)"
     ]
   }
 }
