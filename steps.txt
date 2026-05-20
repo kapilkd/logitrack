@@ -1,0 +1,229 @@
+logitrack — Steps to build a replica from scratch
+==================================================
+
+A high-level checklist for re-creating this application in a fresh repo.
+Each step references the file(s) in the existing repo that you can copy or
+read for the concrete code / SQL / markup. No inline code below — open the
+referenced file when you need details.
+
+Read this together with:
+  - CLAUDE.md  (functionality overview, routes, schema, conventions)
+  - file.md    (any spec / scratch notes that may also live in this repo)
+
+
+--------------------------------------------------------------------------
+0. Prerequisites
+--------------------------------------------------------------------------
+[ ] Python 3.10 or newer
+[ ] pip + venv
+[ ] (Optional) Google Cloud project with Gmail API enabled — only if you
+    want the Emails feature; download credentials.json
+[ ] (Optional) Anthropic API key — only if you want AI email processing
+
+
+--------------------------------------------------------------------------
+1. Project scaffolding
+--------------------------------------------------------------------------
+[ ] Create the project root directory (e.g. `logitrack/`)
+[ ] Create the folder layout shown under "Architecture" in CLAUDE.md
+    (app.py, ai_utils.py, gmail_utils.py, database/, templates/,
+     static/css/, static/js/, static/uploads/logos/, tests/)
+[ ] Initialise git
+[ ] Copy `.gitignore` from this repo (ignores venv, *.db, credentials,
+    token_key.txt, __pycache__, etc.)
+[ ] Copy `requirements.txt` from this repo (Flask, Werkzeug, pytest,
+    pytest-flask, google-api-python-client, google-auth*, anthropic,
+    cryptography — pinned versions are in the file)
+
+
+--------------------------------------------------------------------------
+2. Python environment
+--------------------------------------------------------------------------
+[ ] python -m venv venv
+[ ] source venv/bin/activate            (Windows: venv\Scripts\activate)
+[ ] pip install -r requirements.txt
+
+
+--------------------------------------------------------------------------
+3. Database layer
+--------------------------------------------------------------------------
+[ ] Create `database/__init__.py` (empty marker file)
+[ ] Create `database/db.py` — copy from this repo. It contains:
+      - get_db(path)                  opens sqlite3 with row_factory + PRAGMA foreign_keys=ON
+      - init_db(path)                 CREATE TABLE statements + forward ALTERs
+      - seed_db(path)                 demo user / vendors / shipments / expenses / links
+      - all CRUD helpers              (see the function table in CLAUDE.md)
+      - constants                     SHIPMENT_STATUSES, INCOTERMS, RELATIONSHIP_TYPES,
+                                      BILLING_TYPES, PAYMENT_STATUSES, CURRENCIES
+[ ] Create `database/queries.py` — copy from this repo. It contains the
+    join / aggregate / filter read queries listed in CLAUDE.md.
+[ ] Confirm the schema matches the "Database schema" section in CLAUDE.md
+    (users, shipments, expenses, vendors, vendor_contacts, shipment_vendors,
+     system_alerts, company_profiles, gmail_accounts, emails,
+     email_attachments, email_ai_processing).
+
+
+--------------------------------------------------------------------------
+4. Flask application skeleton
+--------------------------------------------------------------------------
+[ ] Create `app.py` — copy from this repo. Key responsibilities:
+      - Flask app + secret key from SECRET_KEY env var
+      - sets OAUTHLIB_INSECURE_TRANSPORT for local dev
+      - creates static/uploads/logos/ on startup
+      - calls init_db() and seed_db() inside app_context()
+      - declares EXPENSE_CATEGORIES list
+      - runs on port 5001 (not Flask's default 5000)
+
+
+--------------------------------------------------------------------------
+5. Routes — implement in this order (see CLAUDE.md "Implemented routes")
+--------------------------------------------------------------------------
+[ ] Auth & static:   /, /register, /login, /logout, /terms, /privacy
+[ ] Profile:         /profile  (date filter, stats, transactions, categories)
+[ ] Standalone expenses:
+      /expenses/add, /expenses/<id>/edit, /expenses/<id>/delete
+[ ] Shipments:
+      /shipments (list)
+      /shipments/add
+      /shipments/<id>             (detail)
+      /shipments/<id>/edit
+      /shipments/<id>/status      (JSON, inline status update)
+[ ] Shipment expenses:
+      /shipments/<id>/expenses/add
+      /shipments/<id>/expenses/<id>/edit
+      /shipments/<id>/expenses/<id>/delete  (JSON)
+[ ] Vendors:
+      /vendors (list with filters)
+      /vendors/add
+      /vendors/<id>/edit
+      /vendors/<id>/contacts       (JSON)
+      /vendors/<id>/info           (JSON)
+      /vendors/<id>/contacts/add
+      /vendors/<id>/contacts/<id>/edit
+      /vendors/<id>/contacts/<id>/delete   (JSON)
+[ ] Shipment ↔ Vendor billing entries:
+      /shipments/<id>/vendors/add
+      /shipments/<id>/vendors/<sv_id>/edit
+      /shipments/<id>/vendors/<sv_id>/delete  (JSON)
+[ ] Billing dashboard + printable bill:
+      /billing
+      /shipments/<id>/bill/print
+[ ] Notifications: /notifications
+[ ] Settings:
+      /settings (redirect to company-profile)
+      /settings/company-profile  (GET + POST, logo upload)
+      /settings/gmail
+      /auth/gmail/connect
+      /auth/gmail/callback
+      /auth/gmail/disconnect
+[ ] Emails:
+      /emails (list + compose)
+      /emails/sync
+      /emails/send
+      /emails/<id>                 (detail + thread)
+      /emails/<id>/process         (AI summary)
+      /emails/<id>/auto-reply      (AI reply suggestion)
+[ ] Reports stub: /reports
+
+Conventions every route must follow:
+  - Use url_for() — no hardcoded URLs.
+  - Login check at the top; redirect to /login if not authenticated.
+  - For routes touching a user-owned entity: 404 if missing, 403 if
+    user_id mismatch (see "Ownership checks" in CLAUDE.md).
+  - For sidebar pages, pass active_section= to render_template().
+  - For mutations, write a system alert via log_alert().
+  - Use parameterised SQL only (no f-strings into SQL).
+
+
+--------------------------------------------------------------------------
+6. External integrations
+--------------------------------------------------------------------------
+[ ] Create `gmail_utils.py` — copy from this repo. Provides:
+      - Fernet-encrypted token storage helpers
+      - build_gmail_service() (refreshes token + persists)
+      - sync_inbox(), send_gmail(), parse_message()
+[ ] Create `ai_utils.py` — copy from this repo. Provides:
+      - process_email_with_claude(email_row)
+      - generate_reply_with_claude(thread_emails, tone)
+      - ANTHROPIC_AVAILABLE flag
+
+
+--------------------------------------------------------------------------
+7. Templates
+--------------------------------------------------------------------------
+[ ] Copy every file from this repo's `templates/` directory.
+    The full list and per-file purpose lives in the "Architecture" tree
+    in CLAUDE.md. Highlights:
+      - base.html      shared layout, navbar
+      - _sidebar.html  8 accordion groups; uses active_section
+      - placeholder.html shared "coming soon" page
+      - profile.html, shipments*.html, vendors.html, billing.html,
+        bill_print.html, emails.html, email_detail.html,
+        settings_company_profile.html, settings_gmail.html,
+        notifications.html, terms.html, privacy.html, landing.html,
+        login.html, register.html, add/edit_expense.html,
+        add/edit_shipment.html
+[ ] Every template must extend base.html and use url_for() for links.
+
+
+--------------------------------------------------------------------------
+8. Static assets
+--------------------------------------------------------------------------
+[ ] Copy every CSS file from `static/css/` (style, landing, profile,
+    shipments, vendors, billing, bill_print, emails, settings,
+    notifications). Only use CSS variables from :root in style.css —
+    never hardcode hex colours.
+[ ] Copy every JS file from `static/js/` (main, profile, shipments,
+    shipment_detail, vendors, emails). Vanilla JS only — no frameworks.
+[ ] Create `static/uploads/logos/` (created at runtime by app.py too).
+
+
+--------------------------------------------------------------------------
+9. Tests
+--------------------------------------------------------------------------
+[ ] Copy the `tests/` directory from this repo. Tests are spec-aligned
+    (e.g. test_07-add-expense.py, test_profile_02_left_menu_sub_menu.py).
+[ ] Add new test files alongside as you implement each feature.
+[ ] Run `pytest` to verify the full suite.
+
+
+--------------------------------------------------------------------------
+10. Environment variables / secrets
+--------------------------------------------------------------------------
+[ ] export SECRET_KEY=<random string>
+[ ] export GMAIL_TOKEN_KEY=<base64 urlsafe Fernet key>   (Gmail features)
+[ ] export ANTHROPIC_API_KEY=<key>                       (AI features)
+[ ] Place `credentials.json` (Google OAuth client) at project root if
+    using Gmail.
+See the "Environment variables & external prerequisites" table in
+CLAUDE.md for the authoritative list.
+
+
+--------------------------------------------------------------------------
+11. Run & verify
+--------------------------------------------------------------------------
+[ ] python app.py            (starts on http://localhost:5001)
+[ ] Visit /  — landing page renders.
+[ ] /register a new account, /login, /profile.
+[ ] Add an expense, add a shipment, attach an expense to it.
+[ ] Add a vendor, attach it to a shipment as a billing entry.
+[ ] Check /billing and /shipments/<id>/bill/print.
+[ ] (Optional) Connect Gmail in /settings/gmail and sync /emails.
+[ ] (Optional) Open an email and run AI process / auto-reply.
+[ ] pytest                   (all tests should pass)
+
+
+--------------------------------------------------------------------------
+12. Things NOT to change
+--------------------------------------------------------------------------
+- Port: 5001 (not 5000).
+- Web framework: Flask only — no FastAPI / Django.
+- DB: SQLite only — no SQLAlchemy, no Postgres.
+- Frontend: vanilla JS only — no React / jQuery / npm.
+- No new pip packages without updating requirements.txt deliberately.
+- No DB logic inline in routes — keep CRUD in database/db.py and complex
+  reads in database/queries.py.
+- Sidebar lives in _sidebar.html only; pages must pass active_section=.
+
+See the "Warnings and things to avoid" section in CLAUDE.md for the
+authoritative list.
