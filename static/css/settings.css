@@ -158,3 +158,10 @@
     align-items: flex-start;
   }
 }
+
+.settings-readonly-value {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--ink);
+  padding: 0.4rem 0;
+}

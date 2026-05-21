@@ -1134,3 +1134,23 @@ def upsert_company_profile(user_id, company_name, legal_name=None, industry=None
         )
     conn.commit()
     conn.close()
+
+
+def update_user_profile(user_id, name, email):
+    conn = get_db()
+    conn.execute(
+        "UPDATE users SET name=?, email=? WHERE id=?",
+        (name, email, user_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def update_user_password(user_id, password_hash):
+    conn = get_db()
+    conn.execute(
+        "UPDATE users SET password_hash=? WHERE id=?",
+        (password_hash, user_id),
+    )
+    conn.commit()
+    conn.close()

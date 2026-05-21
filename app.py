@@ -40,6 +40,7 @@ from database.db import (
     upsert_gmail_account, get_gmail_account, delete_gmail_account,
     save_email, get_emails_by_user, get_email_by_id,
     get_emails_by_thread, upsert_ai_processing, get_ai_processing,
+    get_user_by_id as get_user_row_by_id, update_user_profile, update_user_password,
 )
 from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_filtered_vendors, get_billing_stats, get_shipment_billing_list, get_recent_alerts, get_shipment_bill_vendors, get_emails_with_shipment_links, get_vendor_ledger, get_vendor_ledger_stats
 from gmail_utils import (
@@ -1165,6 +1166,110 @@ def settings_company_profile():
         active_section="settings",
         success="Company profile saved.",
     )
+
+
+@app.route("/settings/user-management")
+def user_management_settings():
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    uid = session["user_id"]
+    user = get_user_by_id(uid)
+    if user is None:
+        session.clear()
+        return redirect(url_for("login"))
+    raw_user = get_user_row_by_id(uid)
+    try:
+        joined = datetime.strptime(raw_user["created_at"][:10], "%Y-%m-%d").strftime("%B %d, %Y")
+    except Exception:
+        joined = raw_user["created_at"]
+    return render_template(
+        "settings_user_management.html",
+        user=user, raw_user=raw_user, joined=joined,
+        active_section="settings",
+    )
+
+
+@app.route("/settings/user-management/profile", methods=["POST"])
+def user_management_update_profile():
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    uid = session["user_id"]
+    user = get_user_by_id(uid)
+    if user is None:
+        session.clear()
+        return redirect(url_for("login"))
+    raw_user = get_user_row_by_id(uid)
+    try:
+        joined = datetime.strptime(raw_user["created_at"][:10], "%Y-%m-%d").strftime("%B %d, %Y")
+    except Exception:
+        joined = raw_user["created_at"]
+
+    name  = request.form.get("name",  "").strip()
+    email = request.form.get("email", "").strip()
+
+    def _render(error=None, success=None):
+        return render_template(
+            "settings_user_management.html",
+            user=user, raw_user=raw_user, joined=joined,
+            active_section="settings",
+            profile_error=error, profile_success=success,
+        )
+
+    if not name:
+        return _render(error="Display name is required.")
+    if not email:
+        return _render(error="Email address is required.")
+    existing = get_user_by_email(email)
+    if existing and existing["id"] != uid:
+        return _render(error="That email address is already in use by another account.")
+
+    update_user_profile(uid, name, email)
+    session["user_name"] = name
+    log_alert(user_id=uid, entity_type="USER", entity_id=uid, entity_label=name,
+              action="UPDATED", description=f"User profile updated: name='{name}', email='{email}'")
+    raw_user = get_user_row_by_id(uid)
+    user = get_user_by_id(uid)
+    return _render(success="Profile updated successfully.")
+
+
+@app.route("/settings/user-management/password", methods=["POST"])
+def user_management_update_password():
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    uid = session["user_id"]
+    user = get_user_by_id(uid)
+    if user is None:
+        session.clear()
+        return redirect(url_for("login"))
+    raw_user = get_user_row_by_id(uid)
+    try:
+        joined = datetime.strptime(raw_user["created_at"][:10], "%Y-%m-%d").strftime("%B %d, %Y")
+    except Exception:
+        joined = raw_user["created_at"]
+
+    current_password = request.form.get("current_password", "")
+    new_password     = request.form.get("new_password",     "")
+    confirm_password = request.form.get("confirm_password", "")
+
+    def _render(error=None, success=None):
+        return render_template(
+            "settings_user_management.html",
+            user=user, raw_user=raw_user, joined=joined,
+            active_section="settings",
+            password_error=error, password_success=success,
+        )
+
+    if not check_password_hash(raw_user["password_hash"], current_password):
+        return _render(error="Current password is incorrect.")
+    if len(new_password) < 8:
+        return _render(error="New password must be at least 8 characters.")
+    if new_password != confirm_password:
+        return _render(error="New password and confirmation do not match.")
+
+    update_user_password(uid, generate_password_hash(new_password))
+    log_alert(user_id=uid, entity_type="USER", entity_id=uid, entity_label=user["name"],
+              action="UPDATED", description="User password changed")
+    return _render(success="Password changed successfully.")
 
 
 EXPENSE_CATEGORIES = [

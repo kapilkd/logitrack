@@ -36,7 +36,11 @@
       "Bash(kill 2130)",
       "Bash(pkill -f \"venv/Scripts/python\")",
       "Bash(python3 *)",
-      "mcp__sqlite__read_query"
+      "mcp__sqlite__read_query",
+      "Bash(dir *)",
+      "Bash(\"venv\\\\Scripts\\\\python.exe\" -c \"import flask, werkzeug; print\\('OK'\\)\")",
+      "Bash(\"venv\\\\Scripts\\\\python.exe\" app.py)",
+      "Bash(powershell *)"
     ]
   }
 }
