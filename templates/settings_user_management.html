@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}User Management — LogiTrack{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}" />
+{% endblock %}
+{% block content %}
+<div class="profile-shell">
+  {% include '_sidebar.html' %}
+
+  <section class="profile-section">
+    <div class="profile-container">
+
+      <h2 class="settings-page-title">User Management</h2>
+
+      <!-- Account Info (read-only) -->
+      <div class="settings-section">
+        <h3 class="settings-section-title">Account Information</h3>
+        <div class="settings-form-grid">
+          <div class="form-group">
+            <label>Display Name</label>
+            <p class="settings-readonly-value">{{ raw_user["name"] }}</p>
+          </div>
+          <div class="form-group">
+            <label>Email Address</label>
+            <p class="settings-readonly-value">{{ raw_user["email"] }}</p>
+          </div>
+          <div class="form-group">
+            <label>Member Since</label>
+            <p class="settings-readonly-value">{{ joined }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Update Profile -->
+      <div class="settings-section">
+        <h3 class="settings-section-title">Update Profile</h3>
+
+        {% if profile_error %}
+        <div class="settings-alert settings-alert--error">{{ profile_error }}</div>
+        {% endif %}
+        {% if profile_success %}
+        <div class="settings-alert settings-alert--success">{{ profile_success }}</div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('user_management_update_profile') }}">
+          <div class="settings-form-grid">
+            <div class="form-group">
+              <label for="name">Display Name <span class="settings-required">*</span></label>
+              <input id="name" name="name" type="text" class="form-input"
+                value="{{ raw_user['name'] }}" placeholder="Your full name" required>
+            </div>
+            <div class="form-group">
+              <label for="email">Email Address <span class="settings-required">*</span></label>
+              <input id="email" name="email" type="email" class="form-input"
+                value="{{ raw_user['email'] }}" placeholder="you@example.com" required>
+            </div>
+          </div>
+          <div class="settings-form-actions">
+            <button type="submit" class="btn-primary">Save Profile</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Change Password -->
+      <div class="settings-section">
+        <h3 class="settings-section-title">Change Password</h3>
+
+        {% if password_error %}
+        <div class="settings-alert settings-alert--error">{{ password_error }}</div>
+        {% endif %}
+        {% if password_success %}
+        <div class="settings-alert settings-alert--success">{{ password_success }}</div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('user_management_update_password') }}">
+          <div class="settings-form-grid">
+            <div class="form-group">
+              <label for="current_password">Current Password <span class="settings-required">*</span></label>
+              <input id="current_password" name="current_password" type="password"
+                class="form-input" placeholder="Enter current password" required>
+            </div>
+            <div class="form-group">
+              <label for="new_password">New Password <span class="settings-required">*</span></label>
+              <input id="new_password" name="new_password" type="password"
+                class="form-input" placeholder="At least 8 characters" required>
+            </div>
+            <div class="form-group">
+              <label for="confirm_password">Confirm New Password <span class="settings-required">*</span></label>
+              <input id="confirm_password" name="confirm_password" type="password"
+                class="form-input" placeholder="Repeat new password" required>
+            </div>
+          </div>
+          <div class="settings-form-actions">
+            <button type="submit" class="btn-primary">Change Password</button>
+          </div>
+        </form>
+      </div>
+
+    </div>
+  </section>
+</div>
+{% endblock %}

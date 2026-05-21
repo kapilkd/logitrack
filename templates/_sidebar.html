@@ -151,7 +151,7 @@
         <span class="sidebar-toggle-arrow">▾</span>
       </button>
       <div class="sidebar-sub-nav">
-        <a href="#" class="sidebar-sub-link">User Management</a>
+        <a href="{{ url_for('user_management_settings') }}" class="sidebar-sub-link{% if request.endpoint in ('user_management_settings', 'user_management_update_profile', 'user_management_update_password') %} sidebar-sub-link--active{% endif %}">User Management</a>
         <a href="{{ url_for('settings_company_profile') }}" class="sidebar-sub-link{% if request.endpoint == 'settings_company_profile' %} sidebar-sub-link--active{% endif %}">System Settings</a>
         <a href="{{ url_for('gmail_settings') }}" class="sidebar-sub-link{% if request.endpoint == 'gmail_settings' %} sidebar-sub-link--active{% endif %}">Gmail Integration</a>
         <a href="#" class="sidebar-sub-link">Notification Settings</a>
