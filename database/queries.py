@@ -374,3 +374,114 @@ def get_emails_with_shipment_links(user_id, limit=100):
     ).fetchall()
     conn.close()
     return rows
+
+
+def get_shipment_report_rows(user_id, status=None, from_date=None, to_date=None):
+    sql = """
+        SELECT
+            s.id          AS shipment_id,
+            s.shipment_number,
+            s.origin,
+            s.destination,
+            s.status,
+            s.shipment_date,
+            s.carrier,
+            COALESCE(e.expense_total, 0.0)                                        AS expense_total,
+            COALESCE(sv.total_payable, 0.0)                                       AS total_payable,
+            COALESCE(sv.total_receivable, 0.0)                                    AS total_receivable,
+            COALESCE(sv.total_receivable, 0.0) - COALESCE(sv.total_payable, 0.0) AS net_position,
+            COALESCE(sv.vendor_count, 0)                                          AS vendor_count
+        FROM shipments s
+        LEFT JOIN (
+            SELECT shipment_id, SUM(amount) AS expense_total
+            FROM expenses
+            GROUP BY shipment_id
+        ) e ON e.shipment_id = s.id
+        LEFT JOIN (
+            SELECT
+                shipment_id,
+                SUM(CASE WHEN billing_type = 'PAYABLE'   THEN amount ELSE 0 END) AS total_payable,
+                SUM(CASE WHEN billing_type = 'RECEIVABLE' THEN amount ELSE 0 END) AS total_receivable,
+                COUNT(DISTINCT vendor_id)                                          AS vendor_count
+            FROM shipment_vendors
+            GROUP BY shipment_id
+        ) sv ON sv.shipment_id = s.id
+        WHERE s.user_id = ?
+    """
+    params = [user_id]
+    if status:
+        sql += " AND s.status = ?"
+        params.append(status)
+    if from_date:
+        sql += " AND s.shipment_date >= ?"
+        params.append(from_date)
+    if to_date:
+        sql += " AND s.shipment_date <= ?"
+        params.append(to_date)
+    sql += " ORDER BY s.shipment_date DESC, s.id DESC"
+
+    conn = get_db()
+    rows = conn.execute(sql, params).fetchall()
+    conn.close()
+    return [
+        {
+            "shipment_id":      row["shipment_id"],
+            "shipment_number":  row["shipment_number"],
+            "origin":           row["origin"] or "",
+            "destination":      row["destination"] or "",
+            "status":           row["status"],
+            "shipment_date":    row["shipment_date"] or "",
+            "carrier":          row["carrier"] or "",
+            "expense_total":    row["expense_total"],
+            "total_payable":    row["total_payable"],
+            "total_receivable": row["total_receivable"],
+            "net_position":     row["net_position"],
+            "vendor_count":     int(row["vendor_count"]),
+        }
+        for row in rows
+    ]
+
+
+def get_report_summary_stats(user_id, status=None, from_date=None, to_date=None):
+    sql = """
+        SELECT
+            COUNT(*)                                AS shipment_count,
+            COALESCE(SUM(e.expense_total), 0.0)    AS expense_total,
+            COALESCE(SUM(sv.total_payable), 0.0)   AS total_payable,
+            COALESCE(SUM(sv.total_receivable), 0.0) AS total_receivable
+        FROM shipments s
+        LEFT JOIN (
+            SELECT shipment_id, SUM(amount) AS expense_total
+            FROM expenses
+            GROUP BY shipment_id
+        ) e ON e.shipment_id = s.id
+        LEFT JOIN (
+            SELECT
+                shipment_id,
+                SUM(CASE WHEN billing_type = 'PAYABLE'   THEN amount ELSE 0 END) AS total_payable,
+                SUM(CASE WHEN billing_type = 'RECEIVABLE' THEN amount ELSE 0 END) AS total_receivable
+            FROM shipment_vendors
+            GROUP BY shipment_id
+        ) sv ON sv.shipment_id = s.id
+        WHERE s.user_id = ?
+    """
+    params = [user_id]
+    if status:
+        sql += " AND s.status = ?"
+        params.append(status)
+    if from_date:
+        sql += " AND s.shipment_date >= ?"
+        params.append(from_date)
+    if to_date:
+        sql += " AND s.shipment_date <= ?"
+        params.append(to_date)
+
+    conn = get_db()
+    row = conn.execute(sql, params).fetchone()
+    conn.close()
+    return {
+        "shipment_count":   int(row["shipment_count"]),
+        "expense_total":    row["expense_total"],
+        "total_payable":    row["total_payable"],
+        "total_receivable": row["total_receivable"],
+    }
