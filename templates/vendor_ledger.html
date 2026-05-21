@@ -1,0 +1,116 @@
+{% extends "base.html" %} {% block title %}Ledger — {{ vendor.vendor_name }} — LogiTrack{% endblock %} {%
+block head %}
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/profile.css') }}"
+/>
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/billing.css') }}"
+/>
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/vendors.css') }}"
+/>
+{% endblock %} {% block content %}
+<div class="profile-shell">
+  {% include '_sidebar.html' %}
+
+  <section class="profile-section">
+    <div class="profile-container">
+
+      <!-- Page header -->
+      <div class="vendor-ledger-header">
+        <a href="{{ url_for('vendors') }}" class="ledger-back-link">← Back to Vendors</a>
+        <div class="ledger-vendor-meta">
+          <span class="vendor-code-cell">{{ vendor.vendor_code }}</span>
+          <h2 class="ledger-vendor-name">{{ vendor.vendor_name }}</h2>
+          <span class="vendor-type-badge vendor-type-badge--{{ vendor.vendor_type | lower }}">
+            {{ vendor.vendor_type }}
+          </span>
+          <span class="vendor-status-badge vendor-status-badge--{{ vendor.status | lower }}">
+            {{ vendor.status }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Stat cards -->
+      <div class="billing-stats-grid">
+        <div class="billing-stat-card">
+          <span class="stat-label">Total Payable</span>
+          <span class="stat-value amount-payable">{{ '%.2f' | format(stats.total_payable) }}</span>
+        </div>
+        <div class="billing-stat-card">
+          <span class="stat-label">Total Receivable</span>
+          <span class="stat-value amount-receivable">{{ '%.2f' | format(stats.total_receivable) }}</span>
+        </div>
+        <div class="billing-stat-card">
+          <span class="stat-label">Outstanding</span>
+          <span class="stat-value">{{ '%.2f' | format(stats.pending_amount) }}</span>
+        </div>
+        <div class="billing-stat-card">
+          <span class="stat-label">Overdue</span>
+          <span class="stat-value">{{ stats.overdue_count }}</span>
+        </div>
+      </div>
+
+      <!-- Ledger entries -->
+      {% if entries %}
+      <table class="txn-table">
+        <thead>
+          <tr>
+            <th>Shipment #</th>
+            <th>Route</th>
+            <th>Role</th>
+            <th>Billing</th>
+            <th class="text-right">Amount</th>
+            <th>Invoice #</th>
+            <th>Invoice Date</th>
+            <th>Due Date</th>
+            <th>Payment</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in entries %}
+          <tr>
+            <td class="vendor-code-cell">
+              <a href="{{ url_for('shipment_detail', id=e.shipment_id) }}">
+                {{ e.shipment_number }}
+              </a>
+            </td>
+            <td>{{ e.origin or '—' }} → {{ e.destination or '—' }}</td>
+            <td>
+              <span class="role-badge role-badge--{{ e.relationship_type | lower | replace('_', '-') }}">
+                {{ e.relationship_type | replace('_', ' ') | title }}
+              </span>
+            </td>
+            <td>
+              <span class="billing-badge billing-badge--{{ e.billing_type | lower }}">
+                {{ e.billing_type }}
+              </span>
+            </td>
+            <td class="text-right {% if e.billing_type == 'PAYABLE' %}amount-payable{% else %}amount-receivable{% endif %}">
+              {{ e.currency }} {{ '%.2f' | format(e.amount) }}
+            </td>
+            <td>{{ e.invoice_number or '—' }}</td>
+            <td>{{ e.invoice_date or '—' }}</td>
+            <td>{{ e.due_date or '—' }}</td>
+            <td>
+              <span class="payment-badge payment-badge--{{ e.payment_status | lower }}">
+                {{ e.payment_status }}
+              </span>
+            </td>
+            <td class="ledger-notes">{{ e.notes or '' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="ledger-empty">No ledger entries yet.</p>
+      {% endif %}
+
+    </div>
+  </section>
+</div>
+{% endblock %}

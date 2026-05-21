@@ -41,7 +41,7 @@ from database.db import (
     save_email, get_emails_by_user, get_email_by_id,
     get_emails_by_thread, upsert_ai_processing, get_ai_processing,
 )
-from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_filtered_vendors, get_billing_stats, get_shipment_billing_list, get_recent_alerts, get_shipment_bill_vendors, get_emails_with_shipment_links
+from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_filtered_vendors, get_billing_stats, get_shipment_billing_list, get_recent_alerts, get_shipment_bill_vendors, get_emails_with_shipment_links, get_vendor_ledger, get_vendor_ledger_stats
 from gmail_utils import (
     GMAIL_AVAILABLE, SCOPES, credentials_file_exists,
     encrypt_token, decrypt_token, sync_inbox, send_gmail, parse_message,
@@ -626,6 +626,30 @@ def vendors():
         stats=stats,
         filters=filters,
         next_vendor_code=_next_vendor_code(all_vendors),
+        active_section="vendors",
+    )
+
+
+@app.route("/vendors/<int:vendor_id>/ledger")
+def vendor_ledger(vendor_id):
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    vendor = get_vendor_row(vendor_id)
+    if vendor is None:
+        abort(404)
+    if vendor["user_id"] != session["user_id"]:
+        abort(403)
+    user    = get_user_by_id(session["user_id"])
+    entries = get_vendor_ledger(vendor_id)
+    stats   = get_vendor_ledger_stats(vendor_id)
+    return render_template(
+        "vendor_ledger.html",
+        user=user,
+        vendor=dict(vendor),
+        entries=entries,
+        stats=stats,
+        PAYMENT_STATUSES=PAYMENT_STATUSES,
+        BILLING_TYPES=BILLING_TYPES,
         active_section="vendors",
     )
 

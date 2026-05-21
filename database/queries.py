@@ -293,6 +293,50 @@ def get_recent_alerts(user_id, limit=50):
     return result
 
 
+def get_vendor_ledger(vendor_id):
+    conn = get_db()
+    rows = conn.execute(
+        """
+        SELECT sv.id AS sv_id, sv.relationship_type, sv.billing_type,
+               sv.amount, sv.currency, sv.invoice_number, sv.invoice_date,
+               sv.due_date, sv.payment_status, sv.notes,
+               s.id AS shipment_id, s.shipment_number,
+               s.origin, s.destination, s.status AS shipment_status,
+               s.shipment_date
+        FROM shipment_vendors sv
+        JOIN shipments s ON sv.shipment_id = s.id
+        WHERE sv.vendor_id = ?
+        ORDER BY s.shipment_date DESC, sv.id ASC
+        """,
+        (vendor_id,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_vendor_ledger_stats(vendor_id):
+    conn = get_db()
+    row = conn.execute(
+        """
+        SELECT
+            COALESCE(SUM(CASE WHEN billing_type = 'PAYABLE' THEN amount ELSE 0 END), 0.0)   AS total_payable,
+            COALESCE(SUM(CASE WHEN billing_type = 'RECEIVABLE' THEN amount ELSE 0 END), 0.0) AS total_receivable,
+            COALESCE(SUM(CASE WHEN payment_status IN ('PENDING','PARTIAL','OVERDUE') THEN amount ELSE 0 END), 0.0) AS pending_amount,
+            COUNT(CASE WHEN payment_status = 'OVERDUE' THEN 1 END) AS overdue_count
+        FROM shipment_vendors
+        WHERE vendor_id = ?
+        """,
+        (vendor_id,),
+    ).fetchone()
+    conn.close()
+    return {
+        "total_payable":    row["total_payable"],
+        "total_receivable": row["total_receivable"],
+        "pending_amount":   row["pending_amount"],
+        "overdue_count":    int(row["overdue_count"]),
+    }
+
+
 def get_emails_with_shipment_links(user_id, limit=100):
     conn = get_db()
     rows = conn.execute(

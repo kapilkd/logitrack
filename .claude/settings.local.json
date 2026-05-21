@@ -25,7 +25,18 @@
       "Bash(cd /d D:\\\\claude\\\\logitrack)",
       "Bash(sqlite3 logitrack.db \".schema email_ai_processing\")",
       "Bash(sqlite3 logitrack.db \".schema emails\")",
-      "Bash(sqlite3 *)"
+      "Bash(sqlite3 *)",
+      "Bash(python3 -c ' *)",
+      "Read(//proc/2048/**)",
+      "Bash(netstat -tlnp)",
+      "Bash(fuser *)",
+      "Bash(kill 1983 2048)",
+      "Bash(python app.py)",
+      "Bash(echo \"PID: $!\")",
+      "Bash(kill 2130)",
+      "Bash(pkill -f \"venv/Scripts/python\")",
+      "Bash(python3 *)",
+      "mcp__sqlite__read_query"
     ]
   }
 }

@@ -341,3 +341,63 @@
     color: var(--paper-card);
     border-color: var(--accent-2);
 }
+
+/* ── Ledger button in vendor table row ───────────────────── */
+.txn-btn--ledger {
+    color: var(--ink);
+    border-color: var(--border-soft);
+    background: var(--paper-warm);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+}
+
+.txn-btn--ledger:hover {
+    background: var(--border-soft);
+    color: var(--ink);
+}
+
+/* ── Vendor ledger page ──────────────────────────────────── */
+.vendor-ledger-header {
+    margin-bottom: 0.875rem;
+}
+
+.ledger-back-link {
+    font-size: 0.8rem;
+    color: var(--muted);
+    text-decoration: none;
+    display: inline-block;
+    margin-bottom: 0.4rem;
+}
+
+.ledger-back-link:hover {
+    color: var(--ink);
+}
+
+.ledger-vendor-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.ledger-vendor-name {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.ledger-empty {
+    color: var(--muted);
+    font-size: 0.875rem;
+    text-align: center;
+    padding: 2rem 0;
+}
+
+.ledger-notes {
+    font-size: 0.78rem;
+    color: var(--muted);
+    max-width: 160px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
