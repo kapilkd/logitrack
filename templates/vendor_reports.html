@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}Vendor Reports — LogiTrack{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/billing.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/vendors.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reports.css') }}" />
+{% endblock %}
+{% block content %}
+<div class="profile-shell">
+  {% include '_sidebar.html' %}
+
+  <section class="profile-section">
+    <div class="profile-container">
+
+      <h2 class="reports-page-title">Vendor Reports</h2>
+
+      <!-- Filter bar -->
+      <div class="reports-inline-filter">
+        <form method="get" action="{{ url_for('vendor_reports') }}">
+          <div class="billing-filter-group">
+            <label class="billing-filter-label" for="filterType">Type</label>
+            <select class="billing-filter-select" name="vendor_type" id="filterType">
+              <option value="">All Types</option>
+              {% for t in VENDOR_TYPES %}
+              <option value="{{ t }}" {% if vendor_type == t %}selected{% endif %}>{{ t | title }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="billing-filter-group">
+            <label class="billing-filter-label" for="filterCategory">Category</label>
+            <select class="billing-filter-select" name="vendor_category" id="filterCategory">
+              <option value="">All Categories</option>
+              {% for c in VENDOR_CATEGORIES %}
+              <option value="{{ c }}" {% if vendor_category == c %}selected{% endif %}>{{ c | replace('_', ' ') | title }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="billing-filter-group">
+            <label class="billing-filter-label" for="filterStatus">Status</label>
+            <select class="billing-filter-select" name="vendor_status" id="filterStatus">
+              <option value="">All Statuses</option>
+              {% for s in VENDOR_STATUSES %}
+              <option value="{{ s }}" {% if vendor_status == s %}selected{% endif %}>{{ s | title }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="billing-filter-group billing-filter-group--date">
+            <label class="billing-filter-label">Shipment Date</label>
+            <div class="reports-filter-dates">
+              <input type="date" class="reports-filter-date-input" name="from_date"
+                value="{{ from_date }}" placeholder="From">
+              <span class="reports-filter-date-sep">→</span>
+              <input type="date" class="reports-filter-date-input" name="to_date"
+                value="{{ to_date }}" placeholder="To">
+            </div>
+          </div>
+          <button type="submit" class="billing-filter-btn">Apply</button>
+          {% if vendor_type or vendor_category or vendor_status or from_date or to_date %}
+          <a href="{{ url_for('vendor_reports') }}" class="billing-filter-clear">Clear filters</a>
+          {% endif %}
+        </form>
+      </div>
+
+      <!-- Summary cards -->
+      <div class="billing-stats-grid" style="margin-bottom: 1.25rem;">
+        <div class="stat-card billing-stat-card">
+          <span class="stat-label">Vendors</span>
+          <span class="stat-value">{{ summary.vendor_count }}</span>
+        </div>
+        <div class="stat-card billing-stat-card">
+          <span class="stat-label">Total Payables</span>
+          <span class="stat-value amount-payable">₹{{ "%.2f"|format(summary.total_payable) }}</span>
+        </div>
+        <div class="stat-card billing-stat-card">
+          <span class="stat-label">Total Receivables</span>
+          <span class="stat-value amount-receivable">₹{{ "%.2f"|format(summary.total_receivable) }}</span>
+        </div>
+        <div class="stat-card billing-stat-card">
+          <span class="stat-label">Total Shipments</span>
+          <span class="stat-value">{{ summary.total_shipments }}</span>
+        </div>
+      </div>
+
+      <!-- Vendor table -->
+      <div class="reports-table-card">
+        {% if not vendors %}
+        <div class="billing-empty">
+          <p>No vendors found for the selected filters.</p>
+          {% if vendor_type or vendor_category or vendor_status or from_date or to_date %}
+          <a href="{{ url_for('vendor_reports') }}">Clear filters</a>
+          {% endif %}
+        </div>
+        {% else %}
+        <table class="reports-table">
+          <thead>
+            <tr>
+              <th>Vendor</th>
+              <th>Category</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Payables</th>
+              <th>Receivables</th>
+              <th>Net Position</th>
+              <th>Shipments</th>
+              <th>Pending</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for v in vendors %}
+            <tr>
+              <td>
+                <a href="{{ url_for('vendor_ledger', vendor_id=v.vendor_id) }}" class="reports-shipment-link">
+                  {{ v.vendor_name }}
+                </a>
+                <span class="reports-route">{{ v.vendor_code }}</span>
+              </td>
+              <td class="reports-route">{{ v.vendor_category | replace('_', ' ') | title }}</td>
+              <td class="reports-route">{{ v.vendor_type | title }}</td>
+              <td>
+                <span class="vendor-status-badge vendor-status-badge--{{ v.status | lower }}">
+                  {{ v.status | title }}
+                </span>
+              </td>
+              <td class="reports-amount amount-payable">₹{{ "%.2f"|format(v.total_payable) }}</td>
+              <td class="reports-amount amount-receivable">₹{{ "%.2f"|format(v.total_receivable) }}</td>
+              <td class="reports-amount
+                {%- if v.net_position > 0 %} reports-net-positive
+                {%- elif v.net_position < 0 %} reports-net-negative
+                {%- else %} reports-net-zero{% endif %}">
+                {% if v.net_position > 0 %}+{% endif %}₹{{ "%.2f"|format(v.net_position) }}
+              </td>
+              <td>{{ v.shipment_count }}</td>
+              <td>{{ v.pending_count }}</td>
+              <td>
+                <a href="{{ url_for('vendor_ledger', vendor_id=v.vendor_id) }}" class="reports-shipment-link">
+                  Ledger →
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
+      </div>
+
+    </div>
+  </section>
+</div>
+{% endblock %}

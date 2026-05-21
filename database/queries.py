@@ -552,3 +552,111 @@ def get_monthly_expense_trend(user_id, from_date=None, to_date=None):
             "count":       int(row["count"]),
         })
     return result
+
+
+def get_vendor_report_rows(user_id, vendor_type=None, vendor_category=None,
+                            vendor_status=None, from_date=None, to_date=None):
+    sql = """
+        SELECT
+            v.id                                                                        AS vendor_id,
+            v.vendor_code,
+            v.vendor_name,
+            v.vendor_category,
+            v.vendor_type,
+            v.status,
+            COALESCE(SUM(CASE WHEN sv.billing_type = 'PAYABLE'
+                              THEN sv.amount ELSE 0 END), 0.0)                         AS total_payable,
+            COALESCE(SUM(CASE WHEN sv.billing_type = 'RECEIVABLE'
+                              THEN sv.amount ELSE 0 END), 0.0)                         AS total_receivable,
+            COALESCE(SUM(CASE WHEN sv.billing_type = 'RECEIVABLE'
+                              THEN sv.amount ELSE 0 END), 0.0)
+            - COALESCE(SUM(CASE WHEN sv.billing_type = 'PAYABLE'
+                              THEN sv.amount ELSE 0 END), 0.0)                         AS net_position,
+            COUNT(DISTINCT sv.shipment_id)                                              AS shipment_count,
+            COUNT(CASE WHEN sv.payment_status IN ('PENDING','PARTIAL','OVERDUE')
+                       THEN sv.id END)                                                  AS pending_count
+        FROM vendors v
+        LEFT JOIN shipment_vendors sv ON sv.vendor_id = v.id
+        LEFT JOIN shipments s ON s.id = sv.shipment_id
+        WHERE v.user_id = ?
+    """
+    params = [user_id]
+    if vendor_type in _VENDOR_TYPES:
+        sql += " AND v.vendor_type = ?"
+        params.append(vendor_type)
+    if vendor_category in _VENDOR_CATEGORIES:
+        sql += " AND v.vendor_category = ?"
+        params.append(vendor_category)
+    if vendor_status in _VENDOR_STATUSES:
+        sql += " AND v.status = ?"
+        params.append(vendor_status)
+    if from_date:
+        sql += " AND (s.shipment_date IS NULL OR s.shipment_date >= ?)"
+        params.append(from_date)
+    if to_date:
+        sql += " AND (s.shipment_date IS NULL OR s.shipment_date <= ?)"
+        params.append(to_date)
+    sql += " GROUP BY v.id ORDER BY v.vendor_name ASC"
+    conn = get_db()
+    rows = conn.execute(sql, params).fetchall()
+    conn.close()
+    return [
+        {
+            "vendor_id":        row["vendor_id"],
+            "vendor_code":      row["vendor_code"],
+            "vendor_name":      row["vendor_name"],
+            "vendor_category":  row["vendor_category"],
+            "vendor_type":      row["vendor_type"],
+            "status":           row["status"],
+            "total_payable":    row["total_payable"],
+            "total_receivable": row["total_receivable"],
+            "net_position":     row["net_position"],
+            "shipment_count":   int(row["shipment_count"]),
+            "pending_count":    int(row["pending_count"]),
+        }
+        for row in rows
+    ]
+
+
+def get_vendor_report_summary(user_id, vendor_type=None, vendor_category=None,
+                               vendor_status=None, from_date=None, to_date=None):
+    sql = """
+        SELECT
+            COUNT(DISTINCT v.id)                                                        AS vendor_count,
+            COALESCE(SUM(CASE WHEN sv.billing_type = 'PAYABLE'
+                              THEN sv.amount ELSE 0 END), 0.0)                         AS total_payable,
+            COALESCE(SUM(CASE WHEN sv.billing_type = 'RECEIVABLE'
+                              THEN sv.amount ELSE 0 END), 0.0)                         AS total_receivable,
+            COUNT(DISTINCT sv.shipment_id)                                              AS total_shipments,
+            COUNT(CASE WHEN sv.payment_status = 'OVERDUE' THEN sv.id END)              AS overdue_count
+        FROM vendors v
+        LEFT JOIN shipment_vendors sv ON sv.vendor_id = v.id
+        LEFT JOIN shipments s ON s.id = sv.shipment_id
+        WHERE v.user_id = ?
+    """
+    params = [user_id]
+    if vendor_type in _VENDOR_TYPES:
+        sql += " AND v.vendor_type = ?"
+        params.append(vendor_type)
+    if vendor_category in _VENDOR_CATEGORIES:
+        sql += " AND v.vendor_category = ?"
+        params.append(vendor_category)
+    if vendor_status in _VENDOR_STATUSES:
+        sql += " AND v.status = ?"
+        params.append(vendor_status)
+    if from_date:
+        sql += " AND (s.shipment_date IS NULL OR s.shipment_date >= ?)"
+        params.append(from_date)
+    if to_date:
+        sql += " AND (s.shipment_date IS NULL OR s.shipment_date <= ?)"
+        params.append(to_date)
+    conn = get_db()
+    row = conn.execute(sql, params).fetchone()
+    conn.close()
+    return {
+        "vendor_count":    int(row["vendor_count"]),
+        "total_payable":   row["total_payable"],
+        "total_receivable":row["total_receivable"],
+        "total_shipments": int(row["total_shipments"]),
+        "overdue_count":   int(row["overdue_count"]),
+    }
