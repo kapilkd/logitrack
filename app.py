@@ -42,7 +42,7 @@ from database.db import (
     get_emails_by_thread, upsert_ai_processing, get_ai_processing,
     get_user_by_id as get_user_row_by_id, update_user_profile, update_user_password,
 )
-from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_filtered_vendors, get_billing_stats, get_shipment_billing_list, get_recent_alerts, get_shipment_bill_vendors, get_emails_with_shipment_links, get_vendor_ledger, get_vendor_ledger_stats
+from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_filtered_vendors, get_billing_stats, get_shipment_billing_list, get_recent_alerts, get_shipment_bill_vendors, get_emails_with_shipment_links, get_vendor_ledger, get_vendor_ledger_stats, get_shipment_report_rows, get_report_summary_stats
 from gmail_utils import (
     GMAIL_AVAILABLE, SCOPES, credentials_file_exists,
     encrypt_token, decrypt_token, sync_inbox, send_gmail, parse_message,
@@ -1060,7 +1060,29 @@ def notifications():
 def reports():
     if not session.get("user_id"):
         return redirect(url_for("login"))
-    return render_template("placeholder.html", title="Reports", active_section="reports")
+    uid = session["user_id"]
+    user = get_user_by_id(uid)
+    if user is None:
+        session.clear()
+        return redirect(url_for("login"))
+
+    status    = request.args.get("status",    "").strip() or None
+    from_date = request.args.get("from_date", "").strip() or None
+    to_date   = request.args.get("to_date",   "").strip() or None
+
+    stats     = get_report_summary_stats(uid, status=status, from_date=from_date, to_date=to_date)
+    shipments = get_shipment_report_rows(uid, status=status, from_date=from_date, to_date=to_date)
+    filters   = {"status": status or "", "from_date": from_date or "", "to_date": to_date or ""}
+
+    return render_template(
+        "reports.html",
+        user=user,
+        stats=stats,
+        shipments=shipments,
+        filters=filters,
+        SHIPMENT_STATUSES=SHIPMENT_STATUSES,
+        active_section="reports",
+    )
 
 
 @app.route("/settings")
