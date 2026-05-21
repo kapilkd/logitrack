@@ -40,7 +40,8 @@
       "Bash(dir *)",
       "Bash(\"venv\\\\Scripts\\\\python.exe\" -c \"import flask, werkzeug; print\\('OK'\\)\")",
       "Bash(\"venv\\\\Scripts\\\\python.exe\" app.py)",
-      "Bash(powershell *)"
+      "Bash(powershell *)",
+      "PowerShell(gh pr *)"
     ]
   }
 }
