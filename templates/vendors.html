@@ -158,6 +158,10 @@ block head %}
                 </span>
               </td>
               <td class="txn-actions">
+                <a
+                  href="{{ url_for('vendor_ledger', vendor_id=v.id) }}"
+                  class="txn-btn txn-btn--ledger"
+                >Ledger</a>
                 <button
                   class="txn-btn txn-btn--contacts vendor-contacts-btn"
                   data-vendor-id="{{ v.id }}"
