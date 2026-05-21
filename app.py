@@ -42,7 +42,7 @@ from database.db import (
     get_emails_by_thread, upsert_ai_processing, get_ai_processing,
     get_user_by_id as get_user_row_by_id, update_user_profile, update_user_password,
 )
-from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_filtered_vendors, get_billing_stats, get_shipment_billing_list, get_recent_alerts, get_shipment_bill_vendors, get_emails_with_shipment_links, get_vendor_ledger, get_vendor_ledger_stats, get_shipment_report_rows, get_report_summary_stats
+from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_filtered_vendors, get_billing_stats, get_shipment_billing_list, get_recent_alerts, get_shipment_bill_vendors, get_emails_with_shipment_links, get_vendor_ledger, get_vendor_ledger_stats, get_shipment_report_rows, get_report_summary_stats, get_expense_link_summary, get_monthly_expense_trend
 from gmail_utils import (
     GMAIL_AVAILABLE, SCOPES, credentials_file_exists,
     encrypt_token, decrypt_token, sync_inbox, send_gmail, parse_message,
@@ -1081,6 +1081,60 @@ def reports():
         shipments=shipments,
         filters=filters,
         SHIPMENT_STATUSES=SHIPMENT_STATUSES,
+        active_section="reports",
+    )
+
+
+@app.route("/reports/financial")
+def financial_reports():
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    uid = session["user_id"]
+    user = get_user_by_id(uid)
+    if user is None:
+        session.clear()
+        return redirect(url_for("login"))
+
+    from_date = request.args.get("from_date", "").strip() or None
+    to_date   = request.args.get("to_date",   "").strip() or None
+
+    today            = date.today()
+    first_this_month = today.replace(day=1)
+    last_month_end   = first_this_month - timedelta(days=1)
+    first_last_month = last_month_end.replace(day=1)
+    last_3m_start    = today - timedelta(days=89)
+
+    presets = {
+        "this_month":    (first_this_month.isoformat(), today.isoformat()),
+        "last_month":    (first_last_month.isoformat(), last_month_end.isoformat()),
+        "last_3_months": (last_3m_start.isoformat(),   today.isoformat()),
+    }
+
+    if from_date is None and to_date is None:
+        active_preset = "all"
+    elif (from_date, to_date) == presets["this_month"]:
+        active_preset = "this_month"
+    elif (from_date, to_date) == presets["last_month"]:
+        active_preset = "last_month"
+    elif (from_date, to_date) == presets["last_3_months"]:
+        active_preset = "last_3_months"
+    else:
+        active_preset = "custom"
+
+    link_summary  = get_expense_link_summary(uid, from_date=from_date, to_date=to_date)
+    categories    = get_category_breakdown(uid, from_date=from_date, to_date=to_date)
+    monthly_trend = get_monthly_expense_trend(uid, from_date=from_date, to_date=to_date)
+
+    return render_template(
+        "financial_reports.html",
+        user=user,
+        link_summary=link_summary,
+        categories=categories,
+        monthly_trend=monthly_trend,
+        presets=presets,
+        active_preset=active_preset,
+        from_date=from_date or "",
+        to_date=to_date or "",
         active_section="reports",
     )
 

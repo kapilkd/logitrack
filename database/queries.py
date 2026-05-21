@@ -485,3 +485,70 @@ def get_report_summary_stats(user_id, status=None, from_date=None, to_date=None)
         "total_payable":    row["total_payable"],
         "total_receivable": row["total_receivable"],
     }
+
+
+def get_expense_link_summary(user_id, from_date=None, to_date=None):
+    sql = """
+        SELECT
+            COALESCE(SUM(amount), 0.0)                                                        AS total,
+            COUNT(*)                                                                           AS total_count,
+            COALESCE(SUM(CASE WHEN shipment_id IS NOT NULL THEN amount ELSE 0 END), 0.0)      AS linked_total,
+            COUNT(CASE WHEN shipment_id IS NOT NULL THEN 1 END)                               AS linked_count,
+            COALESCE(SUM(CASE WHEN shipment_id IS NULL THEN amount ELSE 0 END), 0.0)          AS standalone_total,
+            COUNT(CASE WHEN shipment_id IS NULL THEN 1 END)                                   AS standalone_count
+        FROM expenses
+        WHERE user_id = ?
+    """
+    params = [user_id]
+    if from_date:
+        sql += " AND date >= ?"
+        params.append(from_date)
+    if to_date:
+        sql += " AND date <= ?"
+        params.append(to_date)
+    conn = get_db()
+    row = conn.execute(sql, params).fetchone()
+    conn.close()
+    return {
+        "total":            row["total"],
+        "total_count":      int(row["total_count"]),
+        "linked_total":     row["linked_total"],
+        "linked_count":     int(row["linked_count"]),
+        "standalone_total": row["standalone_total"],
+        "standalone_count": int(row["standalone_count"]),
+    }
+
+
+def get_monthly_expense_trend(user_id, from_date=None, to_date=None):
+    sql = """
+        SELECT
+            STRFTIME('%Y-%m', date) AS month,
+            SUM(amount)             AS total,
+            COUNT(*)                AS count
+        FROM expenses
+        WHERE user_id = ?
+    """
+    params = [user_id]
+    if from_date:
+        sql += " AND date >= ?"
+        params.append(from_date)
+    if to_date:
+        sql += " AND date <= ?"
+        params.append(to_date)
+    sql += " GROUP BY STRFTIME('%Y-%m', date) ORDER BY month ASC"
+    conn = get_db()
+    rows = conn.execute(sql, params).fetchall()
+    conn.close()
+    result = []
+    for row in rows:
+        try:
+            label = datetime.strptime(row["month"], "%Y-%m").strftime("%B %Y")
+        except (ValueError, TypeError):
+            label = row["month"]
+        result.append({
+            "month":       row["month"],
+            "month_label": label,
+            "total":       row["total"],
+            "count":       int(row["count"]),
+        })
+    return result

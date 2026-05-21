@@ -138,3 +138,31 @@
     flex-wrap: wrap;
   }
 }
+
+.stat-sub {
+  font-size: 0.7rem;
+  color: var(--ink-muted);
+  margin-top: 0.1rem;
+}
+
+.reports-section-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-muted);
+  margin: 0 0 0.75rem;
+  padding: 0.75rem 0.875rem 0;
+}
+
+.reports-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 900px) {
+  .reports-two-col {
+    grid-template-columns: 1fr;
+  }
+}
