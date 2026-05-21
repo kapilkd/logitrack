@@ -42,7 +42,7 @@ from database.db import (
     get_emails_by_thread, upsert_ai_processing, get_ai_processing,
     get_user_by_id as get_user_row_by_id, update_user_profile, update_user_password,
 )
-from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_filtered_vendors, get_billing_stats, get_shipment_billing_list, get_recent_alerts, get_shipment_bill_vendors, get_emails_with_shipment_links, get_vendor_ledger, get_vendor_ledger_stats, get_shipment_report_rows, get_report_summary_stats, get_expense_link_summary, get_monthly_expense_trend
+from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_filtered_vendors, get_billing_stats, get_shipment_billing_list, get_recent_alerts, get_shipment_bill_vendors, get_emails_with_shipment_links, get_vendor_ledger, get_vendor_ledger_stats, get_shipment_report_rows, get_report_summary_stats, get_expense_link_summary, get_monthly_expense_trend, get_vendor_report_rows, get_vendor_report_summary
 from gmail_utils import (
     GMAIL_AVAILABLE, SCOPES, credentials_file_exists,
     encrypt_token, decrypt_token, sync_inbox, send_gmail, parse_message,
@@ -1135,6 +1135,55 @@ def financial_reports():
         active_preset=active_preset,
         from_date=from_date or "",
         to_date=to_date or "",
+        active_section="reports",
+    )
+
+
+@app.route("/reports/vendors")
+def vendor_reports():
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    uid = session["user_id"]
+    user = get_user_by_id(uid)
+    if user is None:
+        session.clear()
+        return redirect(url_for("login"))
+
+    vendor_type     = request.args.get("vendor_type",     "").strip() or None
+    vendor_category = request.args.get("vendor_category", "").strip() or None
+    vendor_status   = request.args.get("vendor_status",   "").strip() or None
+    from_date       = request.args.get("from_date",       "").strip() or None
+    to_date         = request.args.get("to_date",         "").strip() or None
+
+    summary = get_vendor_report_summary(
+        uid,
+        vendor_type=vendor_type, vendor_category=vendor_category,
+        vendor_status=vendor_status, from_date=from_date, to_date=to_date,
+    )
+    vendors = get_vendor_report_rows(
+        uid,
+        vendor_type=vendor_type, vendor_category=vendor_category,
+        vendor_status=vendor_status, from_date=from_date, to_date=to_date,
+    )
+
+    return render_template(
+        "vendor_reports.html",
+        user=user,
+        summary=summary,
+        vendors=vendors,
+        vendor_type=vendor_type or "",
+        vendor_category=vendor_category or "",
+        vendor_status=vendor_status or "",
+        from_date=from_date or "",
+        to_date=to_date or "",
+        VENDOR_TYPES=["INBOUND", "OUTBOUND"],
+        VENDOR_CATEGORIES=[
+            "AIR_CARRIER", "BILLING_PARTNER", "CONSIGNEE", "COURIER_PARTNER",
+            "CUSTOM_CLEARANCE_AGENT", "CUSTOMER", "FREIGHT_FORWARDER",
+            "INSURANCE_PROVIDER", "LOCAL_TRANSPORT", "OTHER", "PACKAGING_VENDOR",
+            "PORT_AGENT", "SHIPPER", "SHIPPING_LINE", "TRANSPORTER", "WAREHOUSE",
+        ],
+        VENDOR_STATUSES=["ACTIVE", "INACTIVE", "BLOCKED"],
         active_section="reports",
     )
 

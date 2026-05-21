@@ -135,7 +135,7 @@
       <div class="sidebar-sub-nav">
         <a href="{{ url_for('reports') }}" class="sidebar-sub-link{% if request.endpoint == 'reports' %} sidebar-sub-link--active{% endif %}">Shipment Reports</a>
         <a href="{{ url_for('financial_reports') }}" class="sidebar-sub-link{% if request.endpoint == 'financial_reports' %} sidebar-sub-link--active{% endif %}">Financial Reports</a>
-        <a href="#" class="sidebar-sub-link">Vendor Reports</a>
+        <a href="{{ url_for('vendor_reports') }}" class="sidebar-sub-link{% if request.endpoint == 'vendor_reports' %} sidebar-sub-link--active{% endif %}">Vendor Reports</a>
       </div>
     </div>
 
