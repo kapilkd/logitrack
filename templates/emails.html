@@ -41,8 +41,16 @@
     <div class="emails-body">
       <div class="email-list-card">
         <div class="card-header">
-          All Emails
+          <label class="select-all-label">
+            <input type="checkbox" id="select-all-emails" onchange="toggleSelectAll(this)"
+                   title="Select all received emails">
+            All Emails
+          </label>
           <span class="email-count-badge">{{ email_list | length }}</span>
+        </div>
+        <div class="bulk-actions-bar" id="bulk-actions-bar" hidden>
+          <span class="bulk-count" id="bulk-count">0 selected</span>
+          <button type="button" class="btn btn-danger btn-sm" onclick="bulkDeleteEmails()">Delete Selected</button>
         </div>
 
         {% if thread_groups %}
@@ -90,6 +98,12 @@
                   +{{ grp['extras'] | length }}
                 </button>
                 {% endif %}
+                {% if em['direction'] == 'INBOUND' %}
+                <input type="checkbox" class="email-checkbox"
+                       data-email-id="{{ em['id'] }}"
+                       onclick="event.stopPropagation()"
+                       onchange="updateBulkBar()">
+                {% endif %}
               </div>
             </a>
 
@@ -128,6 +142,12 @@
                   <a href="{{ url_for('email_detail', email_id=ex['id']) }}"
                      class="email-shipment-badge email-shipment-badge--scan"
                      onclick="event.stopPropagation()">✦ scan</a>
+                  {% endif %}
+                  {% if ex['direction'] == 'INBOUND' %}
+                  <input type="checkbox" class="email-checkbox"
+                         data-email-id="{{ ex['id'] }}"
+                         onclick="event.stopPropagation()"
+                         onchange="updateBulkBar()">
                   {% endif %}
                 </div>
               </a>

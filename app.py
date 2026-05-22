@@ -38,7 +38,7 @@ from database.db import (
     get_company_profile, upsert_company_profile,
     get_all_contact_emails_by_user,
     upsert_gmail_account, get_gmail_account, delete_gmail_account,
-    save_email, get_emails_by_user, get_email_by_id,
+    save_email, get_emails_by_user, get_email_by_id, delete_email,
     get_emails_by_thread, upsert_ai_processing, get_ai_processing,
     get_user_by_id as get_user_row_by_id, update_user_profile, update_user_password,
 )
@@ -902,6 +902,24 @@ def email_auto_reply(email_id):
         return jsonify({"ok": True, "reply_text": reply_text})
     except Exception as exc:
         return jsonify({"ok": False, "error": str(exc)}), 500
+
+
+@app.route("/emails/<int:email_id>/delete", methods=["POST"])
+def email_delete(email_id):
+    if not session.get("user_id"):
+        return jsonify({"ok": False, "error": "Not logged in"}), 401
+    uid = session["user_id"]
+    email = get_email_by_id(email_id)
+    if email is None:
+        return jsonify({"ok": False, "error": "Not found"}), 404
+    if email["user_id"] != uid:
+        return jsonify({"ok": False, "error": "Forbidden"}), 403
+    if email["direction"] != "INBOUND":
+        return jsonify({"ok": False, "error": "Only received emails can be deleted"}), 400
+    subject = email["subject"] or "(no subject)"
+    delete_email(email_id)
+    log_alert(uid, "email", email_id, subject, "deleted")
+    return jsonify({"ok": True})
 
 
 # ------------------------------------------------------------------ #

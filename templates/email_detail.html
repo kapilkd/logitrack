@@ -17,7 +17,13 @@
     <div class="flash-banner {{ category }}">{{ message }}</div>
     {% endfor %}
 
-    <a href="{{ url_for('emails') }}" class="email-detail-back">← Back to Inbox</a>
+    <div class="email-detail-topbar">
+      <a href="{{ url_for('emails') }}" class="email-detail-back">← Back to Inbox</a>
+      {% if email['direction'] == 'INBOUND' %}
+      <button type="button" class="btn btn-danger btn-sm"
+              onclick="deleteEmail({{ email['id'] }})">Delete</button>
+      {% endif %}
+    </div>
 
     <div class="email-detail-grid">
 
@@ -55,7 +61,7 @@
           </h3>
           {% for t in thread %}
           {% if t['id'] != email['id'] %}
-          <div class="email-card" style="margin-bottom:0.5rem;opacity:0.82;">
+          <div class="email-card email-card--thread" style="margin-bottom:0.5rem;">
             <div class="email-card-header" style="padding:0.5rem 1rem;">
               <div class="email-meta-row" style="margin:0;font-size:0.8rem;">
                 <strong>{{ t['from_name'] or t['from_email'] or 'Unknown' }}</strong>
@@ -65,7 +71,7 @@
               </div>
             </div>
             <div class="email-card-body" style="padding:0.6rem 1rem;">
-              <div class="email-body-text email-body-text--preview">{{ (t['body_plain'] or '')[:1500] }}{% if (t['body_plain'] or '') | length > 1500 %}…{% endif %}</div>
+              <div class="email-body-text">{{ t['body_plain'] or '' }}</div>
             </div>
           </div>
           {% endif %}

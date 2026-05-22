@@ -1,6 +1,25 @@
 /* emails.js — inbox, detail, AI processing, compose modal, thread toggle */
 
 /* ------------------------------------------------------------------ */
+/* Delete email (email detail page — INBOUND only)                     */
+/* ------------------------------------------------------------------ */
+
+async function deleteEmail(emailId) {
+  if (!confirm("Delete this email from LogiTrack? This cannot be undone.")) return;
+  try {
+    const resp = await fetch(`/emails/${emailId}/delete`, { method: "POST" });
+    const data = await resp.json();
+    if (!data.ok) {
+      alert("Delete failed: " + (data.error || "Unknown error"));
+      return;
+    }
+    window.location.href = "/emails";
+  } catch (err) {
+    alert("Request failed: " + err.message);
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* AI processing (email detail page)                                    */
 /* ------------------------------------------------------------------ */
 
@@ -141,6 +160,53 @@ function setReplyMode(mode) {
 
   const replyCard = document.querySelector(".reply-card");
   if (replyCard) replyCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+/* ------------------------------------------------------------------ */
+/* Bulk delete (inbox page)                                             */
+/* ------------------------------------------------------------------ */
+
+function toggleSelectAll(masterCb) {
+  document.querySelectorAll(".email-checkbox").forEach(cb => {
+    cb.checked = masterCb.checked;
+  });
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const all      = document.querySelectorAll(".email-checkbox");
+  const selected = document.querySelectorAll(".email-checkbox:checked");
+  const bar      = document.getElementById("bulk-actions-bar");
+  const countEl  = document.getElementById("bulk-count");
+  const master   = document.getElementById("select-all-emails");
+
+  if (bar)     bar.hidden = selected.length === 0;
+  if (countEl) countEl.textContent = selected.length + " selected";
+
+  if (master) {
+    master.indeterminate = selected.length > 0 && selected.length < all.length;
+    master.checked       = all.length > 0 && selected.length === all.length;
+  }
+}
+
+async function bulkDeleteEmails() {
+  const checkboxes = document.querySelectorAll(".email-checkbox:checked");
+  if (checkboxes.length === 0) return;
+  const n = checkboxes.length;
+  if (!confirm(`Delete ${n} email${n > 1 ? "s" : ""} from LogiTrack? This cannot be undone.`)) return;
+
+  const ids = Array.from(checkboxes).map(cb => cb.dataset.emailId);
+  let failed = 0;
+  for (const id of ids) {
+    try {
+      const resp = await fetch(`/emails/${id}/delete`, { method: "POST" });
+      const data = await resp.json();
+      if (!data.ok) failed++;
+    } catch { failed++; }
+  }
+
+  if (failed > 0) alert(`${failed} email(s) could not be deleted.`);
+  window.location.reload();
 }
 
 /* ------------------------------------------------------------------ */

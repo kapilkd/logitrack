@@ -1048,6 +1048,13 @@ def get_emails_by_thread(gmail_thread_id, user_id):
     return rows
 
 
+def delete_email(email_id):
+    conn = get_db()
+    conn.execute("DELETE FROM emails WHERE id = ?", (email_id,))
+    conn.commit()
+    conn.close()
+
+
 def save_email_attachment(email_id, filename=None, mime_type=None,
                            gmail_attachment_id=None, file_path=None):
     conn = get_db()
