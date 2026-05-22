@@ -1,37 +1,64 @@
-import sqlite3
 import os
+import psycopg2
+from psycopg2.extras import DictCursor
 from werkzeug.security import generate_password_hash
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_PATH = os.path.join(BASE_DIR, "logitrack.db")
+DATABASE_URL = os.environ.get(
+    "DATABASE_URL",
+    "postgresql://postgres:1234@localhost:5432/logitrack_db"
+)
+
+
+class _PgConn:
+    """Thin wrapper giving psycopg2 a SQLite-like .execute() / .executemany() API."""
+
+    def __init__(self, conn):
+        self._conn = conn
+
+    def execute(self, sql, params=None):
+        cur = self._conn.cursor(cursor_factory=DictCursor)
+        cur.execute(sql, params or ())
+        return cur
+
+    def executemany(self, sql, seq_of_params):
+        cur = self._conn.cursor(cursor_factory=DictCursor)
+        cur.executemany(sql, seq_of_params)
+        return cur
+
+    def commit(self):
+        self._conn.commit()
+
+    def close(self):
+        self._conn.close()
 
 
 def get_db(path=None):
-    conn = sqlite3.connect(path or DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+    conn = psycopg2.connect(DATABASE_URL)
+    return _PgConn(conn)
 
 
 def init_db(path=None):
-    conn = get_db(path)
-    conn.executescript("""
-        CREATE TABLE IF NOT EXISTS users (
-            id            INTEGER PRIMARY KEY AUTOINCREMENT,
-            name          TEXT    NOT NULL,
-            email         TEXT    UNIQUE NOT NULL,
-            password_hash TEXT    NOT NULL,
-            created_at    TEXT    DEFAULT (datetime('now'))
-        );
+    conn = get_db()
 
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id            SERIAL PRIMARY KEY,
+            name          TEXT      NOT NULL,
+            email         TEXT      UNIQUE NOT NULL,
+            password_hash TEXT      NOT NULL,
+            created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS shipments (
-            id                INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id           INTEGER NOT NULL REFERENCES users(id),
-            shipment_number   TEXT    NOT NULL,
+            id                SERIAL PRIMARY KEY,
+            user_id           INTEGER   NOT NULL REFERENCES users(id),
+            shipment_number   TEXT      NOT NULL,
             origin            TEXT,
             destination       TEXT,
             carrier           TEXT,
-            status            TEXT    NOT NULL DEFAULT 'DRAFT',
+            status            TEXT      NOT NULL DEFAULT 'DRAFT',
             shipment_date     TEXT,
             etd               TEXT,
             eta               TEXT,
@@ -39,28 +66,32 @@ def init_db(path=None):
             port_of_discharge TEXT,
             incoterms         TEXT,
             description       TEXT,
-            created_at        TEXT    DEFAULT (datetime('now')),
-            updated_at        TEXT
-        );
+            created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at        TIMESTAMP
+        )
+    """)
 
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS expenses (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id     INTEGER NOT NULL REFERENCES users(id),
-            amount      REAL    NOT NULL,
-            category    TEXT    NOT NULL,
-            date        TEXT    NOT NULL,
+            id          SERIAL PRIMARY KEY,
+            user_id     INTEGER   NOT NULL REFERENCES users(id),
+            amount      REAL      NOT NULL,
+            category    TEXT      NOT NULL,
+            date        TEXT      NOT NULL,
             description TEXT,
-            shipment_id INTEGER REFERENCES shipments(id) ON DELETE SET NULL,
-            created_at  TEXT    DEFAULT (datetime('now'))
-        );
+            shipment_id INTEGER   REFERENCES shipments(id) ON DELETE SET NULL,
+            created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
 
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS vendors (
-            id                 INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id            INTEGER NOT NULL REFERENCES users(id),
-            vendor_code        TEXT    NOT NULL UNIQUE,
-            vendor_name        TEXT    NOT NULL,
-            vendor_type        TEXT    NOT NULL,
-            vendor_category    TEXT    NOT NULL,
+            id                 SERIAL PRIMARY KEY,
+            user_id            INTEGER   NOT NULL REFERENCES users(id),
+            vendor_code        TEXT      NOT NULL UNIQUE,
+            vendor_name        TEXT      NOT NULL,
+            vendor_type        TEXT      NOT NULL,
+            vendor_category    TEXT      NOT NULL,
             company_name       TEXT,
             owner_name         TEXT,
             email              TEXT,
@@ -76,35 +107,39 @@ def init_db(path=None):
             state              TEXT,
             country            TEXT,
             pincode            TEXT,
-            payment_terms_days INTEGER DEFAULT 0,
-            credit_limit       REAL    DEFAULT 0,
+            payment_terms_days INTEGER   DEFAULT 0,
+            credit_limit       REAL      DEFAULT 0,
             bank_name          TEXT,
             account_number     TEXT,
             ifsc_code          TEXT,
             upi_id             TEXT,
-            currency           TEXT    DEFAULT 'INR',
-            status             TEXT    NOT NULL DEFAULT 'ACTIVE',
+            currency           TEXT      NOT NULL DEFAULT 'INR',
+            status             TEXT      NOT NULL DEFAULT 'ACTIVE',
             notes              TEXT,
-            created_at         TEXT    DEFAULT (datetime('now')),
-            updated_at         TEXT,
+            created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at         TIMESTAMP,
             created_by         INTEGER,
             updated_by         INTEGER
-        );
+        )
+    """)
 
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS vendor_contacts (
-            id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            vendor_id  INTEGER NOT NULL REFERENCES vendors(id) ON DELETE CASCADE,
-            name       TEXT    NOT NULL,
+            id         SERIAL PRIMARY KEY,
+            vendor_id  INTEGER   NOT NULL REFERENCES vendors(id) ON DELETE CASCADE,
+            name       TEXT      NOT NULL,
             title      TEXT,
             phone      TEXT,
             email      TEXT,
-            is_primary INTEGER NOT NULL DEFAULT 0,
+            is_primary INTEGER   NOT NULL DEFAULT 0,
             notes      TEXT,
-            created_at TEXT    DEFAULT (datetime('now'))
-        );
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
 
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS shipment_vendors (
-            id                INTEGER PRIMARY KEY AUTOINCREMENT,
+            id                SERIAL PRIMARY KEY,
             vendor_id         INTEGER NOT NULL REFERENCES vendors(id) ON DELETE CASCADE,
             shipment_id       INTEGER NOT NULL REFERENCES shipments(id) ON DELETE CASCADE,
             relationship_type TEXT    NOT NULL,
@@ -116,139 +151,134 @@ def init_db(path=None):
             due_date          TEXT,
             payment_status    TEXT    NOT NULL DEFAULT 'PENDING',
             notes             TEXT
-        );
+        )
+    """)
 
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS system_alerts (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id      INTEGER NOT NULL REFERENCES users(id),
-            entity_type  TEXT    NOT NULL,
+            id           SERIAL PRIMARY KEY,
+            user_id      INTEGER   NOT NULL REFERENCES users(id),
+            entity_type  TEXT      NOT NULL,
             entity_id    INTEGER,
             entity_label TEXT,
-            action       TEXT    NOT NULL,
+            action       TEXT      NOT NULL,
             description  TEXT,
-            created_at   TEXT    DEFAULT (datetime('now'))
-        );
+            created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
 
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS company_profiles (
-            id             INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id        INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
-            company_name   TEXT,
-            legal_name     TEXT,
-            industry       TEXT,
-            website        TEXT,
-            email          TEXT,
-            phone          TEXT,
-            address_line1  TEXT,
-            address_line2  TEXT,
-            city           TEXT,
-            state          TEXT,
-            country        TEXT,
-            pincode        TEXT,
-            gst_number     TEXT,
-            pan_number     TEXT,
-            iec_code       TEXT,
-            currency       TEXT    NOT NULL DEFAULT 'INR',
-            incoterms      TEXT,
-            logo_path      TEXT,
-            billing_terms  TEXT,
-            created_at     TEXT    DEFAULT (datetime('now')),
-            updated_at     TEXT
-        );
+            id            SERIAL PRIMARY KEY,
+            user_id       INTEGER   NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+            company_name  TEXT,
+            legal_name    TEXT,
+            industry      TEXT,
+            website       TEXT,
+            email         TEXT,
+            phone         TEXT,
+            address_line1 TEXT,
+            address_line2 TEXT,
+            city          TEXT,
+            state         TEXT,
+            country       TEXT,
+            pincode       TEXT,
+            gst_number    TEXT,
+            pan_number    TEXT,
+            iec_code      TEXT,
+            currency      TEXT      NOT NULL DEFAULT 'INR',
+            incoterms     TEXT,
+            logo_path     TEXT,
+            billing_terms TEXT,
+            created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at    TIMESTAMP
+        )
+    """)
 
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS gmail_accounts (
-            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id             INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
-            gmail_email         TEXT    NOT NULL,
-            google_account_id   TEXT,
-            access_token        TEXT    NOT NULL,
-            refresh_token       TEXT    NOT NULL,
-            token_expiry        TEXT,
-            scope               TEXT,
-            is_connected        INTEGER DEFAULT 1,
-            created_at          TEXT    DEFAULT (datetime('now')),
-            updated_at          TEXT
-        );
+            id                SERIAL PRIMARY KEY,
+            user_id           INTEGER   NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+            gmail_email       TEXT      NOT NULL,
+            google_account_id TEXT,
+            access_token      TEXT      NOT NULL,
+            refresh_token     TEXT      NOT NULL,
+            token_expiry      TEXT,
+            scope             TEXT,
+            is_connected      INTEGER   DEFAULT 1,
+            created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at        TIMESTAMP
+        )
+    """)
 
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS emails (
-            id                INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id           INTEGER NOT NULL REFERENCES users(id),
-            gmail_message_id  TEXT    NOT NULL UNIQUE,
-            gmail_thread_id   TEXT,
-            direction         TEXT    NOT NULL,
-            from_email        TEXT,
-            from_name         TEXT,
-            to_email          TEXT,
-            to_name           TEXT,
-            cc                TEXT,
-            bcc               TEXT,
-            subject           TEXT,
-            body_plain        TEXT,
-            body_html         TEXT,
-            snippet           TEXT,
-            status            TEXT    DEFAULT 'RECEIVED',
-            label_names       TEXT,
-            has_attachments   INTEGER DEFAULT 0,
-            received_at       TEXT,
-            sent_at           TEXT,
-            synced_at         TEXT    DEFAULT (datetime('now'))
-        );
+            id               SERIAL PRIMARY KEY,
+            user_id          INTEGER   NOT NULL REFERENCES users(id),
+            gmail_message_id TEXT      NOT NULL UNIQUE,
+            gmail_thread_id  TEXT,
+            direction        TEXT      NOT NULL,
+            from_email       TEXT,
+            from_name        TEXT,
+            to_email         TEXT,
+            to_name          TEXT,
+            cc               TEXT,
+            bcc              TEXT,
+            subject          TEXT,
+            body_plain       TEXT,
+            body_html        TEXT,
+            snippet          TEXT,
+            status           TEXT      DEFAULT 'RECEIVED',
+            label_names      TEXT,
+            has_attachments  INTEGER   DEFAULT 0,
+            received_at      TEXT,
+            sent_at          TEXT,
+            synced_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
 
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS email_attachments (
-            id                   INTEGER PRIMARY KEY AUTOINCREMENT,
-            email_id             INTEGER NOT NULL REFERENCES emails(id) ON DELETE CASCADE,
-            filename             TEXT,
-            mime_type            TEXT,
-            gmail_attachment_id  TEXT,
-            file_path            TEXT,
-            created_at           TEXT    DEFAULT (datetime('now'))
-        );
+            id                  SERIAL PRIMARY KEY,
+            email_id            INTEGER   NOT NULL REFERENCES emails(id) ON DELETE CASCADE,
+            filename            TEXT,
+            mime_type           TEXT,
+            gmail_attachment_id TEXT,
+            file_path           TEXT,
+            created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
 
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS email_ai_processing (
-            id                 INTEGER PRIMARY KEY AUTOINCREMENT,
-            email_id           INTEGER NOT NULL REFERENCES emails(id) ON DELETE CASCADE,
+            id                 SERIAL PRIMARY KEY,
+            email_id           INTEGER   NOT NULL REFERENCES emails(id) ON DELETE CASCADE,
             ai_summary         TEXT,
             detected_category  TEXT,
             extracted_entities TEXT,
             shipment_reference TEXT,
             invoice_reference  TEXT,
-            processing_status  TEXT    DEFAULT 'PENDING',
-            created_at         TEXT    DEFAULT (datetime('now'))
-        );
-    """)
-    conn.commit()
-    try:
-        conn.execute(
-            "ALTER TABLE expenses ADD COLUMN"
-            " shipment_id INTEGER REFERENCES shipments(id) ON DELETE SET NULL"
+            processing_status  TEXT      DEFAULT 'PENDING',
+            created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-        conn.commit()
-    except Exception:
-        pass
-    try:
-        conn.execute("ALTER TABLE company_profiles ADD COLUMN logo_path TEXT")
-        conn.commit()
-    except Exception:
-        pass
-    try:
-        conn.execute("ALTER TABLE company_profiles ADD COLUMN billing_terms TEXT")
-        conn.commit()
-    except Exception:
-        pass
+    """)
+
+    conn.commit()
     conn.close()
 
 
 def seed_db(path=None):
-    conn = get_db(path)
+    conn = get_db()
 
     if conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 0:
         conn.execute(
-            "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
+            "INSERT INTO users (name, email, password_hash) VALUES (%s, %s, %s)",
             ("Demo User", "demo@logitrack.com", generate_password_hash("demo123")),
         )
         conn.commit()
 
         user_id = conn.execute(
-            "SELECT id FROM users WHERE email = ?", ("demo@logitrack.com",)
+            "SELECT id FROM users WHERE email = %s", ("demo@logitrack.com",)
         ).fetchone()["id"]
 
         expenses = [
@@ -262,14 +292,15 @@ def seed_db(path=None):
             (user_id,  1350.00, "Penalty & Demurrage", "2026-05-08", "Container detention charges"),
         ]
         conn.executemany(
-            "INSERT INTO expenses (user_id, amount, category, date, description) VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO expenses (user_id, amount, category, date, description)"
+            " VALUES (%s, %s, %s, %s, %s)",
             expenses,
         )
         conn.commit()
 
     if conn.execute("SELECT COUNT(*) FROM vendors").fetchone()[0] == 0:
         user_row = conn.execute(
-            "SELECT id FROM users WHERE email = ?", ("demo@logitrack.com",)
+            "SELECT id FROM users WHERE email = %s", ("demo@logitrack.com",)
         ).fetchone()
         if user_row:
             uid = user_row["id"]
@@ -302,14 +333,15 @@ def seed_db(path=None):
                 "  pan_number, iec_code, address_line1, address_line2, city, state, country, pincode,"
                 "  payment_terms_days, credit_limit, bank_name, account_number, ifsc_code, upi_id,"
                 "  currency, status, notes, created_by)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,"
+                "         %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                 vendors,
             )
             conn.commit()
 
     if conn.execute("SELECT COUNT(*) FROM shipments").fetchone()[0] == 0:
         user_row = conn.execute(
-            "SELECT id FROM users WHERE email = ?", ("demo@logitrack.com",)
+            "SELECT id FROM users WHERE email = %s", ("demo@logitrack.com",)
         ).fetchone()
         if user_row:
             uid = user_row["id"]
@@ -328,36 +360,36 @@ def seed_db(path=None):
                 "INSERT INTO shipments"
                 " (user_id, shipment_number, origin, destination, carrier, status,"
                 "  shipment_date, etd, eta, port_of_loading, port_of_discharge, incoterms, description)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                 shp_rows,
             )
             conn.commit()
 
             shp1 = conn.execute(
-                "SELECT id FROM shipments WHERE shipment_number = ?", ('SHP-2026-001',)
+                "SELECT id FROM shipments WHERE shipment_number = %s", ('SHP-2026-001',)
             ).fetchone()["id"]
             shp2 = conn.execute(
-                "SELECT id FROM shipments WHERE shipment_number = ?", ('SHP-2026-002',)
+                "SELECT id FROM shipments WHERE shipment_number = %s", ('SHP-2026-002',)
             ).fetchone()["id"]
             shp3 = conn.execute(
-                "SELECT id FROM shipments WHERE shipment_number = ?", ('SHP-2026-003',)
+                "SELECT id FROM shipments WHERE shipment_number = %s", ('SHP-2026-003',)
             ).fetchone()["id"]
 
             conn.execute(
-                "UPDATE expenses SET shipment_id = ?"
-                " WHERE user_id = ? AND date BETWEEN '2026-05-01' AND '2026-05-04'"
+                "UPDATE expenses SET shipment_id = %s"
+                " WHERE user_id = %s AND date BETWEEN '2026-05-01' AND '2026-05-04'"
                 " AND shipment_id IS NULL",
                 (shp1, uid),
             )
             conn.execute(
-                "UPDATE expenses SET shipment_id = ?"
-                " WHERE user_id = ? AND date BETWEEN '2026-05-05' AND '2026-05-06'"
+                "UPDATE expenses SET shipment_id = %s"
+                " WHERE user_id = %s AND date BETWEEN '2026-05-05' AND '2026-05-06'"
                 " AND shipment_id IS NULL",
                 (shp2, uid),
             )
             conn.execute(
-                "UPDATE expenses SET shipment_id = ?"
-                " WHERE user_id = ? AND date BETWEEN '2026-05-07' AND '2026-05-08'"
+                "UPDATE expenses SET shipment_id = %s"
+                " WHERE user_id = %s AND date BETWEEN '2026-05-07' AND '2026-05-08'"
                 " AND shipment_id IS NULL",
                 (shp3, uid),
             )
@@ -367,7 +399,7 @@ def seed_db(path=None):
         vnd = {}
         for code in ('VND001', 'VND002', 'VND003', 'VND004', 'VND005'):
             row = conn.execute(
-                "SELECT id FROM vendors WHERE vendor_code = ?", (code,)
+                "SELECT id FROM vendors WHERE vendor_code = %s", (code,)
             ).fetchone()
             if row:
                 vnd[code] = row["id"]
@@ -382,7 +414,7 @@ def seed_db(path=None):
         shp = {}
         for num in ('SHP-2026-001', 'SHP-2026-002', 'SHP-2026-003'):
             row = conn.execute(
-                "SELECT id FROM shipments WHERE shipment_number = ?", (num,)
+                "SELECT id FROM shipments WHERE shipment_number = %s", (num,)
             ).fetchone()
             if row:
                 shp[num] = row["id"]
@@ -413,7 +445,7 @@ def seed_db(path=None):
                     "INSERT INTO shipment_vendors"
                     " (vendor_id, shipment_id, relationship_type, billing_type, amount, currency,"
                     "  invoice_number, invoice_date, due_date, payment_status, notes)"
-                    " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                     sv_rows,
                 )
                 conn.commit()
@@ -423,7 +455,7 @@ def seed_db(path=None):
 
 def get_user_by_email(email):
     conn = get_db()
-    row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+    row = conn.execute("SELECT * FROM users WHERE email = %s", (email,)).fetchone()
     conn.close()
     return row
 
@@ -431,7 +463,7 @@ def get_user_by_email(email):
 def create_user(name, email, password_hash):
     conn = get_db()
     conn.execute(
-        "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
+        "INSERT INTO users (name, email, password_hash) VALUES (%s, %s, %s)",
         (name, email, password_hash),
     )
     conn.commit()
@@ -442,7 +474,7 @@ def create_expense(user_id, amount, category, expense_date, description, shipmen
     conn = get_db()
     conn.execute(
         "INSERT INTO expenses (user_id, amount, category, date, description, shipment_id)"
-        " VALUES (?, ?, ?, ?, ?, ?)",
+        " VALUES (%s, %s, %s, %s, %s, %s)",
         (user_id, amount, category, expense_date, description or None, shipment_id),
     )
     conn.commit()
@@ -451,7 +483,7 @@ def create_expense(user_id, amount, category, expense_date, description, shipmen
 
 def get_expense_by_id(expense_id):
     conn = get_db()
-    row = conn.execute("SELECT * FROM expenses WHERE id = ?", (expense_id,)).fetchone()
+    row = conn.execute("SELECT * FROM expenses WHERE id = %s", (expense_id,)).fetchone()
     conn.close()
     return row
 
@@ -459,7 +491,8 @@ def get_expense_by_id(expense_id):
 def update_expense(expense_id, amount, category, expense_date, description, shipment_id=None):
     conn = get_db()
     conn.execute(
-        "UPDATE expenses SET amount=?, category=?, date=?, description=?, shipment_id=? WHERE id=?",
+        "UPDATE expenses SET amount=%s, category=%s, date=%s, description=%s, shipment_id=%s"
+        " WHERE id=%s",
         (amount, category, expense_date, description or None, shipment_id, expense_id),
     )
     conn.commit()
@@ -468,14 +501,14 @@ def update_expense(expense_id, amount, category, expense_date, description, ship
 
 def delete_expense(expense_id):
     conn = get_db()
-    conn.execute("DELETE FROM expenses WHERE id = ?", (expense_id,))
+    conn.execute("DELETE FROM expenses WHERE id = %s", (expense_id,))
     conn.commit()
     conn.close()
 
 
 def get_user_by_id(user_id):
     conn = get_db()
-    row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    row = conn.execute("SELECT * FROM users WHERE id = %s", (user_id,)).fetchone()
     conn.close()
     return row
 
@@ -483,13 +516,13 @@ def get_user_by_id(user_id):
 def get_expense_summary(user_id):
     conn = get_db()
     totals = conn.execute(
-        "SELECT COALESCE(SUM(amount), 0.0) AS total_amount, COUNT(*) AS total_count "
-        "FROM expenses WHERE user_id = ?",
+        "SELECT COALESCE(SUM(amount), 0.0) AS total_amount, COUNT(*) AS total_count"
+        " FROM expenses WHERE user_id = %s",
         (user_id,),
     ).fetchone()
     by_category = conn.execute(
-        "SELECT category, SUM(amount) AS amount, COUNT(*) AS count "
-        "FROM expenses WHERE user_id = ? GROUP BY category ORDER BY amount DESC",
+        "SELECT category, SUM(amount) AS amount, COUNT(*) AS count"
+        " FROM expenses WHERE user_id = %s GROUP BY category ORDER BY amount DESC",
         (user_id,),
     ).fetchall()
     conn.close()
@@ -518,7 +551,8 @@ def create_vendor(user_id, vendor_code, vendor_name, vendor_type, vendor_categor
         " pan_number, iec_code, address_line1, address_line2, city, state, country, pincode,"
         " payment_terms_days, credit_limit, bank_name, account_number, ifsc_code, upi_id,"
         " currency, status, notes, created_by)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,"
+        "         %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
         (user_id, vendor_code, vendor_name, vendor_type, vendor_category,
          company_name, owner_name, email, phone, alternate_phone, website, gst_number,
          pan_number, iec_code, address_line1, address_line2, city, state, country, pincode,
@@ -531,14 +565,16 @@ def create_vendor(user_id, vendor_code, vendor_name, vendor_type, vendor_categor
 
 def get_vendor_by_id(vendor_id):
     conn = get_db()
-    row = conn.execute("SELECT * FROM vendors WHERE id = ?", (vendor_id,)).fetchone()
+    row = conn.execute("SELECT * FROM vendors WHERE id = %s", (vendor_id,)).fetchone()
     conn.close()
     return row
 
 
 def get_vendor_by_code(vendor_code):
     conn = get_db()
-    row = conn.execute("SELECT * FROM vendors WHERE vendor_code = ?", (vendor_code,)).fetchone()
+    row = conn.execute(
+        "SELECT * FROM vendors WHERE vendor_code = %s", (vendor_code,)
+    ).fetchone()
     conn.close()
     return row
 
@@ -546,7 +582,7 @@ def get_vendor_by_code(vendor_code):
 def get_vendors_by_user(user_id):
     conn = get_db()
     rows = conn.execute(
-        "SELECT * FROM vendors WHERE user_id = ? ORDER BY vendor_name ASC", (user_id,)
+        "SELECT * FROM vendors WHERE user_id = %s ORDER BY vendor_name ASC", (user_id,)
     ).fetchall()
     conn.close()
     return rows
@@ -570,12 +606,12 @@ def update_vendor(vendor_id, vendor_code, vendor_name, vendor_type, vendor_categ
                   upi_id=None, currency="INR", status="ACTIVE", notes=None, updated_by=None):
     conn = get_db()
     conn.execute(
-        "UPDATE vendors SET vendor_code=?, vendor_name=?, vendor_type=?, vendor_category=?,"
-        " company_name=?, owner_name=?, email=?, phone=?, alternate_phone=?, website=?,"
-        " gst_number=?, pan_number=?, iec_code=?, address_line1=?, address_line2=?, city=?,"
-        " state=?, country=?, pincode=?, payment_terms_days=?, credit_limit=?, bank_name=?,"
-        " account_number=?, ifsc_code=?, upi_id=?, currency=?, status=?, notes=?, updated_by=?,"
-        " updated_at=datetime('now') WHERE id=?",
+        "UPDATE vendors SET vendor_code=%s, vendor_name=%s, vendor_type=%s, vendor_category=%s,"
+        " company_name=%s, owner_name=%s, email=%s, phone=%s, alternate_phone=%s, website=%s,"
+        " gst_number=%s, pan_number=%s, iec_code=%s, address_line1=%s, address_line2=%s, city=%s,"
+        " state=%s, country=%s, pincode=%s, payment_terms_days=%s, credit_limit=%s, bank_name=%s,"
+        " account_number=%s, ifsc_code=%s, upi_id=%s, currency=%s, status=%s, notes=%s,"
+        " updated_by=%s, updated_at=CURRENT_TIMESTAMP WHERE id=%s",
         (vendor_code, vendor_name, vendor_type, vendor_category, company_name, owner_name,
          email, phone, alternate_phone, website, gst_number, pan_number, iec_code,
          address_line1, address_line2, city, state, country, pincode, payment_terms_days,
@@ -588,7 +624,7 @@ def update_vendor(vendor_id, vendor_code, vendor_name, vendor_type, vendor_categ
 
 def delete_vendor(vendor_id):
     conn = get_db()
-    conn.execute("DELETE FROM vendors WHERE id = ?", (vendor_id,))
+    conn.execute("DELETE FROM vendors WHERE id = %s", (vendor_id,))
     conn.commit()
     conn.close()
 
@@ -596,7 +632,7 @@ def delete_vendor(vendor_id):
 def get_vendor_count(user_id):
     conn = get_db()
     count = conn.execute(
-        "SELECT COUNT(*) FROM vendors WHERE user_id = ?", (user_id,)
+        "SELECT COUNT(*) FROM vendors WHERE user_id = %s", (user_id,)
     ).fetchone()[0]
     conn.close()
     return count
@@ -607,12 +643,12 @@ def create_contact(vendor_id, name, title=None, phone=None,
     conn = get_db()
     if is_primary:
         conn.execute(
-            "UPDATE vendor_contacts SET is_primary = 0 WHERE vendor_id = ?",
+            "UPDATE vendor_contacts SET is_primary = 0 WHERE vendor_id = %s",
             (vendor_id,)
         )
     conn.execute(
         "INSERT INTO vendor_contacts (vendor_id, name, title, phone, email, is_primary, notes)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?)",
+        " VALUES (%s, %s, %s, %s, %s, %s, %s)",
         (vendor_id, name, title or None, phone or None,
          email or None, 1 if is_primary else 0, notes or None),
     )
@@ -623,7 +659,7 @@ def create_contact(vendor_id, name, title=None, phone=None,
 def get_contacts_by_vendor(vendor_id):
     conn = get_db()
     rows = conn.execute(
-        "SELECT * FROM vendor_contacts WHERE vendor_id = ?"
+        "SELECT * FROM vendor_contacts WHERE vendor_id = %s"
         " ORDER BY is_primary DESC, name ASC",
         (vendor_id,)
     ).fetchall()
@@ -634,7 +670,7 @@ def get_contacts_by_vendor(vendor_id):
 def get_contact_by_id(contact_id):
     conn = get_db()
     row = conn.execute(
-        "SELECT * FROM vendor_contacts WHERE id = ?", (contact_id,)
+        "SELECT * FROM vendor_contacts WHERE id = %s", (contact_id,)
     ).fetchone()
     conn.close()
     return row
@@ -646,12 +682,12 @@ def update_contact(contact_id, vendor_id, name, title=None,
     if is_primary:
         conn.execute(
             "UPDATE vendor_contacts SET is_primary = 0"
-            " WHERE vendor_id = ? AND id != ?",
+            " WHERE vendor_id = %s AND id != %s",
             (vendor_id, contact_id)
         )
     conn.execute(
-        "UPDATE vendor_contacts SET name=?, title=?, phone=?, email=?, is_primary=?, notes=?"
-        " WHERE id=?",
+        "UPDATE vendor_contacts SET name=%s, title=%s, phone=%s, email=%s, is_primary=%s, notes=%s"
+        " WHERE id=%s",
         (name, title or None, phone or None, email or None,
          1 if is_primary else 0, notes or None, contact_id),
     )
@@ -661,7 +697,7 @@ def update_contact(contact_id, vendor_id, name, title=None,
 
 def delete_contact(contact_id):
     conn = get_db()
-    conn.execute("DELETE FROM vendor_contacts WHERE id = ?", (contact_id,))
+    conn.execute("DELETE FROM vendor_contacts WHERE id = %s", (contact_id,))
     conn.commit()
     conn.close()
 
@@ -690,7 +726,7 @@ def create_shipment(user_id, shipment_number, origin=None, destination=None,
         "INSERT INTO shipments"
         " (user_id, shipment_number, origin, destination, carrier, status,"
         "  shipment_date, etd, eta, port_of_loading, port_of_discharge, incoterms, description)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
         (user_id, shipment_number, origin, destination, carrier, status,
          shipment_date, etd, eta, port_of_loading, port_of_discharge, incoterms, description),
     )
@@ -700,7 +736,9 @@ def create_shipment(user_id, shipment_number, origin=None, destination=None,
 
 def get_shipment_by_id(shipment_id):
     conn = get_db()
-    row = conn.execute("SELECT * FROM shipments WHERE id = ?", (shipment_id,)).fetchone()
+    row = conn.execute(
+        "SELECT * FROM shipments WHERE id = %s", (shipment_id,)
+    ).fetchone()
     conn.close()
     return row
 
@@ -708,7 +746,7 @@ def get_shipment_by_id(shipment_id):
 def get_shipments_by_user(user_id):
     conn = get_db()
     rows = conn.execute(
-        "SELECT * FROM shipments WHERE user_id = ? ORDER BY created_at DESC", (user_id,)
+        "SELECT * FROM shipments WHERE user_id = %s ORDER BY created_at DESC", (user_id,)
     ).fetchall()
     conn.close()
     return rows
@@ -720,9 +758,10 @@ def update_shipment(shipment_id, shipment_number, origin=None, destination=None,
                     port_of_discharge=None, incoterms=None, description=None):
     conn = get_db()
     conn.execute(
-        "UPDATE shipments SET shipment_number=?, origin=?, destination=?, carrier=?,"
-        " status=?, shipment_date=?, etd=?, eta=?, port_of_loading=?, port_of_discharge=?,"
-        " incoterms=?, description=?, updated_at=datetime('now') WHERE id=?",
+        "UPDATE shipments SET shipment_number=%s, origin=%s, destination=%s, carrier=%s,"
+        " status=%s, shipment_date=%s, etd=%s, eta=%s, port_of_loading=%s,"
+        " port_of_discharge=%s, incoterms=%s, description=%s, updated_at=CURRENT_TIMESTAMP"
+        " WHERE id=%s",
         (shipment_number, origin, destination, carrier, status, shipment_date,
          etd, eta, port_of_loading, port_of_discharge, incoterms, description, shipment_id),
     )
@@ -733,7 +772,7 @@ def update_shipment(shipment_id, shipment_number, origin=None, destination=None,
 def update_shipment_status(shipment_id, status):
     conn = get_db()
     conn.execute(
-        "UPDATE shipments SET status=?, updated_at=datetime('now') WHERE id=?",
+        "UPDATE shipments SET status=%s, updated_at=CURRENT_TIMESTAMP WHERE id=%s",
         (status, shipment_id),
     )
     conn.commit()
@@ -743,7 +782,7 @@ def update_shipment_status(shipment_id, status):
 def get_shipment_count(user_id):
     conn = get_db()
     count = conn.execute(
-        "SELECT COUNT(*) FROM shipments WHERE user_id = ?", (user_id,)
+        "SELECT COUNT(*) FROM shipments WHERE user_id = %s", (user_id,)
     ).fetchone()[0]
     conn.close()
     return count
@@ -752,7 +791,7 @@ def get_shipment_count(user_id):
 def get_shipment_by_number(shipment_number):
     conn = get_db()
     row = conn.execute(
-        "SELECT * FROM shipments WHERE shipment_number = ?", (shipment_number,)
+        "SELECT * FROM shipments WHERE shipment_number = %s", (shipment_number,)
     ).fetchone()
     conn.close()
     return row
@@ -761,7 +800,7 @@ def get_shipment_by_number(shipment_number):
 def get_expenses_by_shipment(shipment_id):
     conn = get_db()
     rows = conn.execute(
-        "SELECT * FROM expenses WHERE shipment_id = ? ORDER BY date ASC", (shipment_id,)
+        "SELECT * FROM expenses WHERE shipment_id = %s ORDER BY date ASC", (shipment_id,)
     ).fetchall()
     conn.close()
     return rows
@@ -786,7 +825,7 @@ def create_shipment_vendor(vendor_id, shipment_id, relationship_type, billing_ty
         "INSERT INTO shipment_vendors"
         " (vendor_id, shipment_id, relationship_type, billing_type, amount, currency,"
         "  invoice_number, invoice_date, due_date, payment_status, notes)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
         (vendor_id, shipment_id, relationship_type, billing_type,
          amount, currency, invoice_number, invoice_date, due_date,
          payment_status, notes),
@@ -798,7 +837,7 @@ def create_shipment_vendor(vendor_id, shipment_id, relationship_type, billing_ty
 def get_shipment_vendor_by_id(sv_id):
     conn = get_db()
     row = conn.execute(
-        "SELECT * FROM shipment_vendors WHERE id = ?", (sv_id,)
+        "SELECT * FROM shipment_vendors WHERE id = %s", (sv_id,)
     ).fetchone()
     conn.close()
     return row
@@ -810,7 +849,7 @@ def get_vendors_by_shipment(shipment_id):
         "SELECT sv.*, v.vendor_name, v.vendor_code, v.vendor_category"
         " FROM shipment_vendors sv"
         " JOIN vendors v ON sv.vendor_id = v.id"
-        " WHERE sv.shipment_id = ?"
+        " WHERE sv.shipment_id = %s"
         " ORDER BY v.vendor_name ASC",
         (shipment_id,),
     ).fetchall()
@@ -824,7 +863,7 @@ def get_shipments_by_vendor(vendor_id):
         "SELECT sv.*, s.shipment_number, s.origin, s.destination, s.status, s.carrier"
         " FROM shipment_vendors sv"
         " JOIN shipments s ON sv.shipment_id = s.id"
-        " WHERE sv.vendor_id = ?"
+        " WHERE sv.vendor_id = %s"
         " ORDER BY s.created_at DESC",
         (vendor_id,),
     ).fetchall()
@@ -839,9 +878,9 @@ def update_shipment_vendor(sv_id, relationship_type, billing_type,
     conn = get_db()
     conn.execute(
         "UPDATE shipment_vendors"
-        " SET relationship_type=?, billing_type=?, amount=?, currency=?,"
-        "     invoice_number=?, invoice_date=?, due_date=?, payment_status=?, notes=?"
-        " WHERE id=?",
+        " SET relationship_type=%s, billing_type=%s, amount=%s, currency=%s,"
+        "     invoice_number=%s, invoice_date=%s, due_date=%s, payment_status=%s, notes=%s"
+        " WHERE id=%s",
         (relationship_type, billing_type, amount, currency,
          invoice_number, invoice_date, due_date, payment_status, notes, sv_id),
     )
@@ -851,7 +890,7 @@ def update_shipment_vendor(sv_id, relationship_type, billing_type,
 
 def delete_shipment_vendor(sv_id):
     conn = get_db()
-    conn.execute("DELETE FROM shipment_vendors WHERE id = ?", (sv_id,))
+    conn.execute("DELETE FROM shipment_vendors WHERE id = %s", (sv_id,))
     conn.commit()
     conn.close()
 
@@ -859,7 +898,7 @@ def delete_shipment_vendor(sv_id):
 def get_shipment_vendor_count(shipment_id):
     conn = get_db()
     count = conn.execute(
-        "SELECT COUNT(*) FROM shipment_vendors WHERE shipment_id = ?", (shipment_id,)
+        "SELECT COUNT(*) FROM shipment_vendors WHERE shipment_id = %s", (shipment_id,)
     ).fetchone()[0]
     conn.close()
     return count
@@ -869,7 +908,7 @@ def get_total_payables_by_shipment(shipment_id):
     conn = get_db()
     total = conn.execute(
         "SELECT COALESCE(SUM(amount), 0) FROM shipment_vendors"
-        " WHERE shipment_id = ? AND billing_type = 'PAYABLE'",
+        " WHERE shipment_id = %s AND billing_type = 'PAYABLE'",
         (shipment_id,),
     ).fetchone()[0]
     conn.close()
@@ -880,7 +919,7 @@ def get_total_receivables_by_shipment(shipment_id):
     conn = get_db()
     total = conn.execute(
         "SELECT COALESCE(SUM(amount), 0) FROM shipment_vendors"
-        " WHERE shipment_id = ? AND billing_type = 'RECEIVABLE'",
+        " WHERE shipment_id = %s AND billing_type = 'RECEIVABLE'",
         (shipment_id,),
     ).fetchone()[0]
     conn.close()
@@ -893,7 +932,7 @@ def log_alert(user_id, entity_type, entity_id, entity_label, action, description
         conn.execute(
             "INSERT INTO system_alerts"
             " (user_id, entity_type, entity_id, entity_label, action, description)"
-            " VALUES (?, ?, ?, ?, ?, ?)",
+            " VALUES (%s, %s, %s, %s, %s, %s)",
             (user_id, entity_type, entity_id, entity_label, action, description),
         )
         conn.commit()
@@ -905,7 +944,7 @@ def log_alert(user_id, entity_type, entity_id, entity_label, action, description
 def get_company_profile(user_id):
     conn = get_db()
     row = conn.execute(
-        "SELECT * FROM company_profiles WHERE user_id = ?", (user_id,)
+        "SELECT * FROM company_profiles WHERE user_id = %s", (user_id,)
     ).fetchone()
     conn.close()
     return row
@@ -917,7 +956,7 @@ def get_all_contact_emails_by_user(user_id):
         "SELECT vc.email, vc.name, v.vendor_name"
         " FROM vendor_contacts vc"
         " JOIN vendors v ON vc.vendor_id = v.id"
-        " WHERE v.user_id = ? AND vc.email IS NOT NULL AND vc.email != ''"
+        " WHERE v.user_id = %s AND vc.email IS NOT NULL AND vc.email != ''"
         " ORDER BY vc.name ASC",
         (user_id,),
     ).fetchall()
@@ -934,13 +973,13 @@ def upsert_gmail_account(user_id, gmail_email, google_account_id,
                           token_expiry=None, scope=None):
     conn = get_db()
     existing = conn.execute(
-        "SELECT id FROM gmail_accounts WHERE user_id = ?", (user_id,)
+        "SELECT id FROM gmail_accounts WHERE user_id = %s", (user_id,)
     ).fetchone()
     if existing:
         conn.execute(
-            "UPDATE gmail_accounts SET gmail_email=?, google_account_id=?,"
-            " access_token=?, refresh_token=?, token_expiry=?, scope=?,"
-            " is_connected=1, updated_at=datetime('now') WHERE user_id=?",
+            "UPDATE gmail_accounts SET gmail_email=%s, google_account_id=%s,"
+            " access_token=%s, refresh_token=%s, token_expiry=%s, scope=%s,"
+            " is_connected=1, updated_at=CURRENT_TIMESTAMP WHERE user_id=%s",
             (gmail_email, google_account_id, access_token_enc, refresh_token_enc,
              token_expiry, scope, user_id),
         )
@@ -949,7 +988,7 @@ def upsert_gmail_account(user_id, gmail_email, google_account_id,
             "INSERT INTO gmail_accounts"
             " (user_id, gmail_email, google_account_id, access_token, refresh_token,"
             "  token_expiry, scope, is_connected)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, 1)",
+            " VALUES (%s, %s, %s, %s, %s, %s, %s, 1)",
             (user_id, gmail_email, google_account_id, access_token_enc,
              refresh_token_enc, token_expiry, scope),
         )
@@ -960,7 +999,7 @@ def upsert_gmail_account(user_id, gmail_email, google_account_id,
 def get_gmail_account(user_id):
     conn = get_db()
     row = conn.execute(
-        "SELECT * FROM gmail_accounts WHERE user_id = ? AND is_connected = 1",
+        "SELECT * FROM gmail_accounts WHERE user_id = %s AND is_connected = 1",
         (user_id,),
     ).fetchone()
     conn.close()
@@ -969,7 +1008,7 @@ def get_gmail_account(user_id):
 
 def delete_gmail_account(user_id):
     conn = get_db()
-    conn.execute("DELETE FROM gmail_accounts WHERE user_id = ?", (user_id,))
+    conn.execute("DELETE FROM gmail_accounts WHERE user_id = %s", (user_id,))
     conn.commit()
     conn.close()
 
@@ -986,19 +1025,22 @@ def save_email(user_id, gmail_message_id, gmail_thread_id=None,
                has_attachments=0, received_at=None, sent_at=None):
     conn = get_db()
     cursor = conn.execute(
-        "INSERT OR IGNORE INTO emails"
+        "INSERT INTO emails"
         " (user_id, gmail_message_id, gmail_thread_id, direction,"
         "  from_email, from_name, to_email, to_name, cc, bcc,"
         "  subject, body_plain, body_html, snippet, status,"
         "  label_names, has_attachments, received_at, sent_at)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+        " ON CONFLICT (gmail_message_id) DO NOTHING"
+        " RETURNING id",
         (user_id, gmail_message_id, gmail_thread_id, direction,
          from_email, from_name, to_email, to_name, cc, bcc,
          subject, body_plain, body_html, snippet, status,
          label_names, has_attachments, received_at, sent_at),
     )
     conn.commit()
-    email_id = cursor.lastrowid if cursor.rowcount > 0 else None
+    row = cursor.fetchone()
+    email_id = row["id"] if row else None
     conn.close()
     return email_id
 
@@ -1007,14 +1049,14 @@ def get_emails_by_user(user_id, limit=50, direction=None):
     conn = get_db()
     if direction:
         rows = conn.execute(
-            "SELECT * FROM emails WHERE user_id = ? AND direction = ?"
-            " ORDER BY COALESCE(received_at, sent_at, synced_at) DESC LIMIT ?",
+            "SELECT * FROM emails WHERE user_id = %s AND direction = %s"
+            " ORDER BY COALESCE(received_at, sent_at, synced_at::text) DESC LIMIT %s",
             (user_id, direction, limit),
         ).fetchall()
     else:
         rows = conn.execute(
-            "SELECT * FROM emails WHERE user_id = ?"
-            " ORDER BY COALESCE(received_at, sent_at, synced_at) DESC LIMIT ?",
+            "SELECT * FROM emails WHERE user_id = %s"
+            " ORDER BY COALESCE(received_at, sent_at, synced_at::text) DESC LIMIT %s",
             (user_id, limit),
         ).fetchall()
     conn.close()
@@ -1023,7 +1065,7 @@ def get_emails_by_user(user_id, limit=50, direction=None):
 
 def get_email_by_id(email_id):
     conn = get_db()
-    row = conn.execute("SELECT * FROM emails WHERE id = ?", (email_id,)).fetchone()
+    row = conn.execute("SELECT * FROM emails WHERE id = %s", (email_id,)).fetchone()
     conn.close()
     return row
 
@@ -1031,7 +1073,7 @@ def get_email_by_id(email_id):
 def get_email_by_gmail_id(gmail_message_id):
     conn = get_db()
     row = conn.execute(
-        "SELECT id FROM emails WHERE gmail_message_id = ?", (gmail_message_id,)
+        "SELECT id FROM emails WHERE gmail_message_id = %s", (gmail_message_id,)
     ).fetchone()
     conn.close()
     return row
@@ -1040,8 +1082,8 @@ def get_email_by_gmail_id(gmail_message_id):
 def get_emails_by_thread(gmail_thread_id, user_id):
     conn = get_db()
     rows = conn.execute(
-        "SELECT * FROM emails WHERE gmail_thread_id = ? AND user_id = ?"
-        " ORDER BY COALESCE(received_at, sent_at, synced_at) ASC",
+        "SELECT * FROM emails WHERE gmail_thread_id = %s AND user_id = %s"
+        " ORDER BY COALESCE(received_at, sent_at, synced_at::text) ASC",
         (gmail_thread_id, user_id),
     ).fetchall()
     conn.close()
@@ -1050,7 +1092,7 @@ def get_emails_by_thread(gmail_thread_id, user_id):
 
 def delete_email(email_id):
     conn = get_db()
-    conn.execute("DELETE FROM emails WHERE id = ?", (email_id,))
+    conn.execute("DELETE FROM emails WHERE id = %s", (email_id,))
     conn.commit()
     conn.close()
 
@@ -1061,7 +1103,7 @@ def save_email_attachment(email_id, filename=None, mime_type=None,
     conn.execute(
         "INSERT INTO email_attachments"
         " (email_id, filename, mime_type, gmail_attachment_id, file_path)"
-        " VALUES (?, ?, ?, ?, ?)",
+        " VALUES (%s, %s, %s, %s, %s)",
         (email_id, filename, mime_type, gmail_attachment_id, file_path),
     )
     conn.commit()
@@ -1073,13 +1115,13 @@ def upsert_ai_processing(email_id, ai_summary=None, detected_category=None,
                           invoice_reference=None, processing_status="DONE"):
     conn = get_db()
     existing = conn.execute(
-        "SELECT id FROM email_ai_processing WHERE email_id = ?", (email_id,)
+        "SELECT id FROM email_ai_processing WHERE email_id = %s", (email_id,)
     ).fetchone()
     if existing:
         conn.execute(
-            "UPDATE email_ai_processing SET ai_summary=?, detected_category=?,"
-            " extracted_entities=?, shipment_reference=?, invoice_reference=?,"
-            " processing_status=? WHERE email_id=?",
+            "UPDATE email_ai_processing SET ai_summary=%s, detected_category=%s,"
+            " extracted_entities=%s, shipment_reference=%s, invoice_reference=%s,"
+            " processing_status=%s WHERE email_id=%s",
             (ai_summary, detected_category, extracted_entities,
              shipment_reference, invoice_reference, processing_status, email_id),
         )
@@ -1088,7 +1130,7 @@ def upsert_ai_processing(email_id, ai_summary=None, detected_category=None,
             "INSERT INTO email_ai_processing"
             " (email_id, ai_summary, detected_category, extracted_entities,"
             "  shipment_reference, invoice_reference, processing_status)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?)",
+            " VALUES (%s, %s, %s, %s, %s, %s, %s)",
             (email_id, ai_summary, detected_category, extracted_entities,
              shipment_reference, invoice_reference, processing_status),
         )
@@ -1099,7 +1141,7 @@ def upsert_ai_processing(email_id, ai_summary=None, detected_category=None,
 def get_ai_processing(email_id):
     conn = get_db()
     row = conn.execute(
-        "SELECT * FROM email_ai_processing WHERE email_id = ?", (email_id,)
+        "SELECT * FROM email_ai_processing WHERE email_id = %s", (email_id,)
     ).fetchone()
     conn.close()
     return row
@@ -1113,15 +1155,15 @@ def upsert_company_profile(user_id, company_name, legal_name=None, industry=None
                            billing_terms=None):
     conn = get_db()
     existing = conn.execute(
-        "SELECT id FROM company_profiles WHERE user_id = ?", (user_id,)
+        "SELECT id FROM company_profiles WHERE user_id = %s", (user_id,)
     ).fetchone()
     if existing:
         conn.execute(
-            "UPDATE company_profiles SET company_name=?, legal_name=?, industry=?,"
-            " website=?, email=?, phone=?, address_line1=?, address_line2=?, city=?,"
-            " state=?, country=?, pincode=?, gst_number=?, pan_number=?, iec_code=?,"
-            " currency=?, incoterms=?, logo_path=?, billing_terms=?,"
-            " updated_at=datetime('now') WHERE user_id=?",
+            "UPDATE company_profiles SET company_name=%s, legal_name=%s, industry=%s,"
+            " website=%s, email=%s, phone=%s, address_line1=%s, address_line2=%s, city=%s,"
+            " state=%s, country=%s, pincode=%s, gst_number=%s, pan_number=%s, iec_code=%s,"
+            " currency=%s, incoterms=%s, logo_path=%s, billing_terms=%s,"
+            " updated_at=CURRENT_TIMESTAMP WHERE user_id=%s",
             (company_name, legal_name, industry, website, email, phone,
              address_line1, address_line2, city, state, country, pincode,
              gst_number, pan_number, iec_code, currency, incoterms,
@@ -1133,7 +1175,7 @@ def upsert_company_profile(user_id, company_name, legal_name=None, industry=None
             " website, email, phone, address_line1, address_line2, city, state, country,"
             " pincode, gst_number, pan_number, iec_code, currency, incoterms,"
             " logo_path, billing_terms)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
             (user_id, company_name, legal_name, industry, website, email, phone,
              address_line1, address_line2, city, state, country, pincode,
              gst_number, pan_number, iec_code, currency, incoterms,
@@ -1146,7 +1188,7 @@ def upsert_company_profile(user_id, company_name, legal_name=None, industry=None
 def update_user_profile(user_id, name, email):
     conn = get_db()
     conn.execute(
-        "UPDATE users SET name=?, email=? WHERE id=?",
+        "UPDATE users SET name=%s, email=%s WHERE id=%s",
         (name, email, user_id),
     )
     conn.commit()
@@ -1156,7 +1198,7 @@ def update_user_profile(user_id, name, email):
 def update_user_password(user_id, password_hash):
     conn = get_db()
     conn.execute(
-        "UPDATE users SET password_hash=? WHERE id=?",
+        "UPDATE users SET password_hash=%s WHERE id=%s",
         (password_hash, user_id),
     )
     conn.commit()

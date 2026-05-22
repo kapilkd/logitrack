@@ -20,8 +20,8 @@ Covers:
 
 Design note on isolation:
   database/db.py and database/queries.py call get_db() with no arguments, which
-  falls back to the module-level DB_PATH constant.  To keep tests isolated each
-  fixture patches database.db.DB_PATH to a per-test temporary file so every
+  reads the module-level DATABASE_URL constant.  To keep tests isolated each
+  fixture patches database.db.DATABASE_URL to a dedicated test database so every
   get_db() call — in routes, helpers, and query functions — hits the test DB.
 """
 
@@ -39,17 +39,16 @@ from database.db import init_db, get_db
 # Fixtures                                                             #
 # ------------------------------------------------------------------ #
 
-@pytest.fixture
-def app(tmp_path, monkeypatch):
-    """
-    Isolated Flask app whose every get_db() call routes to a fresh
-    per-test SQLite file via monkeypatching of database.db.DB_PATH.
-    """
-    db_file = str(tmp_path / "test.db")
+TEST_DB_URL = "postgresql://postgres:1234@localhost:5432/logitrack_test"
 
-    # Patch the module-level constant so all internal get_db() calls
-    # (in db.py helpers and queries.py functions) use the test DB.
-    monkeypatch.setattr(db_module, "DB_PATH", db_file)
+
+@pytest.fixture
+def app(monkeypatch):
+    """
+    Isolated Flask app whose every get_db() call routes to the dedicated
+    test database via monkeypatching of database.db.DATABASE_URL.
+    """
+    monkeypatch.setattr(db_module, "DATABASE_URL", TEST_DB_URL)
 
     flask_app.config.update({
         'TESTING': True,
@@ -58,9 +57,18 @@ def app(tmp_path, monkeypatch):
     })
 
     with flask_app.app_context():
-        # Initialise schema in the patched test DB
-        init_db(path=db_file)
+        init_db()
         yield flask_app
+        conn = get_db()
+        conn.execute("""
+            TRUNCATE TABLE email_ai_processing, email_attachments, emails,
+                           gmail_accounts, company_profiles, system_alerts,
+                           shipment_vendors, vendor_contacts, vendors,
+                           expenses, shipments, users
+            RESTART IDENTITY CASCADE
+        """)
+        conn.commit()
+        conn.close()
 
 
 @pytest.fixture
@@ -80,8 +88,8 @@ def _register_and_login(client, name="Alice", email="alice@test.com", password="
 
 def _get_user_id(email):
     """Return the id for a user already registered in the (monkeypatched) DB."""
-    conn = get_db()      # DB_PATH is already monkeypatched at this point
-    row = conn.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
+    conn = get_db()      # DATABASE_URL is already monkeypatched at this point
+    row = conn.execute("SELECT id FROM users WHERE email = %s", (email,)).fetchone()
     conn.close()
     assert row is not None, f"User '{email}' not found in test DB"
     return row["id"]
@@ -92,7 +100,7 @@ def _insert_expense(user_id, amount, category, expense_date, description=""):
     conn = get_db()
     conn.execute(
         "INSERT INTO expenses (user_id, amount, category, date, description)"
-        " VALUES (?, ?, ?, ?, ?)",
+        " VALUES (%s, %s, %s, %s, %s)",
         (user_id, amount, category, expense_date, description),
     )
     conn.commit()

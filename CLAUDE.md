@@ -2,7 +2,7 @@
 
 ## Project overview
 
-logitrack is a lightweight logistic tracker and builder application built with Flask and SQLite. It is a single-user-per-session server-rendered app (Jinja2 + vanilla JS) that also integrates with Gmail (OAuth) for inbound/outbound mail and with the Anthropic Claude API for email summarisation and reply drafting.
+logitrack is a lightweight logistic tracker and builder application built with Flask and PostgreSQL. It is a single-user-per-session server-rendered app (Jinja2 + vanilla JS) that also integrates with Gmail (OAuth) for inbound/outbound mail and with the Anthropic Claude API for email summarisation and reply drafting.
 
 ---
 
@@ -39,7 +39,7 @@ logitrack/
 ├── ai_utils.py                     # Anthropic Claude client + email processing / reply helpers
 ├── gmail_utils.py                  # Gmail API client, OAuth-token encryption, sync & send helpers
 ├── database/
-│   ├── db.py                       # SQLite helpers, schema (init_db), seed data, all CRUD
+│   ├── db.py                       # PostgreSQL helpers, schema (init_db), seed data, all CRUD
 │   └── queries.py                  # Complex read queries: joins, aggregates, filters
 ├── templates/
 │   ├── base.html                   # Shared layout — all templates must extend this
@@ -108,7 +108,7 @@ logitrack/
 - Python: PEP 8, snake_case for all variables and functions
 - Templates: Jinja2 with `url_for()` for every internal link — never hardcode URLs
 - Route functions: one responsibility only — fetch data, render template, done
-- DB queries: always use parameterized queries (`?` placeholders) — never f-strings in SQL
+- DB queries: always use parameterized queries (`%s` placeholders) — never f-strings in SQL
 - Error handling: use `abort()` for HTTP errors, not bare `return "error string"`
 
 ---
@@ -116,7 +116,7 @@ logitrack/
 ## Tech constraints
 
 - **Flask only** — no FastAPI, no Django, no other web frameworks
-- **SQLite only** — no PostgreSQL, no SQLAlchemy ORM, no external DB
+- **PostgreSQL only** — no SQLite, no SQLAlchemy ORM, no other DB; connect via `DATABASE_URL` env var
 - **Vanilla JS only** — no React, no jQuery, no npm packages
 - **No new pip packages** — work within `requirements.txt` as-is unless explicitly told otherwise
 - Python 3.10+ assumed — f-strings and `match` statements are fine
@@ -496,7 +496,7 @@ email_ai_processing (
 )
 ```
 
-`get_db()` enables `PRAGMA foreign_keys = ON` on every connection. `init_db()` is idempotent and additionally runs guarded `ALTER TABLE` statements to add columns (e.g. `expenses.shipment_id`, `company_profiles.logo_path`, `company_profiles.billing_terms`) so that older DBs migrate forward without manual steps.
+`get_db()` opens a `psycopg2` connection using `DATABASE_URL` (defaults to `postgresql://postgres:1234@localhost:5432/logitrack_db`). `init_db()` is idempotent — it creates tables with `CREATE TABLE IF NOT EXISTS`. Tests monkeypatch `database.db.DATABASE_URL` to `postgresql://postgres:1234@localhost:5432/logitrack_test` and truncate all tables in teardown.
 
 ---
 
@@ -504,8 +504,8 @@ email_ai_processing (
 
 | Function | Purpose |
 |----------|---------|
-| `get_db(path)` | Open SQLite connection with FK enforcement |
-| `init_db(path)` | Create all tables + run forward-compatible `ALTER TABLE` migrations |
+| `get_db()` | Open PostgreSQL connection via `DATABASE_URL` with `DictCursor` |
+| `init_db()` | Create all tables with `CREATE TABLE IF NOT EXISTS` |
 | `seed_db(path)` | Insert demo data (`demo@logitrack.com` / `demo123`, sample vendors, shipments, expenses, links) |
 | `create_user / get_user_by_email / get_user_by_id` | User CRUD |
 | `create_expense / get_expense_by_id / update_expense / delete_expense` | Expense CRUD (standalone + shipment-linked via `shipment_id`) |

@@ -29,7 +29,7 @@ Read this together with:
     (app.py, ai_utils.py, gmail_utils.py, database/, templates/,
      static/css/, static/js/, static/uploads/logos/, tests/)
 [ ] Initialise git
-[ ] Copy `.gitignore` from this repo (ignores venv, *.db, credentials,
+[ ] Copy `.gitignore` from this repo (ignores venv, credentials,
     token_key.txt, __pycache__, etc.)
 [ ] Copy `requirements.txt` from this repo (Flask, Werkzeug, pytest,
     pytest-flask, google-api-python-client, google-auth*, anthropic,
@@ -49,8 +49,8 @@ Read this together with:
 --------------------------------------------------------------------------
 [ ] Create `database/__init__.py` (empty marker file)
 [ ] Create `database/db.py` — copy from this repo. It contains:
-      - get_db(path)                  opens sqlite3 with row_factory + PRAGMA foreign_keys=ON
-      - init_db(path)                 CREATE TABLE statements + forward ALTERs
+      - get_db()                      opens psycopg2 connection (reads DATABASE_URL) with DictCursor
+      - init_db()                     CREATE TABLE IF NOT EXISTS statements
       - seed_db(path)                 demo user / vendors / shipments / expenses / links
       - all CRUD helpers              (see the function table in CLAUDE.md)
       - constants                     SHIPMENT_STATUSES, INCOTERMS, RELATIONSHIP_TYPES,
@@ -218,7 +218,7 @@ CLAUDE.md for the authoritative list.
 --------------------------------------------------------------------------
 - Port: 5001 (not 5000).
 - Web framework: Flask only — no FastAPI / Django.
-- DB: SQLite only — no SQLAlchemy, no Postgres.
+- DB: PostgreSQL only — no SQLite, no SQLAlchemy; connect via DATABASE_URL env var.
 - Frontend: vanilla JS only — no React / jQuery / npm.
 - No new pip packages without updating requirements.txt deliberately.
 - No DB logic inline in routes — keep CRUD in database/db.py and complex

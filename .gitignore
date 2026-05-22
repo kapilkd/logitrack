@@ -1,6 +1,4 @@
 venv/
-expense_tracker.db
-logitrack.db
 __pycache__/
 *.pyc
 *.pyo
@@ -9,4 +7,3 @@ __pycache__/
 .claude/plans/
 credentials.json
 token_key.txt
-.env

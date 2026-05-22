@@ -41,7 +41,25 @@
       "Bash(\"venv\\\\Scripts\\\\python.exe\" -c \"import flask, werkzeug; print\\('OK'\\)\")",
       "Bash(\"venv\\\\Scripts\\\\python.exe\" app.py)",
       "Bash(powershell *)",
-      "PowerShell(Stop-Process *)"
+      "PowerShell(Stop-Process *)",
+      "Bash(venv\\\\Scripts\\\\pip install *)",
+      "PowerShell(cd D:\\\\claude\\\\logitrack; $env:DATABASE_URL=\"postgresql://postgres:1234@localhost:5432/logitrack_db\"; venv\\\\Scripts\\\\python -c \"from database.db import init_db, seed_db; init_db\\(\\); print\\('init_db OK'\\); seed_db\\(\\); print\\('seed_db OK'\\)\")",
+      "PowerShell(cd D:\\\\claude\\\\logitrack; $env:DATABASE_URL=\"postgresql://postgres:1234@localhost:5432/logitrack_db\"; venv\\\\Scripts\\\\pytest tests\\\\ -v 2>&1)",
+      "PowerShell(cd D:\\\\claude\\\\logitrack; $env:DATABASE_URL=\"postgresql://postgres:1234@localhost:5432/logitrack_db\"; $env:PYTHONPATH=\"D:\\\\claude\\\\logitrack\"; venv\\\\Scripts\\\\pytest tests\\\\ -v 2>&1)",
+      "PowerShell(cd D:\\\\claude\\\\logitrack; $env:DATABASE_URL=\"postgresql://postgres:1234@localhost:5432/logitrack_db\"; $env:PYTHONPATH=\"D:\\\\claude\\\\logitrack\"; venv\\\\Scripts\\\\pytest tests/test_07-add-expense.py::TestAuthGuard::test_unauthenticated_get_profile_redirects_to_login -v --tb=long 2>&1)",
+      "PowerShell(cd D:\\\\claude\\\\logitrack; $env:DATABASE_URL=\"postgresql://postgres:1234@localhost:5432/logitrack_db\"; $env:PYTHONPATH=\"D:\\\\claude\\\\logitrack\"; venv\\\\Scripts\\\\pytest \"tests/test_07-add-expense.py\" -v --tb=long 2>&1 | Select-Object -First 80)",
+      "PowerShell(cd D:\\\\claude\\\\logitrack; $env:DATABASE_URL=\"postgresql://postgres:1234@localhost:5432/logitrack_db\"; $env:PYTHONPATH=\"D:\\\\claude\\\\logitrack\"; venv\\\\Scripts\\\\pytest \"tests/test_07-add-expense.py\" --tb=short -q 2>&1 | Select-Object -Last 50)",
+      "PowerShell(cd D:\\\\claude\\\\logitrack; $env:DATABASE_URL=\"postgresql://postgres:1234@localhost:5432/logitrack_db\"; $env:PYTHONPATH=\"D:\\\\claude\\\\logitrack\"; venv\\\\Scripts\\\\pytest \"tests/test_07-add-expense.py\" --tb=long -q 2>&1 | Select-Object -First 60)",
+      "PowerShell(cd D:\\\\claude\\\\logitrack; $env:PGPASSWORD=\"1234\"; venv\\\\Scripts\\\\python -c \"import psycopg2; conn = psycopg2.connect\\('postgresql://postgres:1234@localhost:5432/postgres'\\); conn.autocommit = True; cur = conn.cursor\\(\\); cur.execute\\(\\\\\"SELECT 1 FROM pg_database WHERE datname='logitrack_test'\\\\\"\\); exists = cur.fetchone\\(\\); cur.execute\\(\\\\\"CREATE DATABASE logitrack_test\\\\\"\\) if not exists else None; print\\('logitrack_test ready'\\); conn.close\\(\\)\")",
+      "PowerShell(cd D:\\\\claude\\\\logitrack; $env:DATABASE_URL=\"postgresql://postgres:1234@localhost:5432/logitrack_db\"; $env:PYTHONPATH=\"D:\\\\claude\\\\logitrack\"; venv\\\\Scripts\\\\pytest tests\\\\ -v --tb=short -q 2>&1 | Select-Object -Last 40)",
+      "PowerShell(cd D:\\\\claude\\\\logitrack; $env:DATABASE_URL=\"postgresql://postgres:1234@localhost:5432/logitrack_db\"; $env:PYTHONPATH=\"D:\\\\claude\\\\logitrack\"; venv\\\\Scripts\\\\pytest \"tests/test_07-add-expense.py::TestAmountValidation::test_invalid_amount_inserts_no_row\" \"tests/test_07-add-expense.py::TestDescriptionOptional::test_missing_description_stored_as_null\" --tb=short -q 2>&1)",
+      "PowerShell(cd D:\\\\claude\\\\logitrack; $env:DATABASE_URL=\"postgresql://postgres:1234@localhost:5432/logitrack_db\"; $env:PYTHONPATH=\"D:\\\\claude\\\\logitrack\"; venv\\\\Scripts\\\\pytest tests\\\\ -q --tb=short 2>&1 | Select-Object -Last 20)",
+      "PowerShell(cd D:\\\\claude\\\\logitrack; $env:DATABASE_URL=\"postgresql://postgres:1234@localhost:5432/logitrack_db\"; $env:PYTHONPATH=\"D:\\\\claude\\\\logitrack\"; venv\\\\Scripts\\\\pytest \"tests/test_07-add-expense.py::TestCategoryValidation::test_invalid_category_inserts_no_row\" \"tests/test_07-add-expense.py::TestDescriptionOptional::test_missing_description_inserts_row\" \"tests/test_07-add-expense.py::TestDateValidation::test_valid_date_boundary_leap_day_accepted\" --tb=short -q 2>&1)",
+      "PowerShell(cd D:\\\\claude\\\\logitrack; $env:DATABASE_URL=\"postgresql://postgres:1234@localhost:5432/logitrack_db\"; $env:PYTHONPATH=\"D:\\\\claude\\\\logitrack\"; venv\\\\Scripts\\\\pytest tests\\\\ -q --tb=line 2>&1 | Select-Object -Last 25)",
+      "PowerShell($env:PYTHONPATH=\"D:\\\\claude\\\\logitrack\"; venv\\\\Scripts\\\\pytest tests\\\\test_07-add-expense.py -q --tb=short 2>&1 | Select-Object -Last 60)",
+      "PowerShell($env:PYTHONPATH=\"D:\\\\claude\\\\logitrack\"; venv\\\\Scripts\\\\pytest tests\\\\ -q --tb=line 2>&1 | Select-Object -Last 30)",
+      "PowerShell($env:PYTHONPATH=\"D:\\\\claude\\\\logitrack\"; venv\\\\Scripts\\\\pytest tests\\\\ -q --tb=line 2>&1 | Select-Object -Last 20)",
+      "PowerShell($env:PYTHONPATH=\"D:\\\\claude\\\\logitrack\"; venv\\\\Scripts\\\\pytest tests\\\\ -q --tb=no 2>&1 | Select-Object -Last 5)"
     ]
   }
 }

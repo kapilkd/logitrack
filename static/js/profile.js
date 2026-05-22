@@ -24,7 +24,7 @@ editButtons.forEach(button => {
         document.getElementById('editAmount').value = button.dataset.amount;
         document.getElementById('editCategory').value = button.dataset.category;
         document.getElementById('editDate').value = button.dataset.date;
-        document.getElementById('editDescription').value = button.dataset.description;
+        document.getElementById('editDescription').value = button.closest('tr').querySelector('.txn-desc').textContent.trim();
 
         document.getElementById('editExpenseForm').action = `/expenses/${expenseId}/edit`;
 

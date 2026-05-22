@@ -20,21 +20,23 @@ Covers:
 import pytest
 import database.db as db_module
 from app import app as flask_app
-from database.db import init_db
+from database.db import init_db, get_db
 
 
 # ------------------------------------------------------------------ #
 # Fixtures                                                             #
 # ------------------------------------------------------------------ #
 
+TEST_DB_URL = "postgresql://postgres:1234@localhost:5432/logitrack_test"
+
+
 @pytest.fixture
-def app(tmp_path, monkeypatch):
+def app(monkeypatch):
     """
     Isolated Flask app — every get_db() call in routes and helpers is
-    redirected to a fresh per-test SQLite file via DB_PATH monkeypatching.
+    redirected to the test database via DATABASE_URL monkeypatching.
     """
-    db_file = str(tmp_path / "test.db")
-    monkeypatch.setattr(db_module, "DB_PATH", db_file)
+    monkeypatch.setattr(db_module, "DATABASE_URL", TEST_DB_URL)
 
     flask_app.config.update({
         'TESTING': True,
@@ -43,8 +45,18 @@ def app(tmp_path, monkeypatch):
     })
 
     with flask_app.app_context():
-        init_db(path=db_file)
+        init_db()
         yield flask_app
+        conn = get_db()
+        conn.execute("""
+            TRUNCATE TABLE email_ai_processing, email_attachments, emails,
+                           gmail_accounts, company_profiles, system_alerts,
+                           shipment_vendors, vendor_contacts, vendors,
+                           expenses, shipments, users
+            RESTART IDENTITY CASCADE
+        """)
+        conn.commit()
+        conn.close()
 
 
 @pytest.fixture

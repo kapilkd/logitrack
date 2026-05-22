@@ -33,12 +33,6 @@ block head %}
       <div class="filter-bar">
         <div class="filter-presets">
           <a
-            href="{{ url_for('profile') }}"
-            class="filter-preset-btn{% if active_preset == 'all' %} filter-preset-btn--active{% endif %}"
-          >
-            All Time
-          </a>
-          <a
             href="{{ url_for('profile', from_date=presets.this_month[0], to_date=presets.this_month[1]) }}"
             class="filter-preset-btn{% if active_preset == 'this_month' %} filter-preset-btn--active{% endif %}"
           >
@@ -55,6 +49,12 @@ block head %}
             class="filter-preset-btn{% if active_preset == 'last_3_months' %} filter-preset-btn--active{% endif %}"
           >
             Last 3 Months
+          </a>
+          <a
+            href="{{ url_for('profile') }}"
+            class="filter-preset-btn{% if active_preset == 'all' %} filter-preset-btn--active{% endif %}"
+          >
+            All Time
           </a>
         </div>
         <form
@@ -126,7 +126,6 @@ block head %}
                     class="txn-btn txn-btn--edit edit-expense-btn"
                     data-id="{{ txn.id }}"
                     data-date="{{ txn.raw_date }}"
-                    data-description="{{ txn.description }}"
                     data-category="{{ txn.category }}"
                     data-amount="{{ txn.raw_amount }}"
                   >

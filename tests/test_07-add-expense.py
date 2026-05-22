@@ -81,18 +81,18 @@ VALID_POST_DATA = {
 # Fixtures                                                             #
 # ------------------------------------------------------------------ #
 
+TEST_DB_URL = "postgresql://postgres:1234@localhost:5432/logitrack_test"
+
+
 @pytest.fixture
-def app(tmp_path, monkeypatch):
+def app(monkeypatch):
     """
     Isolated Flask app for each test.
 
-    database/db.py and database/queries.py resolve their SQLite connection
-    through the module-level DB_PATH constant.  Monkeypatching that constant
-    to a per-test temp file ensures every get_db() call — inside routes,
-    db.py helpers, and queries.py functions — hits the isolated test DB.
+    Monkeypatches DATABASE_URL to a dedicated test database, initialises the
+    schema, yields, then truncates all tables so the next test starts clean.
     """
-    db_file = str(tmp_path / "test.db")
-    monkeypatch.setattr(db_module, "DB_PATH", db_file)
+    monkeypatch.setattr(db_module, "DATABASE_URL", TEST_DB_URL)
 
     flask_app.config.update({
         "TESTING": True,
@@ -101,8 +101,18 @@ def app(tmp_path, monkeypatch):
     })
 
     with flask_app.app_context():
-        init_db(path=db_file)
+        init_db()
         yield flask_app
+        conn = get_db()
+        conn.execute("""
+            TRUNCATE TABLE email_ai_processing, email_attachments, emails,
+                           gmail_accounts, company_profiles, system_alerts,
+                           shipment_vendors, vendor_contacts, vendors,
+                           expenses, shipments, users
+            RESTART IDENTITY CASCADE
+        """)
+        conn.commit()
+        conn.close()
 
 
 @pytest.fixture
@@ -129,7 +139,7 @@ def _register_and_login(
 def _get_user_id(email):
     """Return the integer id for a user already inserted in the (monkeypatched) DB."""
     conn = get_db()
-    row = conn.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
+    row = conn.execute("SELECT id FROM users WHERE email = %s", (email,)).fetchone()
     conn.close()
     assert row is not None, f"User '{email}' not found in test DB"
     return row["id"]
@@ -139,7 +149,7 @@ def _count_expenses(user_id):
     """Return the number of expense rows for the given user_id in the test DB."""
     conn = get_db()
     count = conn.execute(
-        "SELECT COUNT(*) FROM expenses WHERE user_id = ?", (user_id,)
+        "SELECT COUNT(*) FROM expenses WHERE user_id = %s", (user_id,)
     ).fetchone()[0]
     conn.close()
     return count
@@ -149,7 +159,7 @@ def _get_latest_expense(user_id):
     """Return the most-recently inserted expense row for a user as a Row object."""
     conn = get_db()
     row = conn.execute(
-        "SELECT * FROM expenses WHERE user_id = ? ORDER BY id DESC LIMIT 1",
+        "SELECT * FROM expenses WHERE user_id = %s ORDER BY id DESC LIMIT 1",
         (user_id,),
     ).fetchone()
     conn.close()

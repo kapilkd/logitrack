@@ -1322,9 +1322,10 @@ def user_management_settings():
         return redirect(url_for("login"))
     raw_user = get_user_row_by_id(uid)
     try:
-        joined = datetime.strptime(raw_user["created_at"][:10], "%Y-%m-%d").strftime("%B %d, %Y")
+        ca = raw_user["created_at"]
+        joined = ca.strftime("%B %d, %Y") if hasattr(ca, "strftime") else datetime.strptime(str(ca)[:10], "%Y-%m-%d").strftime("%B %d, %Y")
     except Exception:
-        joined = raw_user["created_at"]
+        joined = str(raw_user["created_at"])
     return render_template(
         "settings_user_management.html",
         user=user, raw_user=raw_user, joined=joined,
@@ -1343,9 +1344,10 @@ def user_management_update_profile():
         return redirect(url_for("login"))
     raw_user = get_user_row_by_id(uid)
     try:
-        joined = datetime.strptime(raw_user["created_at"][:10], "%Y-%m-%d").strftime("%B %d, %Y")
+        ca = raw_user["created_at"]
+        joined = ca.strftime("%B %d, %Y") if hasattr(ca, "strftime") else datetime.strptime(str(ca)[:10], "%Y-%m-%d").strftime("%B %d, %Y")
     except Exception:
-        joined = raw_user["created_at"]
+        joined = str(raw_user["created_at"])
 
     name  = request.form.get("name",  "").strip()
     email = request.form.get("email", "").strip()
@@ -1386,9 +1388,10 @@ def user_management_update_password():
         return redirect(url_for("login"))
     raw_user = get_user_row_by_id(uid)
     try:
-        joined = datetime.strptime(raw_user["created_at"][:10], "%Y-%m-%d").strftime("%B %d, %Y")
+        ca = raw_user["created_at"]
+        joined = ca.strftime("%B %d, %Y") if hasattr(ca, "strftime") else datetime.strptime(str(ca)[:10], "%Y-%m-%d").strftime("%B %d, %Y")
     except Exception:
-        joined = raw_user["created_at"]
+        joined = str(raw_user["created_at"])
 
     current_password = request.form.get("current_password", "")
     new_password     = request.form.get("new_password",     "")
