@@ -123,9 +123,9 @@ _VALID_PAYMENT_STATUSES = {"PENDING", "PARTIAL", "PAID", "OVERDUE"}
 _VALID_BILLING_TYPES = {"PAYABLE", "RECEIVABLE"}
 
 
-def get_filtered_vendors(vendor_type=None, vendor_category=None, vendor_status=None):
-    sql = "SELECT * FROM vendors WHERE 1=1"
-    params = []
+def get_filtered_vendors(user_id, vendor_type=None, vendor_category=None, vendor_status=None):
+    sql = "SELECT * FROM vendors WHERE user_id = %s"
+    params = [user_id]
     if vendor_type in _VENDOR_TYPES:
         sql += " AND vendor_type = %s"
         params.append(vendor_type)
@@ -395,11 +395,12 @@ def get_shipment_report_rows(user_id, status=None, from_date=None, to_date=None)
             s.status,
             s.shipment_date,
             s.carrier,
-            COALESCE(e.expense_total, 0.0)                                        AS expense_total,
-            COALESCE(sv.total_payable, 0.0)                                       AS total_payable,
-            COALESCE(sv.total_receivable, 0.0)                                    AS total_receivable,
-            COALESCE(sv.total_receivable, 0.0) - COALESCE(sv.total_payable, 0.0) AS net_position,
-            COALESCE(sv.vendor_count, 0)                                          AS vendor_count
+            COALESCE(e.expense_total, 0.0)                                                                   AS expense_total,
+            COALESCE(sv.total_payable, 0.0)                                                                  AS total_payable,
+            COALESCE(sv.total_receivable, 0.0)                                                               AS total_receivable,
+            COALESCE(sv.total_payable, 0.0)  + COALESCE(e.expense_total, 0.0)                               AS total_cost,
+            COALESCE(sv.total_receivable, 0.0) - (COALESCE(sv.total_payable, 0.0) + COALESCE(e.expense_total, 0.0)) AS net_position,
+            COALESCE(sv.vendor_count, 0)                                                                     AS vendor_count
         FROM shipments s
         LEFT JOIN (
             SELECT shipment_id, SUM(amount) AS expense_total
@@ -441,10 +442,11 @@ def get_shipment_report_rows(user_id, status=None, from_date=None, to_date=None)
             "status":           row["status"],
             "shipment_date":    row["shipment_date"] or "",
             "carrier":          row["carrier"] or "",
-            "expense_total":    row["expense_total"],
-            "total_payable":    row["total_payable"],
-            "total_receivable": row["total_receivable"],
-            "net_position":     row["net_position"],
+            "expense_total":    float(row["expense_total"]),
+            "total_payable":    float(row["total_payable"]),
+            "total_receivable": float(row["total_receivable"]),
+            "total_cost":       float(row["total_cost"]),
+            "net_position":     float(row["net_position"]),
             "vendor_count":     int(row["vendor_count"]),
         }
         for row in rows
@@ -488,11 +490,17 @@ def get_report_summary_stats(user_id, status=None, from_date=None, to_date=None)
     conn = get_db()
     row = conn.execute(sql, params).fetchone()
     conn.close()
+    exp  = float(row["expense_total"])
+    pay  = float(row["total_payable"])
+    recv = float(row["total_receivable"])
+    cost = round(pay + exp, 2)
     return {
         "shipment_count":   int(row["shipment_count"]),
-        "expense_total":    row["expense_total"],
-        "total_payable":    row["total_payable"],
-        "total_receivable": row["total_receivable"],
+        "expense_total":    exp,
+        "total_payable":    pay,
+        "total_receivable": recv,
+        "total_cost":       cost,
+        "net_position":     round(recv - cost, 2),
     }
 
 

@@ -626,6 +626,7 @@
     color: var(--ink-muted);
     cursor: pointer;
     text-align: left;
+    text-decoration: none;
     transition: background 0.15s, color 0.15s;
 }
 
@@ -636,6 +637,11 @@
 
 .sidebar-group.is-open .sidebar-group-toggle {
     color: var(--ink);
+}
+
+.sidebar-group-toggle--active {
+    color: var(--ink);
+    background: var(--paper-warm);
 }
 
 .sidebar-group-label {

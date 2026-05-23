@@ -96,6 +96,70 @@
 /* ── Amount colours ──────────────────────────────────── */
 .amount-payable    { color: var(--danger); }
 .amount-receivable { color: #166534; }
+.amount-pending    { color: #92400e; }
+
+/* ── Stat card billing sub-line ─────────────────────── */
+.stat-card--billing { gap: 0.2rem; }
+.stat-billing-sub {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.75rem;
+    color: var(--ink-muted);
+    margin-top: 0.15rem;
+    flex-wrap: wrap;
+}
+.stat-sub-sep { color: var(--ink-muted); }
+
+/* ── Payment summary line in modal ──────────────────── */
+.payment-modal-summary {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    font-size: 0.8rem;
+    color: var(--ink-muted);
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+/* ── Partial payment sub-rows ───────────────────────── */
+.payment-sub-row {
+    background: var(--paper-warm);
+}
+.payment-sub-row td {
+    padding-top: 0.3rem !important;
+    padding-bottom: 0.3rem !important;
+    border-bottom: none !important;
+}
+.payment-sub-indent {
+    padding-left: 2rem !important;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+.payment-sub-date {
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    font-weight: 500;
+}
+.payment-sub-ref {
+    font-size: 0.75rem;
+    color: var(--ink-muted);
+    background: var(--paper);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.05rem 0.4rem;
+}
+.payment-sub-notes {
+    font-size: 0.75rem;
+    color: var(--ink-muted);
+    font-style: italic;
+}
+.payment-sub-amount {
+    font-size: 0.82rem;
+    font-weight: 600;
+}
 
 /* ── Card header row (title + action button) ─────────── */
 .card-header-row {
@@ -249,6 +313,13 @@
     font-weight: 500;
     color: var(--ink-soft);
     margin-bottom: 0.3rem;
+}
+
+.field-hint {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--ink-muted);
+    margin-top: 0.25rem;
 }
 
 .form-group input,

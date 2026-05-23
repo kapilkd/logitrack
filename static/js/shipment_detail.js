@@ -10,9 +10,39 @@ function closeModal(id) {
 
 // Close on backdrop click
 window.addEventListener('click', e => {
-    ['addVendorModal', 'editVendorModal', 'addExpenseModal', 'editExpenseModal'].forEach(id => {
+    ['addPaymentModal', 'addReceivableModal', 'addVendorModal', 'editVendorModal', 'addExpenseModal', 'editExpenseModal'].forEach(id => {
         const el = document.getElementById(id);
         if (el && e.target === el) closeModal(id);
+    });
+});
+
+// Add receivable modal
+document.getElementById('openAddReceivableModal')?.addEventListener('click', () => openModal('addReceivableModal'));
+document.getElementById('closeAddReceivableModal')?.addEventListener('click', () => closeModal('addReceivableModal'));
+
+// Add payment modal
+document.getElementById('closeAddPaymentModal')?.addEventListener('click', () => closeModal('addPaymentModal'));
+
+document.querySelectorAll('.add-payment-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const svId    = btn.dataset.svId;
+        const label   = btn.dataset.label;
+        const total   = parseFloat(btn.dataset.total);
+        const paid    = parseFloat(btn.dataset.paid);
+        const balance = parseFloat(btn.dataset.balance);
+
+        document.getElementById('paymentModalLabel').textContent  = label;
+        document.getElementById('paymentModalTotal').textContent   = '₹' + total.toFixed(2);
+        document.getElementById('paymentModalPaid').textContent    = '₹' + paid.toFixed(2);
+        document.getElementById('paymentModalBalance').textContent = '₹' + balance.toFixed(2);
+        document.getElementById('paymentMaxHint').textContent      = 'Max: ₹' + balance.toFixed(2);
+        document.getElementById('paymentAmount').max               = balance;
+        document.getElementById('paymentAmount').value             = '';
+        document.getElementById('paymentReference').value         = '';
+        document.getElementById('paymentNotes').value             = '';
+        document.getElementById('addPaymentForm').action =
+            `/shipments/${shipmentId}/vendors/${svId}/payments/add`;
+        openModal('addPaymentModal');
     });
 });
 
@@ -55,6 +85,18 @@ document.querySelectorAll('.edit-sv-btn').forEach(btn => {
         document.getElementById('editSvNotes').value         = btn.dataset.notes;
         document.getElementById('editVendorForm').action     = `/shipments/${shipmentId}/vendors/${svId}/edit`;
         openModal('editVendorModal');
+    });
+});
+
+// Delete individual payment
+document.querySelectorAll('.delete-payment-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        if (!confirm('Delete this payment record? This cannot be undone.')) return;
+        const svId      = btn.dataset.svId;
+        const paymentId = btn.dataset.paymentId;
+        fetch(`/shipments/${shipmentId}/vendors/${svId}/payments/${paymentId}/delete`, { method: 'POST' })
+            .then(r => r.json())
+            .then(d => { if (d.ok) location.reload(); });
     });
 });
 

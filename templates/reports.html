@@ -2,7 +2,7 @@
 {% block title %}Shipment Reports — LogiTrack{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}" />
-<link rel="stylesheet" href="{{ url_for('static', filename='css/billing.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/shipments.css') }}" />
 <link rel="stylesheet" href="{{ url_for('static', filename='css/reports.css') }}" />
 {% endblock %}
 {% block content %}
@@ -12,109 +12,142 @@
   <section class="profile-section">
     <div class="profile-container">
 
-      <h2 class="reports-page-title">Shipment Reports</h2>
-
-      <div class="reports-top-row">
-
-        <!-- Summary Cards -->
-        <div class="billing-stats-grid">
-          <div class="stat-card billing-stat-card">
-            <span class="stat-label">Total Shipments</span>
-            <span class="stat-value">{{ stats.shipment_count }}</span>
-          </div>
-          <div class="stat-card billing-stat-card">
-            <span class="stat-label">Total Expenses</span>
-            <span class="stat-value">₹{{ "%.2f"|format(stats.expense_total) }}</span>
-          </div>
-          <div class="stat-card billing-stat-card">
-            <span class="stat-label">Total Payables</span>
-            <span class="stat-value amount-payable">₹{{ "%.2f"|format(stats.total_payable) }}</span>
-          </div>
-          <div class="stat-card billing-stat-card">
-            <span class="stat-label">Total Receivables</span>
-            <span class="stat-value amount-receivable">₹{{ "%.2f"|format(stats.total_receivable) }}</span>
+      <!-- Page header -->
+      <div class="profile-header">
+        <div class="profile-user-info">
+          <div class="profile-meta">
+            <span class="profile-name">Shipment Reports</span>
+            <span class="profile-meta-sep">·</span>
+            <span class="profile-email">{{ stats.shipment_count }} shipment{{ 's' if stats.shipment_count != 1 else '' }}{% if filters.status or filters.from_date or filters.to_date %} (filtered){% endif %}</span>
           </div>
         </div>
-
-        <!-- Filter Bar -->
-        <div class="billing-filter-card">
-          <form method="get" action="{{ url_for('reports') }}">
-            <div class="billing-filter-group">
-              <label class="billing-filter-label" for="filterStatus">Status</label>
-              <select class="billing-filter-select" name="status" id="filterStatus">
-                <option value="">All statuses</option>
-                {% for s in SHIPMENT_STATUSES %}
-                <option value="{{ s }}" {% if filters.status == s %}selected{% endif %}>{{ s | replace('_', ' ') | title }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="billing-filter-group">
-              <label class="billing-filter-label">Date Range</label>
-              <div class="reports-filter-dates">
-                <input type="date" class="reports-filter-date-input" name="from_date"
-                  value="{{ filters.from_date }}" placeholder="From">
-                <span class="reports-filter-date-sep">→</span>
-                <input type="date" class="reports-filter-date-input" name="to_date"
-                  value="{{ filters.to_date }}" placeholder="To">
-              </div>
-            </div>
-            <button type="submit" class="billing-filter-btn">Apply</button>
-            {% if filters.status or filters.from_date or filters.to_date %}
-            <a href="{{ url_for('reports') }}" class="billing-filter-clear">Clear filters</a>
-            {% endif %}
-          </form>
-        </div>
-
       </div>
 
-      <!-- Shipment Table -->
-      <div class="reports-table-card">
+      <!-- Summary stat cards -->
+      <div class="profile-stats reports-stats">
+        <div class="stat-card">
+          <span class="stat-label">Shipments</span>
+          <span class="stat-value">{{ stats.shipment_count }}</span>
+        </div>
+        <div class="stat-card stat-card--billing">
+          <span class="stat-label">Revenue</span>
+          <span class="stat-value amount-receivable">₹{{ "%.2f"|format(stats.total_receivable) }}</span>
+          <div class="stat-billing-sub">
+            <span class="stat-sub-item">Receivables from customers</span>
+          </div>
+        </div>
+        <div class="stat-card stat-card--billing">
+          <span class="stat-label">Vendor Costs</span>
+          <span class="stat-value amount-payable">₹{{ "%.2f"|format(stats.total_payable) }}</span>
+          <div class="stat-billing-sub">
+            <span class="stat-sub-item">Outbound vendor payables</span>
+          </div>
+        </div>
+        <div class="stat-card stat-card--billing">
+          <span class="stat-label">Expenses</span>
+          <span class="stat-value amount-payable">₹{{ "%.2f"|format(stats.expense_total) }}</span>
+          <div class="stat-billing-sub">
+            <span class="stat-sub-item">Shipment-linked expenses</span>
+          </div>
+        </div>
+        <div class="stat-card stat-card--billing">
+          <span class="stat-label">Total Outflow</span>
+          <span class="stat-value amount-payable">₹{{ "%.2f"|format(stats.total_cost) }}</span>
+          <div class="stat-billing-sub">
+            <span class="stat-sub-item">Vendor costs + Expenses</span>
+          </div>
+        </div>
+        <div class="stat-card stat-card--billing">
+          <span class="stat-label">Net Position</span>
+          <span class="stat-value {% if stats.net_position > 0 %}reports-net-positive{% elif stats.net_position < 0 %}reports-net-negative{% else %}reports-net-zero{% endif %}">
+            {% if stats.net_position >= 0 %}+{% endif %}₹{{ "%.2f"|format(stats.net_position) }}
+          </span>
+          <div class="stat-billing-sub">
+            <span class="stat-sub-item">Revenue − Total Outflow</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="profile-card reports-filter-card">
+        <form class="reports-filter-form" method="get" action="{{ url_for('reports') }}">
+          <div class="reports-filter-field">
+            <label class="reports-filter-label">Status</label>
+            <select class="billing-filter-select" name="status">
+              <option value="">All statuses</option>
+              {% for s in SHIPMENT_STATUSES %}
+              <option value="{{ s }}" {% if filters.status == s %}selected{% endif %}>{{ s | replace('_', ' ') | title }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="reports-filter-field">
+            <label class="reports-filter-label">From Date</label>
+            <input type="date" class="billing-filter-select" name="from_date" value="{{ filters.from_date }}">
+          </div>
+          <div class="reports-filter-field">
+            <label class="reports-filter-label">To Date</label>
+            <input type="date" class="billing-filter-select" name="to_date" value="{{ filters.to_date }}">
+          </div>
+          <div class="reports-filter-actions">
+            <button type="submit" class="profile-add-btn reports-apply-btn">Apply</button>
+            {% if filters.status or filters.from_date or filters.to_date %}
+            <a href="{{ url_for('reports') }}" class="billing-filter-clear">Clear</a>
+            {% endif %}
+          </div>
+        </form>
+      </div>
+
+      <!-- Shipment table -->
+      <div class="profile-card">
+        <div class="card-header-row">
+          <h2 class="profile-card-title">Shipment Breakdown</h2>
+        </div>
         {% if not shipments %}
-        <div class="billing-empty">
-          <p>No shipments found for the selected filters.</p>
-          {% if filters.status or filters.from_date or filters.to_date %}
-          <a href="{{ url_for('reports') }}">Clear filters</a>
-          {% endif %}
+        <div class="txn-empty">
+          No shipments found.{% if filters.status or filters.from_date or filters.to_date %}
+          <a href="{{ url_for('reports') }}">Clear filters</a>{% endif %}
         </div>
         {% else %}
-        <table class="reports-table">
+        <table class="txn-table reports-table">
           <thead>
             <tr>
               <th>Shipment #</th>
               <th>Route</th>
               <th>Status</th>
               <th>Date</th>
-              <th>Expenses</th>
-              <th>Payables</th>
-              <th>Receivables</th>
-              <th>Net Position</th>
+              <th class="text-right">Expenses</th>
+              <th class="text-right">Vendor Costs</th>
+              <th class="text-right reports-col-cost">Total Outflow</th>
+              <th class="text-right">Revenue</th>
+              <th class="text-right">Net Position</th>
             </tr>
           </thead>
           <tbody>
             {% for s in shipments %}
             <tr>
               <td>
-                <a href="{{ url_for('shipment_detail', id=s.shipment_id) }}" class="reports-shipment-link">
+                <a href="{{ url_for('shipment_detail', id=s.shipment_id) }}" class="shipment-link">
                   {{ s.shipment_number }}
                 </a>
               </td>
-              <td class="reports-route">
+              <td class="txn-desc reports-route">
                 {% if s.origin or s.destination %}
                   {{ s.origin or '—' }} → {{ s.destination or '—' }}
-                {% else %}
-                  —
-                {% endif %}
+                {% else %}—{% endif %}
               </td>
               <td>
                 <span class="status-badge status-badge--{{ s.status | lower | replace('_', '-') }}">
                   {{ s.status | replace('_', ' ') }}
                 </span>
               </td>
-              <td>{{ s.shipment_date or '—' }}</td>
-              <td class="reports-amount">₹{{ "%.2f"|format(s.expense_total) }}</td>
-              <td class="reports-amount amount-payable">₹{{ "%.2f"|format(s.total_payable) }}</td>
-              <td class="reports-amount amount-receivable">₹{{ "%.2f"|format(s.total_receivable) }}</td>
-              <td class="reports-amount
+              <td class="txn-date">{{ s.shipment_date or '—' }}</td>
+              <td class="txn-amount text-right amount-payable">₹{{ "%.2f"|format(s.expense_total) }}</td>
+              <td class="txn-amount text-right amount-payable">₹{{ "%.2f"|format(s.total_payable) }}</td>
+              <td class="txn-amount text-right reports-col-cost">
+                <strong>₹{{ "%.2f"|format(s.total_cost) }}</strong>
+              </td>
+              <td class="txn-amount text-right amount-receivable">₹{{ "%.2f"|format(s.total_receivable) }}</td>
+              <td class="txn-amount text-right
                 {%- if s.net_position > 0 %} reports-net-positive
                 {%- elif s.net_position < 0 %} reports-net-negative
                 {%- else %} reports-net-zero{% endif %}">
@@ -123,6 +156,23 @@
             </tr>
             {% endfor %}
           </tbody>
+          <tfoot>
+            <tr class="reports-totals-row">
+              <td colspan="4" class="reports-totals-label">Totals</td>
+              <td class="txn-amount text-right amount-payable">₹{{ "%.2f"|format(stats.expense_total) }}</td>
+              <td class="txn-amount text-right amount-payable">₹{{ "%.2f"|format(stats.total_payable) }}</td>
+              <td class="txn-amount text-right reports-col-cost">
+                <strong>₹{{ "%.2f"|format(stats.total_cost) }}</strong>
+              </td>
+              <td class="txn-amount text-right amount-receivable">₹{{ "%.2f"|format(stats.total_receivable) }}</td>
+              <td class="txn-amount text-right
+                {%- if stats.net_position > 0 %} reports-net-positive
+                {%- elif stats.net_position < 0 %} reports-net-negative
+                {%- else %} reports-net-zero{% endif %}">
+                {% if stats.net_position >= 0 %}+{% endif %}₹{{ "%.2f"|format(stats.net_position) }}
+              </td>
+            </tr>
+          </tfoot>
         </table>
         {% endif %}
       </div>

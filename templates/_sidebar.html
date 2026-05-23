@@ -1,8 +1,8 @@
 <aside class="profile-sidebar">
   <nav class="sidebar-nav">
 
-    <div class="sidebar-group{% if active_section == 'overview' %} is-open{% endif %}">
-      <button class="sidebar-group-toggle" type="button">
+    <div class="sidebar-group">
+      <a href="{{ url_for('profile') }}" class="sidebar-group-toggle{% if request.endpoint == 'profile' %} sidebar-group-toggle--active{% endif %}">
         <span class="sidebar-icon">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
@@ -10,14 +10,7 @@
           </svg>
         </span>
         <span class="sidebar-group-label">Overview</span>
-        <span class="sidebar-toggle-arrow">▾</span>
-      </button>
-      <div class="sidebar-sub-nav">
-        <a href="{{ url_for('profile') }}"
-           class="sidebar-sub-link{% if request.endpoint == 'profile' %} sidebar-sub-link--active{% endif %}">Dashboard</a>
-        <a href="{{ url_for('profile') }}" class="sidebar-sub-link">Recent Activity</a>
-        <a href="{{ url_for('profile') }}" class="sidebar-sub-link">Quick Summary</a>
-      </div>
+      </a>
     </div>
 
     <div class="sidebar-group{% if active_section == 'shipments' %} is-open{% endif %}">
@@ -36,8 +29,6 @@
            class="sidebar-sub-link{% if request.endpoint == 'shipments' %} sidebar-sub-link--active{% endif %}">All Shipments</a>
         <a href="{{ url_for('add_shipment') }}"
            class="sidebar-sub-link{% if request.endpoint == 'add_shipment' %} sidebar-sub-link--active{% endif %}">Create Shipment</a>
-        <a href="#" class="sidebar-sub-link">Tracking &amp; Delivery</a>
-        <a href="#" class="sidebar-sub-link">Shipment Documents</a>
       </div>
     </div>
 

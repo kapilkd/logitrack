@@ -53,13 +53,23 @@
           <span class="stat-label">Total Expenses</span>
           <span class="stat-value">₹{{ "%.2f"|format(total_expenses) }}</span>
         </div>
-        <div class="stat-card">
+        <div class="stat-card stat-card--billing">
           <span class="stat-label">Payables</span>
           <span class="stat-value amount-payable">₹{{ "%.2f"|format(payables) }}</span>
+          <div class="stat-billing-sub">
+            <span class="stat-sub-item">Paid <strong>₹{{ "%.2f"|format(payables_paid) }}</strong></span>
+            <span class="stat-sub-sep">·</span>
+            <span class="stat-sub-item">Due <strong class="amount-pending">₹{{ "%.2f"|format([payables - payables_paid, 0]|max) }}</strong></span>
+          </div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card stat-card--billing">
           <span class="stat-label">Receivables</span>
           <span class="stat-value amount-receivable">₹{{ "%.2f"|format(receivables) }}</span>
+          <div class="stat-billing-sub">
+            <span class="stat-sub-item">Rcvd <strong>₹{{ "%.2f"|format(receivables_rcvd) }}</strong></span>
+            <span class="stat-sub-sep">·</span>
+            <span class="stat-sub-item">Due <strong class="amount-pending">₹{{ "%.2f"|format([receivables - receivables_rcvd, 0]|max) }}</strong></span>
+          </div>
         </div>
       </div>
 
@@ -82,41 +92,45 @@
       </div>
       {% endif %}
 
-      <!-- Vendor Assignments -->
+      <!-- Vendor Costs (Payables) -->
       <div class="profile-card">
         <div class="card-header-row">
-          <h2 class="profile-card-title">Vendor Assignments</h2>
+          <h2 class="profile-card-title">Vendor Costs</h2>
           <button class="txn-btn txn-btn--edit" id="openAddVendorModal">+ Assign Vendor</button>
         </div>
-        {% if vendors %}
-        <table class="txn-table">
+        {% if payable_vendors %}
+        <table class="txn-table sv-table">
           <thead>
             <tr>
               <th>Vendor</th>
               <th>Category</th>
               <th>Role</th>
-              <th>Billing</th>
-              <th class="text-right">Amount</th>
+              <th class="text-right">Total</th>
+              <th class="text-right">Paid</th>
+              <th class="text-right">Balance</th>
               <th>Invoice #</th>
-              <th>Due Date</th>
-              <th>Payment</th>
+              <th>Status</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
-            {% for v in vendors %}
-            <tr>
+            {% for v in payable_vendors %}
+            <tr class="sv-main-row">
               <td class="txn-desc">{{ v.vendor_name }}</td>
               <td><span class="category-badge">{{ v.vendor_category | replace('_', ' ') }}</span></td>
               <td><span class="role-badge role-badge--{{ v.relationship_type | lower | replace('_', '-') }}">{{ v.relationship_type }}</span></td>
-              <td><span class="billing-badge billing-badge--{{ v.billing_type | lower }}">{{ v.billing_type }}</span></td>
               <td class="txn-amount text-right">₹{{ "%.2f"|format(v.amount) }}</td>
+              <td class="txn-amount text-right amount-payable">₹{{ "%.2f"|format(v.paid_amount) }}</td>
+              <td class="txn-amount text-right {% if v.balance > 0 %}amount-pending{% endif %}">₹{{ "%.2f"|format(v.balance) }}</td>
               <td class="txn-desc">{{ v.invoice_number or '—' }}</td>
-              <td class="txn-date">{{ v.due_date or '—' }}</td>
-              <td>
-                <span class="payment-badge payment-badge--{{ v.payment_status | lower }}">{{ v.payment_status }}</span>
-              </td>
+              <td><span class="payment-badge payment-badge--{{ v.payment_status | lower }}">{{ v.payment_status }}</span></td>
               <td class="txn-actions">
+                <button class="txn-btn txn-btn--edit add-payment-btn"
+                  data-sv-id="{{ v.id }}"
+                  data-label="{{ v.vendor_name | e }}"
+                  data-total="{{ v.amount }}"
+                  data-paid="{{ v.paid_amount }}"
+                  data-balance="{{ v.balance }}">+ Pay</button>
                 <button class="txn-btn txn-btn--edit edit-sv-btn"
                   data-id="{{ v.id }}"
                   data-relationship-type="{{ v.relationship_type }}"
@@ -131,11 +145,104 @@
                 <button class="txn-btn txn-btn--delete delete-sv-btn" data-id="{{ v.id }}">Remove</button>
               </td>
             </tr>
+            {% for p in v.payments %}
+            <tr class="payment-sub-row">
+              <td colspan="3" class="payment-sub-indent">
+                <span class="payment-sub-date">{{ p.payment_date }}</span>
+                {% if p.reference %}<span class="payment-sub-ref">{{ p.reference }}</span>{% endif %}
+                {% if p.notes %}<span class="payment-sub-notes">{{ p.notes }}</span>{% endif %}
+              </td>
+              <td colspan="3" class="text-right payment-sub-amount">₹{{ "%.2f"|format(p.amount) }}</td>
+              <td colspan="2"></td>
+              <td class="txn-actions">
+                <button class="txn-btn txn-btn--delete delete-payment-btn"
+                  data-sv-id="{{ v.id }}"
+                  data-payment-id="{{ p.id }}">×</button>
+              </td>
+            </tr>
+            {% endfor %}
             {% endfor %}
           </tbody>
         </table>
         {% else %}
-        <div class="txn-empty">No vendors assigned to this shipment yet.</div>
+        <div class="txn-empty">No vendor costs assigned yet. Use <em>Assign Vendor</em> to add payable costs.</div>
+        {% endif %}
+      </div>
+
+      <!-- Customer Receivables -->
+      <div class="profile-card">
+        <div class="card-header-row">
+          <h2 class="profile-card-title">Customer Receivables</h2>
+          <button class="txn-btn txn-btn--edit" id="openAddReceivableModal">+ Add Receivable</button>
+        </div>
+        {% if receivable_vendors %}
+        <table class="txn-table sv-table">
+          <thead>
+            <tr>
+              <th>Customer</th>
+              <th>Category</th>
+              <th class="text-right">Total</th>
+              <th class="text-right">Received</th>
+              <th class="text-right">Balance</th>
+              <th>Invoice #</th>
+              <th>Due Date</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for v in receivable_vendors %}
+            <tr class="sv-main-row">
+              <td class="txn-desc">{{ v.vendor_name }}</td>
+              <td><span class="category-badge">{{ v.vendor_category | replace('_', ' ') }}</span></td>
+              <td class="txn-amount text-right">₹{{ "%.2f"|format(v.amount) }}</td>
+              <td class="txn-amount text-right amount-receivable">₹{{ "%.2f"|format(v.paid_amount) }}</td>
+              <td class="txn-amount text-right {% if v.balance > 0 %}amount-pending{% endif %}">₹{{ "%.2f"|format(v.balance) }}</td>
+              <td class="txn-desc">{{ v.invoice_number or '—' }}</td>
+              <td class="txn-date">{{ v.due_date or '—' }}</td>
+              <td><span class="payment-badge payment-badge--{{ v.payment_status | lower }}">{{ v.payment_status }}</span></td>
+              <td class="txn-actions">
+                <button class="txn-btn txn-btn--edit add-payment-btn"
+                  data-sv-id="{{ v.id }}"
+                  data-label="{{ v.vendor_name | e }}"
+                  data-total="{{ v.amount }}"
+                  data-paid="{{ v.paid_amount }}"
+                  data-balance="{{ v.balance }}">+ Receive</button>
+                <button class="txn-btn txn-btn--edit edit-sv-btn"
+                  data-id="{{ v.id }}"
+                  data-relationship-type="{{ v.relationship_type }}"
+                  data-billing-type="{{ v.billing_type }}"
+                  data-amount="{{ v.amount }}"
+                  data-currency="{{ v.currency }}"
+                  data-invoice-number="{{ v.invoice_number or '' }}"
+                  data-invoice-date="{{ v.invoice_date or '' }}"
+                  data-due-date="{{ v.due_date or '' }}"
+                  data-payment-status="{{ v.payment_status }}"
+                  data-notes="{{ v.notes or '' }}">Edit</button>
+                <button class="txn-btn txn-btn--delete delete-sv-btn" data-id="{{ v.id }}">Remove</button>
+              </td>
+            </tr>
+            {% for p in v.payments %}
+            <tr class="payment-sub-row">
+              <td colspan="2" class="payment-sub-indent">
+                <span class="payment-sub-date">{{ p.payment_date }}</span>
+                {% if p.reference %}<span class="payment-sub-ref">{{ p.reference }}</span>{% endif %}
+                {% if p.notes %}<span class="payment-sub-notes">{{ p.notes }}</span>{% endif %}
+              </td>
+              <td colspan="3" class="text-right payment-sub-amount amount-receivable">₹{{ "%.2f"|format(p.amount) }}</td>
+              <td colspan="3"></td>
+              <td class="txn-actions">
+                <button class="txn-btn txn-btn--delete delete-payment-btn"
+                  data-sv-id="{{ v.id }}"
+                  data-payment-id="{{ p.id }}">×</button>
+              </td>
+            </tr>
+            {% endfor %}
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="txn-empty">No receivables recorded. Use <em>Add Receivable</em> to record a customer invoice.</div>
         {% endif %}
       </div>
 
@@ -185,22 +292,88 @@
   </section>
 </div>
 
+<!-- ADD RECEIVABLE MODAL -->
+<div class="modal-overlay" id="addReceivableModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>Add Customer Receivable</h2>
+      <button class="close-modal" id="closeAddReceivableModal">×</button>
+    </div>
+    <form method="POST" action="{{ url_for('add_shipment_vendor', shipment_id=shipment.id) }}">
+      <input type="hidden" name="billing_type" value="RECEIVABLE" />
+      <input type="hidden" name="relationship_type" value="CUSTOMER" />
+      <div class="form-group">
+        <label>Customer <span class="field-hint">(Inbound vendors)</span></label>
+        <select name="vendor_id" required>
+          <option value="">— Select customer —</option>
+          {% for v in inbound_vendors %}
+          <option value="{{ v.id }}">{{ v.vendor_name }} ({{ v.vendor_code }})</option>
+          {% endfor %}
+        </select>
+        {% if not inbound_vendors %}
+        <span class="field-hint">No inbound vendors found. Add an Inbound vendor first.</span>
+        {% endif %}
+      </div>
+      <div class="form-group">
+        <label>Amount</label>
+        <input type="number" step="0.01" name="amount" value="0" min="0" required />
+      </div>
+      <div class="form-group">
+        <label>Currency</label>
+        <select name="currency">
+          {% for c in currencies %}
+          <option value="{{ c }}" {% if c == 'INR' %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Invoice Number</label>
+        <input type="text" name="invoice_number" />
+      </div>
+      <div class="form-group">
+        <label>Invoice Date</label>
+        <input type="date" name="invoice_date" value="{{ today }}" />
+      </div>
+      <div class="form-group">
+        <label>Due Date</label>
+        <input type="date" name="due_date" value="{{ today }}" />
+      </div>
+      <div class="form-group">
+        <label>Payment Status</label>
+        <select name="payment_status">
+          {% for p in payment_statuses %}
+          <option value="{{ p }}">{{ p }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea name="notes"></textarea>
+      </div>
+      <button type="submit" class="modal-submit-btn">Add Receivable</button>
+    </form>
+  </div>
+</div>
+
 <!-- ADD VENDOR MODAL -->
 <div class="modal-overlay" id="addVendorModal">
   <div class="modal-box">
     <div class="modal-header">
-      <h2>Assign Vendor</h2>
+      <h2>Assign Vendor Cost</h2>
       <button class="close-modal" id="closeAddVendorModal">×</button>
     </div>
     <form method="POST" action="{{ url_for('add_shipment_vendor', shipment_id=shipment.id) }}">
       <div class="form-group">
-        <label>Vendor</label>
+        <label>Vendor <span class="field-hint">(Outbound vendors)</span></label>
         <select name="vendor_id" id="addVendorId" required>
           <option value="">— Select vendor —</option>
-          {% for v in all_vendors %}
+          {% for v in outbound_vendors %}
           <option value="{{ v.id }}">{{ v.vendor_name }} ({{ v.vendor_code }})</option>
           {% endfor %}
         </select>
+        {% if not outbound_vendors %}
+        <span class="field-hint">No outbound vendors found. Add an Outbound vendor first.</span>
+        {% endif %}
       </div>
       <div class="form-group">
         <label>Relationship Type</label>
@@ -211,7 +384,7 @@
         <label>Billing Type</label>
         <select name="billing_type" required>
           {% for b in billing_types %}
-          <option value="{{ b }}">{{ b }}</option>
+          <option value="{{ b }}" {% if b == 'PAYABLE' %}selected{% endif %}>{{ b }}</option>
           {% endfor %}
         </select>
       </div>
@@ -380,6 +553,43 @@
         <textarea name="description" id="editExpDescription"></textarea>
       </div>
       <button type="submit" class="modal-submit-btn">Save Expense</button>
+    </form>
+  </div>
+</div>
+
+<!-- ADD PAYMENT MODAL -->
+<div class="modal-overlay" id="addPaymentModal">
+  <div class="modal-box modal-box--sm">
+    <div class="modal-header">
+      <h2>Record Payment — <span id="paymentModalLabel"></span></h2>
+      <button class="close-modal" id="closeAddPaymentModal">×</button>
+    </div>
+    <div class="payment-modal-summary">
+      <span>Total: <strong id="paymentModalTotal"></strong></span>
+      <span>·</span>
+      <span>Paid: <strong id="paymentModalPaid"></strong></span>
+      <span>·</span>
+      <span>Balance: <strong id="paymentModalBalance"></strong></span>
+    </div>
+    <form method="POST" id="addPaymentForm" action="#">
+      <div class="form-group">
+        <label>Amount <span class="field-required">*</span></label>
+        <input type="number" step="0.01" min="0.01" name="amount" id="paymentAmount" required />
+        <span class="field-hint" id="paymentMaxHint"></span>
+      </div>
+      <div class="form-group">
+        <label>Payment Date <span class="field-required">*</span></label>
+        <input type="date" name="payment_date" id="paymentDate" value="{{ today }}" required />
+      </div>
+      <div class="form-group">
+        <label>Reference / UTR / Cheque No.</label>
+        <input type="text" name="reference" id="paymentReference" placeholder="e.g. UTR123456" />
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea name="notes" id="paymentNotes" rows="2"></textarea>
+      </div>
+      <button type="submit" class="modal-submit-btn">Save Payment</button>
     </form>
   </div>
 </div>

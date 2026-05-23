@@ -155,6 +155,18 @@ def init_db(path=None):
     """)
 
     conn.execute("""
+        CREATE TABLE IF NOT EXISTS shipment_vendor_payments (
+            id                 SERIAL PRIMARY KEY,
+            shipment_vendor_id INTEGER NOT NULL REFERENCES shipment_vendors(id) ON DELETE CASCADE,
+            amount             REAL    NOT NULL,
+            payment_date       TEXT    NOT NULL,
+            reference          TEXT,
+            notes              TEXT,
+            created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS system_alerts (
             id           SERIAL PRIMARY KEY,
             user_id      INTEGER   NOT NULL REFERENCES users(id),
@@ -588,11 +600,16 @@ def get_vendors_by_user(user_id):
     return rows
 
 
-def get_all_vendors():
+def get_all_vendors(user_id=None):
     conn = get_db()
-    rows = conn.execute(
-        "SELECT * FROM vendors ORDER BY vendor_name ASC"
-    ).fetchall()
+    if user_id is not None:
+        rows = conn.execute(
+            "SELECT * FROM vendors WHERE user_id = %s ORDER BY vendor_name ASC", (user_id,)
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM vendors ORDER BY vendor_name ASC"
+        ).fetchall()
     conn.close()
     return rows
 
@@ -924,6 +941,98 @@ def get_total_receivables_by_shipment(shipment_id):
     ).fetchone()[0]
     conn.close()
     return float(total)
+
+
+# ── shipment_vendor_payments ──────────────────────────────────────────────────
+
+def _refresh_sv_payment_status(sv_id):
+    conn = get_db()
+    sv_row = conn.execute(
+        "SELECT amount FROM shipment_vendors WHERE id = %s", (sv_id,)
+    ).fetchone()
+    if sv_row is None:
+        conn.close()
+        return
+    total = float(sv_row["amount"] or 0)
+    paid = float(conn.execute(
+        "SELECT COALESCE(SUM(amount), 0) FROM shipment_vendor_payments"
+        " WHERE shipment_vendor_id = %s", (sv_id,)
+    ).fetchone()[0])
+    if paid <= 0:
+        status = "PENDING"
+    elif paid >= total:
+        status = "PAID"
+    else:
+        status = "PARTIAL"
+    conn.execute(
+        "UPDATE shipment_vendors SET payment_status = %s WHERE id = %s", (status, sv_id)
+    )
+    conn.commit()
+    conn.close()
+
+
+def create_sv_payment(sv_id, amount, payment_date, reference=None, notes=None):
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO shipment_vendor_payments"
+        " (shipment_vendor_id, amount, payment_date, reference, notes)"
+        " VALUES (%s, %s, %s, %s, %s)",
+        (sv_id, amount, payment_date, reference or None, notes or None),
+    )
+    conn.commit()
+    conn.close()
+    _refresh_sv_payment_status(sv_id)
+
+
+def get_payments_by_sv(sv_id):
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM shipment_vendor_payments"
+        " WHERE shipment_vendor_id = %s ORDER BY payment_date ASC, id ASC",
+        (sv_id,),
+    ).fetchall()
+    conn.close()
+    return rows
+
+
+def get_sv_payment_by_id(payment_id):
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM shipment_vendor_payments WHERE id = %s", (payment_id,)
+    ).fetchone()
+    conn.close()
+    return row
+
+
+def delete_sv_payment(payment_id):
+    conn = get_db()
+    row = conn.execute(
+        "SELECT shipment_vendor_id FROM shipment_vendor_payments WHERE id = %s",
+        (payment_id,),
+    ).fetchone()
+    sv_id = row["shipment_vendor_id"] if row else None
+    conn.execute("DELETE FROM shipment_vendor_payments WHERE id = %s", (payment_id,))
+    conn.commit()
+    conn.close()
+    if sv_id:
+        _refresh_sv_payment_status(sv_id)
+
+
+def get_payments_by_shipment(shipment_id):
+    """Return {sv_id: [payment_dicts]} for all payments in a shipment (one query)."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT p.* FROM shipment_vendor_payments p"
+        " JOIN shipment_vendors sv ON p.shipment_vendor_id = sv.id"
+        " WHERE sv.shipment_id = %s"
+        " ORDER BY p.payment_date ASC, p.id ASC",
+        (shipment_id,),
+    ).fetchall()
+    conn.close()
+    result = {}
+    for r in rows:
+        result.setdefault(r["shipment_vendor_id"], []).append(dict(r))
+    return result
 
 
 def log_alert(user_id, entity_type, entity_id, entity_label, action, description=None):

@@ -34,6 +34,8 @@ from database.db import (
     delete_shipment_vendor as db_delete_shipment_vendor,
     get_shipment_vendor_count, get_total_payables_by_shipment,
     get_total_receivables_by_shipment,
+    create_sv_payment, get_payments_by_sv, get_sv_payment_by_id,
+    delete_sv_payment, get_payments_by_shipment,
     log_alert,
     get_company_profile, upsert_company_profile,
     get_all_contact_emails_by_user,
@@ -609,6 +611,7 @@ def vendors():
         "vendor_status":   request.args.get("vendor_status", ""),
     }
     vendor_list = [dict(v) for v in get_filtered_vendors(
+        user_id=uid,
         vendor_type=filters["vendor_type"] or None,
         vendor_category=filters["vendor_category"] or None,
         vendor_status=filters["vendor_status"] or None,
@@ -619,7 +622,7 @@ def vendors():
         "active":   active_count,
         "inactive": len(vendor_list) - active_count,
     }
-    all_vendors = [dict(v) for v in get_all_vendors()]
+    all_vendors = [dict(v) for v in get_all_vendors(user_id=uid)]
     return render_template(
         "vendors.html",
         user=user,
@@ -1509,21 +1512,39 @@ def shipment_detail(id):
         abort(403)
 
     expenses = get_expenses_by_shipment(id)
-    vendors = get_vendors_by_shipment(id)
-    all_vendors = [v for v in get_all_vendors() if v["status"] == "ACTIVE"]
-    total_expenses = sum(e["amount"] for e in expenses)
-    payables = get_total_payables_by_shipment(id)
+    sv_list = get_vendors_by_shipment(id)
+    payments_map = get_payments_by_shipment(id)
+
+    payable_vendors    = [dict(v) for v in sv_list if v["billing_type"] == "PAYABLE"]
+    receivable_vendors = [dict(v) for v in sv_list if v["billing_type"] == "RECEIVABLE"]
+
+    for v in payable_vendors + receivable_vendors:
+        v["payments"]    = payments_map.get(v["id"], [])
+        v["paid_amount"] = round(sum(p["amount"] for p in v["payments"]), 2)
+        v["balance"]     = round(float(v["amount"]) - v["paid_amount"], 2)
+
+    active_vendors  = [v for v in get_all_vendors(user_id=session["user_id"]) if v["status"] == "ACTIVE"]
+    inbound_vendors  = [v for v in active_vendors if v["vendor_type"] == "INBOUND"]
+    outbound_vendors = [v for v in active_vendors if v["vendor_type"] == "OUTBOUND"]
+    total_expenses  = sum(e["amount"] for e in expenses)
+    payables    = get_total_payables_by_shipment(id)
     receivables = get_total_receivables_by_shipment(id)
+    payables_paid    = round(sum(v["paid_amount"] for v in payable_vendors), 2)
+    receivables_rcvd = round(sum(v["paid_amount"] for v in receivable_vendors), 2)
 
     return render_template(
         "shipment_detail.html",
         shipment=shipment,
         expenses=expenses,
-        vendors=vendors,
-        all_vendors=all_vendors,
+        payable_vendors=payable_vendors,
+        receivable_vendors=receivable_vendors,
+        inbound_vendors=inbound_vendors,
+        outbound_vendors=outbound_vendors,
         total_expenses=total_expenses,
         payables=payables,
         receivables=receivables,
+        payables_paid=payables_paid,
+        receivables_rcvd=receivables_rcvd,
         categories=EXPENSE_CATEGORIES,
         relationship_types=RELATIONSHIP_TYPES,
         billing_types=BILLING_TYPES,
@@ -1873,6 +1894,60 @@ def delete_shipment_vendor_route(shipment_id, sv_id):
         action="DELETED",
         description=f"Billing entry deleted on shipment {shipment['shipment_number']}",
     )
+    return jsonify({"ok": True})
+
+
+@app.route("/shipments/<int:shipment_id>/vendors/<int:sv_id>/payments/add", methods=["POST"])
+def add_sv_payment(shipment_id, sv_id):
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    shipment = get_shipment_by_id(shipment_id)
+    if shipment is None:
+        abort(404)
+    if shipment["user_id"] != session["user_id"]:
+        abort(403)
+    sv = get_shipment_vendor_by_id(sv_id)
+    if sv is None or sv["shipment_id"] != shipment_id:
+        abort(404)
+
+    try:
+        amount = float(request.form.get("amount", "0").strip())
+    except (ValueError, TypeError):
+        amount = 0.0
+
+    if amount <= 0:
+        return redirect(url_for("shipment_detail", id=shipment_id))
+
+    existing_paid = sum(p["amount"] for p in get_payments_by_sv(sv_id))
+    total = float(sv["amount"] or 0)
+    if existing_paid + amount > total + 0.005:
+        return redirect(url_for("shipment_detail", id=shipment_id))
+
+    payment_date = request.form.get("payment_date", "").strip() or date.today().isoformat()
+    reference    = request.form.get("reference", "").strip() or None
+    notes        = request.form.get("notes", "").strip() or None
+    create_sv_payment(sv_id=sv_id, amount=amount, payment_date=payment_date,
+                      reference=reference, notes=notes)
+    return redirect(url_for("shipment_detail", id=shipment_id))
+
+
+@app.route("/shipments/<int:shipment_id>/vendors/<int:sv_id>/payments/<int:payment_id>/delete",
+           methods=["POST"])
+def delete_sv_payment_route(shipment_id, sv_id, payment_id):
+    if not session.get("user_id"):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+    shipment = get_shipment_by_id(shipment_id)
+    if shipment is None:
+        abort(404)
+    if shipment["user_id"] != session["user_id"]:
+        abort(403)
+    sv = get_shipment_vendor_by_id(sv_id)
+    if sv is None or sv["shipment_id"] != shipment_id:
+        abort(404)
+    payment = get_sv_payment_by_id(payment_id)
+    if payment is None or payment["shipment_vendor_id"] != sv_id:
+        abort(404)
+    delete_sv_payment(payment_id)
     return jsonify({"ok": True})
 
 
