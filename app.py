@@ -51,14 +51,17 @@ from gmail_utils import (
 )
 from ai_utils import ANTHROPIC_AVAILABLE, process_email_with_claude, generate_reply_with_claude
 
-# Allow OAuth over HTTP in development
-os.environ.setdefault("OAUTHLIB_INSECURE_TRANSPORT", "1")
+_IS_PRODUCTION = os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("PRODUCTION")
+
+# Allow OAuth over plain HTTP only in local development
+if not _IS_PRODUCTION:
+    os.environ.setdefault("OAUTHLIB_INSECURE_TRANSPORT", "1")
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_HTTPONLY"] = True
-app.config["SESSION_COOKIE_SECURE"] = False
+app.config["SESSION_COOKIE_SECURE"] = bool(_IS_PRODUCTION)
 
 _LOGO_UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "static", "uploads", "logos")
 os.makedirs(_LOGO_UPLOAD_FOLDER, exist_ok=True)
@@ -66,7 +69,8 @@ _ALLOWED_LOGO_EXT = {"png", "jpg", "jpeg", "gif", "webp", "svg"}
 
 with app.app_context():
     init_db()
-    seed_db()
+    if not _IS_PRODUCTION:
+        seed_db()
 
 
 def _parse_date(raw):
@@ -1952,4 +1956,5 @@ def delete_sv_payment_route(shipment_id, sv_id, payment_id):
 
 
 if __name__ == "__main__":
-    app.run(debug=os.environ.get("FLASK_DEBUG", "false").lower() == "true", port=5001)
+    port = int(os.environ.get("PORT", 5001))
+    app.run(debug=os.environ.get("FLASK_DEBUG", "false").lower() == "true", port=port)
