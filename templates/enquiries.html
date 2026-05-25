@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}Enquiries — LogiTrack{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/enquiries.css') }}" />
+{% endblock %}
+{% block content %}
+<div class="profile-shell">
+  {% include '_sidebar.html' %}
+
+  <section class="profile-section">
+    <div class="profile-container">
+
+      <div class="profile-header">
+        <div class="profile-user-info">
+          <div class="profile-avatar">{{ user.initials }}</div>
+          <div class="profile-meta">
+            <span class="profile-name">{{ user.name }}</span>
+            <span class="profile-meta-sep">·</span>
+            <span class="profile-email">Enquiries</span>
+          </div>
+        </div>
+        <a href="#" class="profile-add-btn">+ New Enquiry</a>
+      </div>
+
+      {% if closed_enquiries %}
+      <div class="profile-card closed-enquiries-card">
+        <button class="closed-enquiries-toggle" id="closedToggle"
+                aria-expanded="false" aria-controls="closedEnquiriesBody">
+          <span class="closed-toggle-label">
+            Converted &amp; Closed
+            <span class="closed-count-badge">{{ closed_enquiries | length }}</span>
+          </span>
+          <span class="closed-toggle-chevron">▾</span>
+        </button>
+        <div class="closed-enquiries-body" id="closedEnquiriesBody" hidden>
+          <table class="txn-table enquiries-table">
+            <thead>
+              <tr>
+                <th>Enquiry #</th>
+                <th>Customer</th>
+                <th>Route</th>
+                <th>Commodity</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Priority</th>
+                <th class="text-right">Ex.rate</th>
+                <th>Date</th>
+                <th class="text-right">Est. Value</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for e in closed_enquiries %}
+              <tr>
+                <td><span class="enquiry-number">{{ e.enquiry_number }}</span></td>
+                <td class="txn-desc">{{ e.customer_name or '—' }}</td>
+                <td class="txn-desc">
+                  {% if e.origin or e.destination %}
+                    {{ e.origin or '—' }} → {{ e.destination or '—' }}
+                  {% else %}—{% endif %}
+                </td>
+                <td class="txn-desc">{{ e.commodity or '—' }}</td>
+                <td class="txn-desc">{{ e.consignment_type or '—' }}</td>
+                <td>
+                  <span class="status-badge status-badge--{{ e.status | lower | replace('_', '-') }}">
+                    {{ e.status }}
+                  </span>
+                </td>
+                <td>
+                  <span class="priority-badge priority-badge--{{ e.priority | lower }}">
+                    {{ e.priority }}
+                  </span>
+                </td>
+                <td class="text-right txn-date">
+                  {% if e.ex_rate %}₹ {{ "%.2f"|format(e.ex_rate) }}{% else %}—{% endif %}
+                </td>
+                <td class="txn-date">{{ e.enquiry_date or '—' }}</td>
+                <td class="text-right txn-amount">
+                  {% if e.estimated_value %}
+                    {{ e.currency }} {{ "%.2f"|format(e.estimated_value) }}
+                  {% else %}—{% endif %}
+                </td>
+                <td class="txn-actions">
+                  <a href="#" class="txn-btn txn-btn--edit">View</a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="profile-card">
+        <h2 class="profile-card-title">All Enquiries</h2>
+        {% if enquiries %}
+        <table class="txn-table enquiries-table">
+          <thead>
+            <tr>
+              <th>Enquiry #</th>
+              <th>Customer</th>
+              <th>Route</th>
+              <th>Commodity</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Priority</th>
+              <th class="text-right">Ex.rate</th>
+              <th>Date</th>
+              <th class="text-right">Est. Value</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in enquiries %}
+            <tr>
+              <td><span class="enquiry-number">{{ e.enquiry_number }}</span></td>
+              <td class="txn-desc">{{ e.customer_name or '—' }}</td>
+              <td class="txn-desc">
+                {% if e.origin or e.destination %}
+                  {{ e.origin or '—' }} → {{ e.destination or '—' }}
+                {% else %}—{% endif %}
+              </td>
+              <td class="txn-desc">{{ e.commodity or '—' }}</td>
+              <td class="txn-desc">{{ e.consignment_type or '—' }}</td>
+              <td>
+                <span class="status-badge status-badge--{{ e.status | lower | replace('_', '-') }}">
+                  {{ e.status }}
+                </span>
+              </td>
+              <td>
+                <span class="priority-badge priority-badge--{{ e.priority | lower }}">
+                  {{ e.priority }}
+                </span>
+              </td>
+              <td class="text-right txn-date">
+                {% if e.ex_rate %}₹ {{ "%.2f"|format(e.ex_rate) }}{% else %}—{% endif %}
+              </td>
+              <td class="txn-date">{{ e.enquiry_date or '—' }}</td>
+              <td class="text-right txn-amount">
+                {% if e.estimated_value %}
+                  {{ e.currency }} {{ "%.2f"|format(e.estimated_value) }}
+                {% else %}—{% endif %}
+              </td>
+              <td class="txn-actions">
+                <a href="#" class="txn-btn txn-btn--edit">View</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="txn-empty">No enquiries yet. <a href="#">Create your first enquiry.</a></div>
+        {% endif %}
+      </div>
+
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  var btn = document.getElementById('closedToggle');
+  var body = document.getElementById('closedEnquiriesBody');
+  if (!btn || !body) return;
+  btn.addEventListener('click', function () {
+    var expanded = btn.getAttribute('aria-expanded') === 'true';
+    btn.setAttribute('aria-expanded', String(!expanded));
+    if (expanded) { body.setAttribute('hidden', ''); }
+    else { body.removeAttribute('hidden'); }
+    btn.querySelector('.closed-toggle-chevron').style.transform = expanded ? '' : 'rotate(180deg)';
+  });
+}());
+</script>
+{% endblock %}
