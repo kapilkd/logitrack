@@ -1,0 +1,160 @@
+/* ── Back link ───────────────────────────────────────── */
+.back-link {
+    font-size: 0.875rem;
+    color: var(--ink-muted);
+    text-decoration: none;
+    transition: color 0.15s;
+}
+.back-link:hover { color: var(--ink); }
+
+/* ── Form section title ──────────────────────────────── */
+.form-section-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 1.5rem 0 0.75rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--border-soft);
+}
+.form-section-title:first-of-type { margin-top: 0; }
+
+/* ── Two-column grid ─────────────────────────────────── */
+.form-grid-two {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 1.25rem;
+}
+
+/* ── Form group & inputs ─────────────────────────────── */
+.form-group {
+    margin-bottom: 1rem;
+}
+.form-group label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--ink-soft);
+    margin-bottom: 0.3rem;
+}
+.field-label-hint {
+    font-weight: 400;
+    color: var(--ink-faint);
+    font-size: 0.78rem;
+}
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 0.45rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    color: var(--ink);
+    background: var(--paper);
+    outline: none;
+    transition: border-color 0.15s;
+    box-sizing: border-box;
+}
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    border-color: var(--accent);
+}
+.form-group input::placeholder,
+.form-group textarea::placeholder { color: var(--ink-faint); }
+.form-group textarea { resize: vertical; min-height: 72px; }
+
+/* ── Weight inline group ─────────────────────────────── */
+.weight-input-group {
+    display: flex;
+    gap: 0.5rem;
+}
+.weight-input-group input { flex: 1; }
+.weight-unit-select { width: 5.5rem; flex-shrink: 0; }
+
+/* ── Ex.rate inline group ────────────────────────────── */
+.exrate-input-group {
+    display: flex;
+    gap: 0.5rem;
+    align-items: stretch;
+}
+.exrate-input-group input { flex: 1; }
+
+/* ── Fetch Rate button ───────────────────────────────── */
+.fetch-rate-btn {
+    padding: 0.45rem 0.9rem;
+    font-size: 0.82rem;
+    font-weight: 500;
+    font-family: var(--font-body);
+    color: var(--accent);
+    background: var(--accent-light);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+    flex-shrink: 0;
+}
+.fetch-rate-btn:hover {
+    background: var(--accent);
+    color: var(--paper);
+}
+.fetch-rate-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* ── Field hint ──────────────────────────────────────── */
+.field-hint {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--ink-muted);
+    margin-top: 0.25rem;
+}
+
+/* ── Error & required ────────────────────────────────── */
+.form-error {
+    background: var(--danger-light);
+    color: var(--danger);
+    border: 1px solid #fecaca;
+    border-radius: var(--radius-sm);
+    padding: 0.65rem 1rem;
+    font-size: 0.875rem;
+    margin-bottom: 1.25rem;
+}
+.required { color: var(--danger); }
+
+/* ── Form actions ────────────────────────────────────── */
+.form-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1.75rem;
+}
+
+/* ── Submit button ───────────────────────────────────── */
+.modal-submit-btn {
+    padding: 0.55rem 1.5rem;
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.modal-submit-btn:hover { background: var(--accent); }
+
+/* ── Cancel link ─────────────────────────────────────── */
+.cancel-link {
+    font-size: 0.875rem;
+    color: var(--ink-muted);
+    text-decoration: none;
+    transition: color 0.15s;
+}
+.cancel-link:hover { color: var(--ink); }

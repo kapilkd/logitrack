@@ -53,6 +53,7 @@ from gmail_utils import (
     encrypt_token, decrypt_token, sync_inbox, send_gmail, parse_message,
 )
 from ai_utils import ANTHROPIC_AVAILABLE, process_email_with_claude, generate_reply_with_claude
+from forex_utils import FOREX_AVAILABLE, fetch_hdfc_usd_tt_selling_rate
 
 _IS_PRODUCTION = os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("PRODUCTION")
 
@@ -738,6 +739,95 @@ def enquiries():
         priorities=ENQUIRY_PRIORITIES,
         active_section="enquiries",
     )
+
+
+@app.route("/enquiries/add", methods=["GET", "POST"])
+def add_enquiry():
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    uid = session["user_id"]
+    user = get_user_by_id(uid)
+    if user is None:
+        session.clear()
+        return redirect(url_for("login"))
+
+    ctx = dict(
+        user=user,
+        statuses=ENQUIRY_STATUSES,
+        priorities=ENQUIRY_PRIORITIES,
+        weight_units=WEIGHT_UNITS,
+        consignment_types=CONSIGNMENT_TYPES,
+        incoterms=INCOTERMS,
+        currencies=CURRENCIES,
+        today=date.today().isoformat(),
+        forex_available=FOREX_AVAILABLE,
+        active_section="enquiries",
+    )
+
+    if request.method == "GET":
+        return render_template("add_enquiry.html", **ctx)
+
+    def _f(key):
+        v = request.form.get(key, "").strip()
+        return v or None
+
+    enquiry_date = _f("enquiry_date")
+    if not enquiry_date:
+        ctx.update(error="Enquiry date is required.", form=request.form)
+        return render_template("add_enquiry.html", **ctx)
+
+    status = request.form.get("status", "OPEN")
+    if status not in ENQUIRY_STATUSES:
+        status = "OPEN"
+    priority = request.form.get("priority", "NORMAL")
+    if priority not in ENQUIRY_PRIORITIES:
+        priority = "NORMAL"
+
+    data = {
+        "customer_name":    _f("customer_name"),
+        "customer_email":   _f("customer_email"),
+        "customer_phone":   _f("customer_phone"),
+        "commodity":        _f("commodity"),
+        "consignment_type": _f("consignment_type"),
+        "shipment_terms":   _f("shipment_terms"),
+        "weight":           request.form.get("weight") or 0,
+        "weight_unit":      request.form.get("weight_unit") or "KGS",
+        "packages":         request.form.get("packages") or 0,
+        "mawb":             _f("mawb"),
+        "hawb":             _f("hawb"),
+        "origin":           _f("origin"),
+        "destination":      _f("destination"),
+        "ex_rate":          request.form.get("ex_rate") or 0,
+        "incoterms":        _f("incoterms"),
+        "currency":         request.form.get("currency") or "INR",
+        "estimated_value":  request.form.get("estimated_value") or 0,
+        "status":           status,
+        "priority":         priority,
+        "enquiry_date":     enquiry_date,
+        "follow_up_date":   _f("follow_up_date"),
+        "notes":            _f("notes"),
+    }
+
+    new_enq = create_enquiry(uid, data)
+    log_alert(
+        user_id=uid,
+        entity_type="ENQUIRY",
+        entity_id=new_enq["id"] if new_enq else None,
+        entity_label=new_enq["enquiry_number"] if new_enq else None,
+        action="CREATED",
+        description=f"Enquiry {new_enq['enquiry_number']} created" if new_enq else "Enquiry created",
+    )
+    return redirect(url_for("enquiries"))
+
+
+@app.route("/enquiries/forex-rate")
+def enquiry_forex_rate():
+    if not session.get("user_id"):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+    rate = fetch_hdfc_usd_tt_selling_rate()
+    if rate is not None:
+        return jsonify({"ok": True, "rate": rate})
+    return jsonify({"ok": False, "error": "Could not fetch rate from HDFC. Please enter manually."}), 502
 
 
 @app.route("/emails")

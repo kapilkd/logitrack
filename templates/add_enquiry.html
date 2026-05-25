@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+{% block title %}New Enquiry — LogiTrack{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/enquiries.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/add_enquiry.css') }}" />
+{% endblock %}
+{% block content %}
+<div class="profile-shell">
+  {% include '_sidebar.html' %}
+
+  <section class="profile-section">
+    <div class="profile-container">
+
+      <div class="profile-header">
+        <div class="profile-user-info">
+          <div class="profile-meta">
+            <span class="profile-name">New Enquiry</span>
+          </div>
+        </div>
+        <a href="{{ url_for('enquiries') }}" class="back-link">← Back to Enquiries</a>
+      </div>
+
+      <div class="profile-card">
+        {% if error %}
+        <div class="form-error">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('add_enquiry') }}">
+
+          <!-- ── Section 1: Customer Information ─────────── -->
+          <div class="form-section-title">Customer Information</div>
+          <div class="form-grid-two">
+            <div class="form-group">
+              <label>Customer Name</label>
+              <input type="text" name="customer_name"
+                     value="{{ form.customer_name if form else '' }}"
+                     placeholder="e.g. Acme Exports Pvt Ltd" />
+            </div>
+            <div class="form-group">
+              <label>Customer Email</label>
+              <input type="email" name="customer_email"
+                     value="{{ form.customer_email if form else '' }}"
+                     placeholder="e.g. contact@acme.com" />
+            </div>
+            <div class="form-group">
+              <label>Customer Phone</label>
+              <input type="text" name="customer_phone"
+                     value="{{ form.customer_phone if form else '' }}"
+                     placeholder="e.g. +91 98765 43210" />
+            </div>
+          </div>
+
+          <!-- ── Section 2: Cargo Details ───────────────── -->
+          <div class="form-section-title">Cargo Details</div>
+          <div class="form-grid-two">
+            <div class="form-group">
+              <label>Commodity</label>
+              <input type="text" name="commodity"
+                     value="{{ form.commodity if form else '' }}"
+                     placeholder="e.g. Electronic Components" />
+            </div>
+            <div class="form-group">
+              <label>Consignment Type</label>
+              <select name="consignment_type">
+                <option value="">— Select —</option>
+                {% for ct in consignment_types %}
+                <option value="{{ ct }}"
+                  {% if form and form.consignment_type == ct %}selected{% endif %}>
+                  {{ ct }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Shipment Terms</label>
+              <input type="text" name="shipment_terms"
+                     value="{{ form.shipment_terms if form else '' }}"
+                     placeholder="e.g. Door to Door" />
+            </div>
+            <div class="form-group">
+              <label>Weight</label>
+              <div class="weight-input-group">
+                <input type="number" name="weight" step="0.01" min="0"
+                       value="{{ form.weight if form else '' }}"
+                       placeholder="0.00" />
+                <select name="weight_unit" class="weight-unit-select">
+                  {% for wu in weight_units %}
+                  <option value="{{ wu }}"
+                    {% if (form and form.weight_unit == wu) or (not form and wu == 'KGS') %}selected{% endif %}>
+                    {{ wu }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Packages</label>
+              <input type="number" name="packages" min="0" step="1"
+                     value="{{ form.packages if form else '' }}"
+                     placeholder="0" />
+            </div>
+            <div class="form-group">
+              <label>MAWB <span class="field-label-hint">(Master Air Waybill)</span></label>
+              <input type="text" name="mawb"
+                     value="{{ form.mawb if form else '' }}"
+                     placeholder="e.g. 098-12345678" />
+            </div>
+            <div class="form-group">
+              <label>HAWB <span class="field-label-hint">(House Air Waybill)</span></label>
+              <input type="text" name="hawb"
+                     value="{{ form.hawb if form else '' }}"
+                     placeholder="e.g. HAW-2026-001" />
+            </div>
+            <div class="form-group">
+              <label>Origin</label>
+              <input type="text" name="origin"
+                     value="{{ form.origin if form else '' }}"
+                     placeholder="e.g. Mumbai, India" />
+            </div>
+            <div class="form-group">
+              <label>Destination</label>
+              <input type="text" name="destination"
+                     value="{{ form.destination if form else '' }}"
+                     placeholder="e.g. Dubai, UAE" />
+            </div>
+            <div class="form-group">
+              <label>Ex.rate <span class="field-label-hint">(USD → INR)</span></label>
+              <div class="exrate-input-group">
+                <input type="number" id="ex_rate" name="ex_rate" step="0.01" min="0"
+                       value="{{ form.ex_rate if form else '' }}"
+                       placeholder="e.g. 84.50" />
+                {% if forex_available %}
+                <button type="button" id="fetchRateBtn" class="fetch-rate-btn">Fetch Rate</button>
+                {% endif %}
+              </div>
+              <span id="exRateMsg" class="field-hint"></span>
+            </div>
+          </div>
+
+          <!-- ── Section 3: Enquiry Details ─────────────── -->
+          <div class="form-section-title">Enquiry Details</div>
+          <div class="form-grid-two">
+            <div class="form-group">
+              <label>Enquiry Date <span class="required">*</span></label>
+              <input type="date" name="enquiry_date"
+                     value="{{ form.enquiry_date if form else today }}" required />
+            </div>
+            <div class="form-group">
+              <label>Follow-up Date</label>
+              <input type="date" name="follow_up_date"
+                     value="{{ form.follow_up_date if form else '' }}" />
+            </div>
+            <div class="form-group">
+              <label>Status</label>
+              <select name="status">
+                {% for s in statuses %}
+                <option value="{{ s }}"
+                  {% if (form and form.status == s) or (not form and s == 'OPEN') %}selected{% endif %}>
+                  {{ s }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Priority</label>
+              <select name="priority">
+                {% for p in priorities %}
+                <option value="{{ p }}"
+                  {% if (form and form.priority == p) or (not form and p == 'NORMAL') %}selected{% endif %}>
+                  {{ p }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Incoterms</label>
+              <select name="incoterms">
+                <option value="">— Select —</option>
+                {% for t in incoterms %}
+                <option value="{{ t }}"
+                  {% if form and form.incoterms == t %}selected{% endif %}>
+                  {{ t }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Currency</label>
+              <select name="currency">
+                {% for c in currencies %}
+                <option value="{{ c }}"
+                  {% if (form and form.currency == c) or (not form and c == 'INR') %}selected{% endif %}>
+                  {{ c }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Estimated Value</label>
+              <input type="number" name="estimated_value" step="0.01" min="0"
+                     value="{{ form.estimated_value if form else '' }}"
+                     placeholder="0.00" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Notes</label>
+            <textarea name="notes" rows="3"
+                      placeholder="Any additional details about this enquiry">{{ form.notes if form else '' }}</textarea>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="modal-submit-btn">Create Enquiry</button>
+            <a href="{{ url_for('enquiries') }}" class="cancel-link">Cancel</a>
+          </div>
+
+        </form>
+      </div>
+
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  var btn = document.getElementById('fetchRateBtn');
+  var inp = document.getElementById('ex_rate');
+  var msg = document.getElementById('exRateMsg');
+  if (!btn) return;
+  btn.addEventListener('click', function () {
+    btn.disabled = true;
+    btn.textContent = 'Fetching…';
+    msg.textContent = '';
+    fetch('/enquiries/forex-rate')
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.ok) {
+          inp.value = d.rate;
+          msg.textContent = 'Rate fetched successfully.';
+          msg.style.color = 'var(--accent)';
+        } else {
+          msg.textContent = d.error || 'Fetch failed. Enter rate manually.';
+          msg.style.color = 'var(--danger)';
+        }
+      })
+      .catch(function () {
+        msg.textContent = 'Network error. Enter rate manually.';
+        msg.style.color = 'var(--danger)';
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = 'Fetch Rate';
+      });
+  });
+}());
+</script>
+{% endblock %}

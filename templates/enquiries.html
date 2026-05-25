@@ -20,7 +20,7 @@
             <span class="profile-email">Enquiries</span>
           </div>
         </div>
-        <a href="#" class="profile-add-btn">+ New Enquiry</a>
+        <a href="{{ url_for('add_enquiry') }}" class="profile-add-btn">+ New Enquiry</a>
       </div>
 
       {% if closed_enquiries %}
@@ -150,7 +150,7 @@
           </tbody>
         </table>
         {% else %}
-        <div class="txn-empty">No enquiries yet. <a href="#">Create your first enquiry.</a></div>
+        <div class="txn-empty">No enquiries yet. <a href="{{ url_for('add_enquiry') }}">Create your first enquiry.</a></div>
         {% endif %}
       </div>
 
