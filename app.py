@@ -43,6 +43,9 @@ from database.db import (
     save_email, get_emails_by_user, get_email_by_id, delete_email,
     get_emails_by_thread, upsert_ai_processing, get_ai_processing,
     get_user_by_id as get_user_row_by_id, update_user_profile, update_user_password,
+    create_enquiry, get_enquiries_by_user, get_enquiry_count,
+    generate_customer_vendor_code,
+    ENQUIRY_STATUSES, ENQUIRY_PRIORITIES, WEIGHT_UNITS, CONSIGNMENT_TYPES,
 )
 from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_filtered_vendors, get_billing_stats, get_shipment_billing_list, get_recent_alerts, get_shipment_bill_vendors, get_emails_with_shipment_links, get_vendor_ledger, get_vendor_ledger_stats, get_shipment_report_rows, get_report_summary_stats, get_expense_link_summary, get_monthly_expense_trend, get_vendor_report_rows, get_vendor_report_summary
 from gmail_utils import (
@@ -712,6 +715,28 @@ def shipment_bill_print(id):
         total_payable=total_payable,
         total_receivable=total_receivable,
         today=date.today().isoformat(),
+    )
+
+
+@app.route("/enquiries")
+def enquiries():
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    uid = session["user_id"]
+    user = get_user_by_id(uid)
+    if user is None:
+        session.clear()
+        return redirect(url_for("login"))
+    enquiry_list = get_enquiries_by_user(uid)
+    active_rows = [e for e in enquiry_list if e["status"] not in ("CONVERTED", "CLOSED")]
+    closed_rows = [e for e in enquiry_list if e["status"] in ("CONVERTED", "CLOSED")]
+    return render_template("enquiries.html",
+        user=user,
+        enquiries=active_rows,
+        closed_enquiries=closed_rows,
+        statuses=ENQUIRY_STATUSES,
+        priorities=ENQUIRY_PRIORITIES,
+        active_section="enquiries",
     )
 
 

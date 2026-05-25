@@ -1,3 +1,4 @@
+import datetime
 import os
 import psycopg2
 from psycopg2.extras import DictCursor
@@ -272,6 +273,39 @@ def init_db(path=None):
             invoice_reference  TEXT,
             processing_status  TEXT      DEFAULT 'PENDING',
             created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS enquiries (
+            id                 SERIAL PRIMARY KEY,
+            user_id            INTEGER   NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            enquiry_number     TEXT      NOT NULL,
+            customer_name      TEXT,
+            customer_email     TEXT,
+            customer_phone     TEXT,
+            customer_vendor_id INTEGER   REFERENCES vendors(id),
+            commodity          TEXT,
+            consignment_type   TEXT,
+            shipment_terms     TEXT,
+            weight             REAL      DEFAULT 0,
+            weight_unit        TEXT      DEFAULT 'KGS',
+            packages           INTEGER   DEFAULT 0,
+            mawb               TEXT,
+            hawb               TEXT,
+            origin             TEXT,
+            destination        TEXT,
+            ex_rate            REAL      DEFAULT 0,
+            incoterms          TEXT,
+            currency           TEXT      NOT NULL DEFAULT 'INR',
+            estimated_value    REAL      DEFAULT 0,
+            status             TEXT      NOT NULL DEFAULT 'OPEN',
+            priority           TEXT      NOT NULL DEFAULT 'NORMAL',
+            enquiry_date       TEXT      NOT NULL,
+            follow_up_date     TEXT,
+            notes              TEXT,
+            created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at         TIMESTAMP
         )
     """)
 
@@ -832,6 +866,11 @@ BILLING_TYPES      = ('PAYABLE', 'RECEIVABLE')
 PAYMENT_STATUSES   = ('PENDING', 'PARTIAL', 'PAID', 'OVERDUE')
 CURRENCIES         = ('INR', 'USD', 'EUR', 'GBP', 'AED', 'SGD', 'JPY', 'CNY')
 
+ENQUIRY_STATUSES   = ('OPEN', 'IN_PROGRESS', 'QUOTED', 'CONVERTED', 'CLOSED')
+ENQUIRY_PRIORITIES = ('LOW', 'NORMAL', 'HIGH', 'URGENT')
+WEIGHT_UNITS       = ('KGS', 'LBS', 'MT')
+CONSIGNMENT_TYPES  = ('AIR CARGO', 'FCL', 'LCL', 'BREAK BULK', 'RORO', 'COURIER')
+
 
 def create_shipment_vendor(vendor_id, shipment_id, relationship_type, billing_type,
                             amount=0, currency='INR', invoice_number=None,
@@ -1312,3 +1351,99 @@ def update_user_password(user_id, password_hash):
     )
     conn.commit()
     conn.close()
+
+
+# ------------------------------------------------------------------ #
+# Enquiry CRUD                                                        #
+# ------------------------------------------------------------------ #
+
+def generate_customer_vendor_code():
+    year = datetime.datetime.now().year
+    conn = get_db()
+    row = conn.execute(
+        "SELECT vendor_code FROM vendors WHERE vendor_code LIKE %s"
+        " ORDER BY vendor_code DESC LIMIT 1",
+        (f"CUST-{year}-%",)
+    ).fetchone()
+    conn.close()
+    if row is None:
+        return f"CUST-{year}-001"
+    try:
+        return f"CUST-{year}-{int(row['vendor_code'].split('-')[2]) + 1:03d}"
+    except (IndexError, ValueError):
+        return f"CUST-{year}-001"
+
+
+def _next_enquiry_number(user_id):
+    year = datetime.datetime.now().year
+    conn = get_db()
+    row = conn.execute(
+        "SELECT enquiry_number FROM enquiries WHERE user_id = %s"
+        " AND enquiry_number LIKE %s ORDER BY enquiry_number DESC LIMIT 1",
+        (user_id, f"ENQ-{year}-%")
+    ).fetchone()
+    conn.close()
+    if row is None:
+        return f"ENQ-{year}-001"
+    try:
+        return f"ENQ-{year}-{int(row['enquiry_number'].split('-')[2]) + 1:03d}"
+    except (IndexError, ValueError):
+        return f"ENQ-{year}-001"
+
+
+def create_enquiry(user_id, data):
+    enquiry_number = _next_enquiry_number(user_id)
+    customer_vendor_id = None
+    if data.get("customer_name"):
+        vendor_code = generate_customer_vendor_code()
+        create_vendor(
+            user_id=user_id, vendor_code=vendor_code,
+            vendor_name=data["customer_name"], vendor_type="INBOUND",
+            vendor_category="CUSTOMER", email=data.get("customer_email"),
+            phone=data.get("customer_phone"), status="INACTIVE",
+            currency="INR", created_by=user_id,
+        )
+        v = get_vendor_by_code(vendor_code)
+        customer_vendor_id = v["id"] if v else None
+    conn = get_db()
+    row = conn.execute(
+        "INSERT INTO enquiries (user_id, enquiry_number, customer_name, customer_email,"
+        " customer_phone, customer_vendor_id, commodity, consignment_type, shipment_terms,"
+        " weight, weight_unit, packages, mawb, hawb, origin, destination, ex_rate,"
+        " incoterms, currency, estimated_value, status, priority, enquiry_date,"
+        " follow_up_date, notes)"
+        " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+        " RETURNING *",
+        (user_id, enquiry_number, data.get("customer_name"), data.get("customer_email"),
+         data.get("customer_phone"), customer_vendor_id, data.get("commodity"),
+         data.get("consignment_type"), data.get("shipment_terms"),
+         float(data.get("weight") or 0), data.get("weight_unit", "KGS"),
+         int(data.get("packages") or 0), data.get("mawb"), data.get("hawb"),
+         data.get("origin"), data.get("destination"), float(data.get("ex_rate") or 0),
+         data.get("incoterms"), data.get("currency", "INR"),
+         float(data.get("estimated_value") or 0),
+         data.get("status", "OPEN"), data.get("priority", "NORMAL"),
+         data.get("enquiry_date"), data.get("follow_up_date"), data.get("notes"))
+    ).fetchone()
+    conn.commit()
+    conn.close()
+    return row
+
+
+def get_enquiries_by_user(user_id):
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM enquiries WHERE user_id = %s ORDER BY created_at DESC",
+        (user_id,)
+    ).fetchall()
+    conn.close()
+    return rows
+
+
+def get_enquiry_count(user_id):
+    conn = get_db()
+    row = conn.execute(
+        "SELECT COUNT(*) AS cnt FROM enquiries WHERE user_id = %s", (user_id,)
+    ).fetchone()
+    conn.close()
+    return row["cnt"] if row else 0
