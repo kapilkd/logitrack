@@ -71,9 +71,10 @@
 .weight-input-group {
     display: flex;
     gap: 0.5rem;
+    align-items: stretch;
 }
-.weight-input-group input { flex: 1; }
-.weight-unit-select { width: 5.5rem; flex-shrink: 0; }
+.weight-input-group input { flex: 1; min-width: 0; width: auto; }
+.weight-unit-select { width: 5.5rem !important; flex-shrink: 0; }
 
 /* ── Ex.rate inline group ────────────────────────────── */
 .exrate-input-group {

@@ -44,6 +44,47 @@
 .enquiries-table th:nth-child(1) { width: 7rem; }
 .enquiries-table th:nth-child(7) { min-width: 5rem; }
 
+/* ── Row action buttons ──────────────────────────────── */
+.enq-actions {
+    display: flex;
+    gap: 0.35rem;
+    justify-content: flex-end;
+    white-space: nowrap;
+}
+.enq-btn {
+    display: inline-block;
+    padding: 0.22rem 0.65rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    border: 1px solid transparent;
+    cursor: pointer;
+    font-family: var(--font-body);
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    line-height: 1.4;
+}
+.enq-btn--view {
+    background: var(--border-soft);
+    color: var(--ink-soft);
+    border-color: var(--border);
+}
+.enq-btn--view:hover { background: var(--border); color: var(--ink); }
+
+.enq-btn--edit {
+    background: var(--accent-light);
+    color: var(--accent);
+    border-color: var(--accent);
+}
+.enq-btn--edit:hover { background: var(--accent); color: var(--paper); }
+
+.enq-btn--particulars {
+    background: #ede9fe;
+    color: #5b21b6;
+    border-color: #c4b5fd;
+}
+.enq-btn--particulars:hover { background: #c4b5fd; color: #3b0764; }
+
 /* ── Collapsible closed/converted section ────────────── */
 .closed-enquiries-card {
     padding: 0;

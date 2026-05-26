@@ -277,6 +277,52 @@ def init_db(path=None):
     """)
 
     conn.execute("""
+        CREATE TABLE IF NOT EXISTS particulars_types (
+            id         SERIAL PRIMARY KEY,
+            user_id    INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            label      TEXT    NOT NULL,
+            is_custom  BOOLEAN NOT NULL DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (label)
+        )
+    """)
+
+    _default_types = [
+        'Air Freight', 'Exworks', 'Airline DO Fee', 'Delivery Fee',
+        'Customs Clearance', 'House DO', 'CFS/AAI',
+    ]
+    for _lbl in _default_types:
+        conn.execute(
+            "INSERT INTO particulars_types (user_id, label, is_custom)"
+            " VALUES (NULL, %s, FALSE) ON CONFLICT (label) DO NOTHING",
+            (_lbl,)
+        )
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS enquiry_particulars (
+            id              SERIAL PRIMARY KEY,
+            enquiry_id      INTEGER NOT NULL REFERENCES enquiries(id) ON DELETE CASCADE,
+            user_id         INTEGER NOT NULL REFERENCES users(id),
+            particular_type TEXT    NOT NULL,
+            sac_hsn         TEXT,
+            qty             INTEGER NOT NULL DEFAULT 1,
+            ex_rate         REAL    NOT NULL DEFAULT 0,
+            weight          REAL    NOT NULL DEFAULT 0,
+            weight_unit     TEXT    NOT NULL DEFAULT 'KGS',
+            offered_rate    REAL    NOT NULL DEFAULT 0,
+            use_formula     BOOLEAN NOT NULL DEFAULT FALSE,
+            expense         REAL    NOT NULL DEFAULT 0,
+            tax_rate        REAL    NOT NULL DEFAULT 0,
+            cgst            REAL    NOT NULL DEFAULT 0,
+            sgst            REAL    NOT NULL DEFAULT 0,
+            igst            REAL    NOT NULL DEFAULT 0,
+            total           REAL    NOT NULL DEFAULT 0,
+            currency        TEXT    NOT NULL DEFAULT 'INR',
+            created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS enquiries (
             id                 SERIAL PRIMARY KEY,
             user_id            INTEGER   NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -1447,3 +1493,117 @@ def get_enquiry_count(user_id):
     ).fetchone()
     conn.close()
     return row["cnt"] if row else 0
+
+
+def get_enquiry_by_id(enquiry_id):
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM enquiries WHERE id = %s", (enquiry_id,)
+    ).fetchone()
+    conn.close()
+    return row
+
+
+def update_enquiry(enquiry_id, data):
+    conn = get_db()
+    conn.execute(
+        "UPDATE enquiries SET customer_name=%s, customer_email=%s, customer_phone=%s,"
+        " commodity=%s, consignment_type=%s, shipment_terms=%s, weight=%s, weight_unit=%s,"
+        " packages=%s, mawb=%s, hawb=%s, origin=%s, destination=%s, ex_rate=%s,"
+        " incoterms=%s, currency=%s, estimated_value=%s, status=%s, priority=%s,"
+        " enquiry_date=%s, follow_up_date=%s, notes=%s, updated_at=NOW()"
+        " WHERE id=%s",
+        (data.get("customer_name"), data.get("customer_email"), data.get("customer_phone"),
+         data.get("commodity"), data.get("consignment_type"), data.get("shipment_terms"),
+         float(data.get("weight") or 0), data.get("weight_unit", "KGS"),
+         int(data.get("packages") or 0), data.get("mawb") or None, data.get("hawb") or None,
+         data.get("origin"), data.get("destination"), float(data.get("ex_rate") or 0),
+         data.get("incoterms") or None, data.get("currency", "INR"),
+         float(data.get("estimated_value") or 0),
+         data.get("status", "OPEN"), data.get("priority", "NORMAL"),
+         data.get("enquiry_date"), data.get("follow_up_date") or None, data.get("notes") or None,
+         enquiry_id)
+    )
+    conn.commit()
+    conn.close()
+
+
+# ------------------------------------------------------------------ #
+# Particulars Types                                                   #
+# ------------------------------------------------------------------ #
+
+def get_particular_types(user_id):
+    """Return system defaults + this user's custom types, ordered."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT label FROM particulars_types"
+        " WHERE user_id IS NULL OR user_id = %s"
+        " ORDER BY is_custom ASC, label ASC",
+        (user_id,)
+    ).fetchall()
+    conn.close()
+    return [r["label"] for r in rows]
+
+
+def ensure_particular_type(user_id, label):
+    """Persist a custom label if it doesn't already exist."""
+    label = label.strip()
+    if not label:
+        return
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO particulars_types (user_id, label, is_custom)"
+        " VALUES (%s, %s, TRUE) ON CONFLICT (label) DO NOTHING",
+        (user_id, label)
+    )
+    conn.commit()
+    conn.close()
+
+
+# ------------------------------------------------------------------ #
+# Enquiry Particulars CRUD                                            #
+# ------------------------------------------------------------------ #
+
+def get_particulars_by_enquiry(enquiry_id):
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM enquiry_particulars WHERE enquiry_id = %s ORDER BY created_at ASC",
+        (enquiry_id,)
+    ).fetchall()
+    conn.close()
+    return rows
+
+
+def create_enquiry_particular(enquiry_id, user_id, data):
+    conn = get_db()
+    row = conn.execute(
+        "INSERT INTO enquiry_particulars"
+        " (enquiry_id, user_id, particular_type, sac_hsn, qty,"
+        "  ex_rate, weight, weight_unit, offered_rate, use_formula,"
+        "  expense, tax_rate, cgst, sgst, igst, total, currency)"
+        " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+        " RETURNING *",
+        (enquiry_id, user_id,
+         data["particular_type"], data.get("sac_hsn") or None,
+         int(data.get("qty") or 1),
+         float(data.get("ex_rate") or 0), float(data.get("weight") or 0),
+         data.get("weight_unit", "KGS"),
+         float(data.get("offered_rate") or 0),
+         bool(data.get("use_formula")),
+         float(data.get("expense") or 0),
+         float(data.get("tax_rate") or 0),
+         float(data.get("cgst") or 0), float(data.get("sgst") or 0),
+         float(data.get("igst") or 0),
+         float(data.get("total") or 0),
+         data.get("currency", "INR"))
+    ).fetchone()
+    conn.commit()
+    conn.close()
+    return row
+
+
+def delete_enquiry_particular(particular_id):
+    conn = get_db()
+    conn.execute("DELETE FROM enquiry_particulars WHERE id = %s", (particular_id,))
+    conn.commit()
+    conn.close()

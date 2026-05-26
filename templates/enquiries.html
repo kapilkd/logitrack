@@ -81,8 +81,12 @@
                     {{ e.currency }} {{ "%.2f"|format(e.estimated_value) }}
                   {% else %}—{% endif %}
                 </td>
-                <td class="txn-actions">
-                  <a href="#" class="txn-btn txn-btn--edit">View</a>
+                <td>
+                  <div class="enq-actions">
+                    <a href="#" class="enq-btn enq-btn--view">View</a>
+                    <a href="{{ url_for('edit_enquiry', enquiry_id=e.id) }}" class="enq-btn enq-btn--edit">Edit</a>
+                    <a href="{{ url_for('enquiry_particulars', enquiry_id=e.id) }}" class="enq-btn enq-btn--particulars">Particulars</a>
+                  </div>
                 </td>
               </tr>
               {% endfor %}
@@ -142,8 +146,12 @@
                   {{ e.currency }} {{ "%.2f"|format(e.estimated_value) }}
                 {% else %}—{% endif %}
               </td>
-              <td class="txn-actions">
-                <a href="#" class="txn-btn txn-btn--edit">View</a>
+              <td>
+                <div class="enq-actions">
+                  <a href="#" class="enq-btn enq-btn--view">View</a>
+                  <a href="{{ url_for('edit_enquiry', enquiry_id=e.id) }}" class="enq-btn enq-btn--edit">Edit</a>
+                  <a href="{{ url_for('enquiry_particulars', enquiry_id=e.id) }}" class="enq-btn enq-btn--particulars">Particulars</a>
+                </div>
               </td>
             </tr>
             {% endfor %}

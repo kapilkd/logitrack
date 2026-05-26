@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}New Enquiry — LogiTrack{% endblock %}
+{% block title %}Edit Enquiry {{ enq.enquiry_number }} — LogiTrack{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}" />
 <link rel="stylesheet" href="{{ url_for('static', filename='css/enquiries.css') }}" />
@@ -15,7 +15,7 @@
       <div class="profile-header">
         <div class="profile-user-info">
           <div class="profile-meta">
-            <span class="profile-name">New Enquiry</span>
+            <span class="profile-name">Edit {{ enq.enquiry_number }}</span>
           </div>
         </div>
         <a href="{{ url_for('enquiries') }}" class="back-link">← Back to Enquiries</a>
@@ -26,7 +26,7 @@
         <div class="form-error">{{ error }}</div>
         {% endif %}
 
-        <form method="POST" action="{{ url_for('add_enquiry') }}">
+        <form method="POST" action="{{ url_for('edit_enquiry', enquiry_id=enq.id) }}">
 
           <!-- ── Section 1: Customer Information ─────────── -->
           <div class="form-section-title">Customer Information</div>
@@ -34,19 +34,19 @@
             <div class="form-group">
               <label>Customer Name</label>
               <input type="text" name="customer_name"
-                     value="{{ form.customer_name if form else '' }}"
+                     value="{{ form.customer_name if form else (enq.customer_name or '') }}"
                      placeholder="e.g. Acme Exports Pvt Ltd" />
             </div>
             <div class="form-group">
               <label>Customer Email</label>
               <input type="email" name="customer_email"
-                     value="{{ form.customer_email if form else '' }}"
+                     value="{{ form.customer_email if form else (enq.customer_email or '') }}"
                      placeholder="e.g. contact@acme.com" />
             </div>
             <div class="form-group">
               <label>Customer Phone</label>
               <input type="text" name="customer_phone"
-                     value="{{ form.customer_phone if form else '' }}"
+                     value="{{ form.customer_phone if form else (enq.customer_phone or '') }}"
                      placeholder="e.g. +91 98765 43210" />
             </div>
           </div>
@@ -57,7 +57,7 @@
             <div class="form-group">
               <label>Commodity</label>
               <input type="text" name="commodity"
-                     value="{{ form.commodity if form else '' }}"
+                     value="{{ form.commodity if form else (enq.commodity or '') }}"
                      placeholder="e.g. Electronic Components" />
             </div>
             <div class="form-group">
@@ -66,7 +66,8 @@
                 <option value="">— Select —</option>
                 {% for ct in consignment_types %}
                 <option value="{{ ct }}"
-                  {% if form and form.consignment_type == ct %}selected{% endif %}>
+                  {% set cur = form.consignment_type if form else enq.consignment_type %}
+                  {% if cur == ct %}selected{% endif %}>
                   {{ ct }}
                 </option>
                 {% endfor %}
@@ -75,21 +76,19 @@
             <div class="form-group">
               <label>Shipment Terms</label>
               <input type="text" name="shipment_terms"
-                     value="{{ form.shipment_terms if form else '' }}"
+                     value="{{ form.shipment_terms if form else (enq.shipment_terms or '') }}"
                      placeholder="e.g. Door to Door" />
             </div>
             <div class="form-group">
               <label>Weight</label>
               <div class="weight-input-group">
                 <input type="number" name="weight" step="0.01" min="0"
-                       value="{{ form.weight if form else '' }}"
+                       value="{{ form.weight if form else (enq.weight or '') }}"
                        placeholder="0.00" />
                 <select name="weight_unit" class="weight-unit-select">
                   {% for wu in weight_units %}
-                  <option value="{{ wu }}"
-                    {% if (form and form.weight_unit == wu) or (not form and wu == 'KGS') %}selected{% endif %}>
-                    {{ wu }}
-                  </option>
+                  {% set cur_wu = form.weight_unit if form else enq.weight_unit %}
+                  <option value="{{ wu }}" {% if cur_wu == wu %}selected{% endif %}>{{ wu }}</option>
                   {% endfor %}
                 </select>
               </div>
@@ -97,38 +96,38 @@
             <div class="form-group">
               <label>Packages</label>
               <input type="number" name="packages" min="0" step="1"
-                     value="{{ form.packages if form else '' }}"
+                     value="{{ form.packages if form else (enq.packages or '') }}"
                      placeholder="0" />
             </div>
             <div class="form-group">
               <label>MAWB <span class="field-label-hint">(Master Air Waybill)</span></label>
               <input type="text" name="mawb"
-                     value="{{ form.mawb if form else '' }}"
+                     value="{{ form.mawb if form else (enq.mawb or '') }}"
                      placeholder="e.g. 098-12345678" />
             </div>
             <div class="form-group">
               <label>HAWB <span class="field-label-hint">(House Air Waybill)</span></label>
               <input type="text" name="hawb"
-                     value="{{ form.hawb if form else '' }}"
+                     value="{{ form.hawb if form else (enq.hawb or '') }}"
                      placeholder="e.g. HAW-2026-001" />
             </div>
             <div class="form-group">
               <label>Origin</label>
               <input type="text" name="origin"
-                     value="{{ form.origin if form else '' }}"
+                     value="{{ form.origin if form else (enq.origin or '') }}"
                      placeholder="e.g. Mumbai, India" />
             </div>
             <div class="form-group">
               <label>Destination</label>
               <input type="text" name="destination"
-                     value="{{ form.destination if form else '' }}"
+                     value="{{ form.destination if form else (enq.destination or '') }}"
                      placeholder="e.g. Dubai, UAE" />
             </div>
             <div class="form-group">
               <label>Ex.rate <span class="field-label-hint">(USD → INR)</span></label>
               <div class="exrate-input-group">
                 <input type="number" id="ex_rate" name="ex_rate" step="0.01" min="0"
-                       value="{{ form.ex_rate if form else '' }}"
+                       value="{{ form.ex_rate if form else (enq.ex_rate or '') }}"
                        placeholder="e.g. 84.50" />
                 <button type="button" id="fetchRateBtn" class="fetch-rate-btn">Fetch Rate</button>
               </div>
@@ -142,21 +141,19 @@
             <div class="form-group">
               <label>Enquiry Date <span class="required">*</span></label>
               <input type="date" name="enquiry_date"
-                     value="{{ form.enquiry_date if form else today }}" required />
+                     value="{{ form.enquiry_date if form else enq.enquiry_date }}" required />
             </div>
             <div class="form-group">
               <label>Follow-up Date</label>
               <input type="date" name="follow_up_date"
-                     value="{{ form.follow_up_date if form else '' }}" />
+                     value="{{ form.follow_up_date if form else (enq.follow_up_date or '') }}" />
             </div>
             <div class="form-group">
               <label>Status</label>
               <select name="status">
                 {% for s in statuses %}
-                <option value="{{ s }}"
-                  {% if (form and form.status == s) or (not form and s == 'OPEN') %}selected{% endif %}>
-                  {{ s }}
-                </option>
+                {% set cur_s = form.status if form else enq.status %}
+                <option value="{{ s }}" {% if cur_s == s %}selected{% endif %}>{{ s }}</option>
                 {% endfor %}
               </select>
             </div>
@@ -164,10 +161,8 @@
               <label>Priority</label>
               <select name="priority">
                 {% for p in priorities %}
-                <option value="{{ p }}"
-                  {% if (form and form.priority == p) or (not form and p == 'NORMAL') %}selected{% endif %}>
-                  {{ p }}
-                </option>
+                {% set cur_p = form.priority if form else enq.priority %}
+                <option value="{{ p }}" {% if cur_p == p %}selected{% endif %}>{{ p }}</option>
                 {% endfor %}
               </select>
             </div>
@@ -176,10 +171,8 @@
               <select name="incoterms">
                 <option value="">— Select —</option>
                 {% for t in incoterms %}
-                <option value="{{ t }}"
-                  {% if form and form.incoterms == t %}selected{% endif %}>
-                  {{ t }}
-                </option>
+                {% set cur_t = form.incoterms if form else enq.incoterms %}
+                <option value="{{ t }}" {% if cur_t == t %}selected{% endif %}>{{ t }}</option>
                 {% endfor %}
               </select>
             </div>
@@ -187,17 +180,15 @@
               <label>Currency</label>
               <select name="currency">
                 {% for c in currencies %}
-                <option value="{{ c }}"
-                  {% if (form and form.currency == c) or (not form and c == 'INR') %}selected{% endif %}>
-                  {{ c }}
-                </option>
+                {% set cur_c = form.currency if form else enq.currency %}
+                <option value="{{ c }}" {% if cur_c == c %}selected{% endif %}>{{ c }}</option>
                 {% endfor %}
               </select>
             </div>
             <div class="form-group">
               <label>Estimated Value</label>
               <input type="number" name="estimated_value" step="0.01" min="0"
-                     value="{{ form.estimated_value if form else '' }}"
+                     value="{{ form.estimated_value if form else (enq.estimated_value or '') }}"
                      placeholder="0.00" />
             </div>
           </div>
@@ -205,11 +196,11 @@
           <div class="form-group">
             <label>Notes</label>
             <textarea name="notes" rows="3"
-                      placeholder="Any additional details about this enquiry">{{ form.notes if form else '' }}</textarea>
+                      placeholder="Any additional details about this enquiry">{{ form.notes if form else (enq.notes or '') }}</textarea>
           </div>
 
           <div class="form-actions">
-            <button type="submit" class="modal-submit-btn">Create Enquiry</button>
+            <button type="submit" class="modal-submit-btn">Save Changes</button>
             <a href="{{ url_for('enquiries') }}" class="cancel-link">Cancel</a>
           </div>
 

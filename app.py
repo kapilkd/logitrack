@@ -44,6 +44,9 @@ from database.db import (
     get_emails_by_thread, upsert_ai_processing, get_ai_processing,
     get_user_by_id as get_user_row_by_id, update_user_profile, update_user_password,
     create_enquiry, get_enquiries_by_user, get_enquiry_count,
+    get_enquiry_by_id, update_enquiry,
+    get_particular_types, ensure_particular_type,
+    get_particulars_by_enquiry, create_enquiry_particular, delete_enquiry_particular,
     generate_customer_vendor_code,
     ENQUIRY_STATUSES, ENQUIRY_PRIORITIES, WEIGHT_UNITS, CONSIGNMENT_TYPES,
 )
@@ -827,7 +830,169 @@ def enquiry_forex_rate():
     rate = fetch_hdfc_usd_tt_selling_rate()
     if rate is not None:
         return jsonify({"ok": True, "rate": rate})
-    return jsonify({"ok": False, "error": "Could not fetch rate from HDFC. Please enter manually."}), 502
+    return jsonify({"ok": False, "error": "HDFC rate not available. Please enter manually."}), 502
+
+
+@app.route("/enquiries/<int:enquiry_id>/edit", methods=["GET", "POST"])
+def edit_enquiry(enquiry_id):
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    uid = session["user_id"]
+    user = get_user_by_id(uid)
+    if user is None:
+        session.clear()
+        return redirect(url_for("login"))
+    enq = get_enquiry_by_id(enquiry_id)
+    if enq is None:
+        abort(404)
+    if enq["user_id"] != uid:
+        abort(403)
+
+    ctx = dict(
+        user=user,
+        enq=enq,
+        statuses=ENQUIRY_STATUSES,
+        priorities=ENQUIRY_PRIORITIES,
+        weight_units=WEIGHT_UNITS,
+        consignment_types=CONSIGNMENT_TYPES,
+        incoterms=INCOTERMS,
+        currencies=CURRENCIES,
+        forex_available=FOREX_AVAILABLE,
+        active_section="enquiries",
+    )
+
+    if request.method == "GET":
+        return render_template("edit_enquiry.html", **ctx)
+
+    def _f(key):
+        v = request.form.get(key, "").strip()
+        return v or None
+
+    enquiry_date = _f("enquiry_date")
+    if not enquiry_date:
+        ctx.update(error="Enquiry date is required.", form=request.form)
+        return render_template("edit_enquiry.html", **ctx)
+
+    status = request.form.get("status", "OPEN")
+    if status not in ENQUIRY_STATUSES:
+        status = "OPEN"
+    priority = request.form.get("priority", "NORMAL")
+    if priority not in ENQUIRY_PRIORITIES:
+        priority = "NORMAL"
+
+    data = {
+        "customer_name":    _f("customer_name"),
+        "customer_email":   _f("customer_email"),
+        "customer_phone":   _f("customer_phone"),
+        "commodity":        _f("commodity"),
+        "consignment_type": _f("consignment_type"),
+        "shipment_terms":   _f("shipment_terms"),
+        "weight":           request.form.get("weight") or 0,
+        "weight_unit":      request.form.get("weight_unit", "KGS"),
+        "packages":         request.form.get("packages") or 0,
+        "mawb":             _f("mawb"),
+        "hawb":             _f("hawb"),
+        "origin":           _f("origin"),
+        "destination":      _f("destination"),
+        "ex_rate":          request.form.get("ex_rate") or 0,
+        "incoterms":        _f("incoterms"),
+        "currency":         request.form.get("currency", "INR"),
+        "estimated_value":  request.form.get("estimated_value") or 0,
+        "status":           status,
+        "priority":         priority,
+        "enquiry_date":     enquiry_date,
+        "follow_up_date":   _f("follow_up_date"),
+        "notes":            _f("notes"),
+    }
+
+    update_enquiry(enquiry_id, data)
+    log_alert(
+        user_id=uid,
+        entity_type="ENQUIRY",
+        entity_id=enquiry_id,
+        entity_label=enq["enquiry_number"],
+        action="UPDATED",
+        description=f"Enquiry {enq['enquiry_number']} updated",
+    )
+    return redirect(url_for("enquiries"))
+
+
+@app.route("/enquiries/<int:enquiry_id>/particulars")
+def enquiry_particulars(enquiry_id):
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    uid = session["user_id"]
+    user = get_user_by_id(uid)
+    if user is None:
+        session.clear()
+        return redirect(url_for("login"))
+    enq = get_enquiry_by_id(enquiry_id)
+    if enq is None:
+        abort(404)
+    if enq["user_id"] != uid:
+        abort(403)
+    particulars = get_particulars_by_enquiry(enquiry_id)
+    types_list = get_particular_types(uid)
+    return render_template("enquiry_particulars.html",
+        user=user,
+        enq=enq,
+        particulars=particulars,
+        types_list=types_list,
+        active_section="enquiries",
+    )
+
+
+@app.route("/enquiries/<int:enquiry_id>/particulars/add", methods=["POST"])
+def add_enquiry_particular(enquiry_id):
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    uid = session["user_id"]
+    enq = get_enquiry_by_id(enquiry_id)
+    if enq is None:
+        abort(404)
+    if enq["user_id"] != uid:
+        abort(403)
+
+    particular_type = request.form.get("particular_type", "").strip()
+    custom_label = request.form.get("custom_label", "").strip()
+    if particular_type == "Other" and custom_label:
+        ensure_particular_type(uid, custom_label)
+        particular_type = custom_label
+    if not particular_type:
+        return redirect(url_for("enquiry_particulars", enquiry_id=enquiry_id))
+
+    use_formula = request.form.get("use_formula") == "1"
+    data = {
+        "particular_type": particular_type,
+        "sac_hsn":         request.form.get("sac_hsn", "").strip() or None,
+        "qty":             request.form.get("qty") or 1,
+        "ex_rate":         enq["ex_rate"],
+        "weight":          enq["weight"],
+        "weight_unit":     enq["weight_unit"],
+        "offered_rate":    request.form.get("offered_rate") or 0,
+        "use_formula":     use_formula,
+        "expense":         request.form.get("expense") or 0,
+        "tax_rate":        request.form.get("tax_rate") or 0,
+        "cgst":            request.form.get("cgst") or 0,
+        "sgst":            request.form.get("sgst") or 0,
+        "igst":            request.form.get("igst") or 0,
+        "total":           request.form.get("total") or 0,
+        "currency":        "INR",
+    }
+    create_enquiry_particular(enquiry_id, uid, data)
+    return redirect(url_for("enquiry_particulars", enquiry_id=enquiry_id))
+
+
+@app.route("/enquiries/<int:enquiry_id>/particulars/<int:particular_id>/delete", methods=["POST"])
+def delete_enquiry_particular_route(enquiry_id, particular_id):
+    if not session.get("user_id"):
+        return jsonify({"ok": False}), 401
+    uid = session["user_id"]
+    enq = get_enquiry_by_id(enquiry_id)
+    if enq is None or enq["user_id"] != uid:
+        return jsonify({"ok": False}), 403
+    delete_enquiry_particular(particular_id)
+    return jsonify({"ok": True})
 
 
 @app.route("/emails")

@@ -1,0 +1,375 @@
+{% extends "base.html" %}
+{% block title %}Particulars — {{ enq.enquiry_number }} — LogiTrack{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/enquiry_particulars.css') }}" />
+{% endblock %}
+{% block content %}
+<div class="profile-shell">
+  {% include '_sidebar.html' %}
+
+  <section class="profile-section">
+    <div class="profile-container">
+
+      <!-- ── Page header ──────────────────────────────── -->
+      <div class="profile-header">
+        <div class="profile-user-info">
+          <div class="profile-meta">
+            <span class="profile-name">Particulars — {{ enq.enquiry_number }}</span>
+          </div>
+        </div>
+        <a href="{{ url_for('enquiries') }}" class="back-link">← Back to Enquiries</a>
+      </div>
+
+      <!-- ── Enquiry meta bar ─────────────────────────── -->
+      <div class="enq-meta-bar">
+        {% if enq.customer_name %}
+        <div class="enq-meta-item">
+          <span class="meta-lbl">Customer</span>
+          <span class="meta-val">{{ enq.customer_name }}</span>
+        </div>
+        {% endif %}
+        {% if enq.origin or enq.destination %}
+        <div class="enq-meta-item">
+          <span class="meta-lbl">Route</span>
+          <span class="meta-val">{{ enq.origin or '—' }} → {{ enq.destination or '—' }}</span>
+        </div>
+        {% endif %}
+        {% if enq.commodity %}
+        <div class="enq-meta-item">
+          <span class="meta-lbl">Commodity</span>
+          <span class="meta-val">{{ enq.commodity }}</span>
+        </div>
+        {% endif %}
+        <div class="enq-meta-item">
+          <span class="meta-lbl">Ex.rate</span>
+          <span class="meta-val">₹ {{ "%.2f"|format(enq.ex_rate or 0) }}</span>
+        </div>
+        <div class="enq-meta-item">
+          <span class="meta-lbl">Weight</span>
+          <span class="meta-val">{{ enq.weight or 0 }} {{ enq.weight_unit }}</span>
+        </div>
+      </div>
+
+      <!-- ── Two-panel layout ─────────────────────────── -->
+      <div class="particulars-shell">
+
+        <!-- LEFT: saved particulars list -->
+        <div class="particulars-list-panel">
+          <div class="profile-card" style="padding: 0; overflow: hidden;">
+            <div style="padding: 1rem 1.25rem 0.75rem; border-bottom: 1px solid var(--border-soft);">
+              <p class="panel-title" style="margin: 0;">
+                Saved Particulars
+                {% if particulars %}
+                  <span style="font-weight: 400; color: var(--ink-faint); text-transform: none; letter-spacing: 0; font-size: 0.8rem;">({{ particulars | length }})</span>
+                {% endif %}
+              </p>
+            </div>
+
+            {% if particulars %}
+            <div style="overflow-x: auto;">
+              <table class="part-table">
+                <thead>
+                  <tr>
+                    <th>Particular</th>
+                    <th>SAC/HSN</th>
+                    <th class="text-right">QTY</th>
+                    <th class="text-right">Ex.rate</th>
+                    <th class="text-right">Weight</th>
+                    <th class="text-right">Offered Rate</th>
+                    <th class="text-right">Expense</th>
+                    <th class="text-right">Tax %</th>
+                    <th class="text-right">CGST</th>
+                    <th class="text-right">SGST</th>
+                    <th class="text-right">IGST</th>
+                    <th class="text-right">Total</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for p in particulars %}
+                  <tr id="prow-{{ p.id }}">
+                    <td>
+                      <div class="part-type">{{ p.particular_type }}</div>
+                      {% if p.use_formula %}
+                      <div class="part-meta">formula</div>
+                      {% endif %}
+                    </td>
+                    <td class="part-meta">{{ p.sac_hsn or '—' }}</td>
+                    <td class="text-right">{{ p.qty }}</td>
+                    <td class="text-right">{{ "%.2f"|format(p.ex_rate) }}</td>
+                    <td class="text-right">{{ p.weight }} {{ p.weight_unit }}</td>
+                    <td class="text-right">{{ "%.2f"|format(p.offered_rate) }}</td>
+                    <td class="text-right part-amount">{{ "%.2f"|format(p.expense) }}</td>
+                    <td class="text-right">{{ p.tax_rate }}%</td>
+                    <td class="text-right">{{ "%.2f"|format(p.cgst) }}</td>
+                    <td class="text-right">{{ "%.2f"|format(p.sgst) }}</td>
+                    <td class="text-right">{{ "%.2f"|format(p.igst) }}</td>
+                    <td class="text-right part-total">{{ "%.2f"|format(p.total) }}</td>
+                    <td>
+                      <button class="part-delete-btn"
+                              data-id="{{ p.id }}"
+                              data-url="{{ url_for('delete_enquiry_particular_route', enquiry_id=enq.id, particular_id=p.id) }}"
+                              title="Delete">×</button>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colspan="11" style="text-align:right; font-size:0.78rem; font-weight:600; color:var(--ink-muted); padding: 0.5rem 0.65rem;">Grand Total</td>
+                    <td class="text-right" style="font-weight:700; color:var(--accent); padding: 0.5rem 0.65rem; font-size:0.9rem;">
+                      {{ "%.2f"|format(particulars | sum(attribute='total')) }}
+                    </td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            {% else %}
+            <div class="particulars-empty">No particulars added yet.</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- RIGHT: add form -->
+        <div class="particulars-form-panel">
+          <div class="form-panel-card">
+            <h3 class="form-panel-title">Add Particular</h3>
+
+            <form method="POST" action="{{ url_for('add_enquiry_particular', enquiry_id=enq.id) }}" id="partForm">
+
+              <!-- Particular type -->
+              <div class="pf-group">
+                <label>Particular <span style="color:var(--danger)">*</span></label>
+                <select name="particular_type" id="particularSelect" required>
+                  <option value="">— Select —</option>
+                  {% for t in types_list %}
+                  <option value="{{ t }}">{{ t }}</option>
+                  {% endfor %}
+                  <option value="Other">Other…</option>
+                </select>
+              </div>
+              <div class="pf-group" id="customLabelGroup" style="display:none;">
+                <label>Custom Label</label>
+                <input type="text" name="custom_label" id="customLabel"
+                       placeholder="Enter new particular name" />
+              </div>
+
+              <!-- SAC/HSN + QTY -->
+              <div class="pf-grid-two">
+                <div class="pf-group">
+                  <label>SAC/HSN</label>
+                  <input type="text" name="sac_hsn" id="sacHsn" placeholder="e.g. 996511" />
+                </div>
+                <div class="pf-group">
+                  <label>QTY</label>
+                  <input type="number" name="qty" id="qtyField" value="1" min="1" step="1" />
+                </div>
+              </div>
+
+              <!-- Read-only enquiry values -->
+              <div class="pf-section">From Enquiry (read-only)</div>
+              <div class="pf-grid-two">
+                <div class="pf-group">
+                  <label>Ex.rate (INR)</label>
+                  <input type="number" name="ex_rate" id="exRateField"
+                         value="{{ enq.ex_rate or 0 }}" readonly />
+                </div>
+                <div class="pf-group">
+                  <label>Weight ({{ enq.weight_unit }})</label>
+                  <input type="number" name="weight" id="weightField"
+                         value="{{ enq.weight or 0 }}" readonly />
+                </div>
+              </div>
+
+              <!-- Offered rate -->
+              <div class="pf-section">Calculation</div>
+              <div class="pf-group">
+                <label>Offered Rate</label>
+                <input type="number" name="offered_rate" id="offeredRate"
+                       step="0.01" min="0" value="" placeholder="0.00" />
+              </div>
+
+              <!-- Formula checkbox -->
+              <label class="formula-row" for="useFormula">
+                <input type="checkbox" name="use_formula" id="useFormula" value="1" />
+                <span class="formula-label">Use formula for Expense</span>
+                <span class="formula-hint">Ex.rate × Weight × Offered Rate</span>
+              </label>
+
+              <!-- Expense (manual or auto) -->
+              <div class="pf-group">
+                <label>Expense (INR)</label>
+                <input type="number" name="expense" id="expenseField"
+                       step="0.01" min="0" value="" placeholder="0.00" />
+              </div>
+
+              <!-- Tax rate + CGST/SGST/IGST -->
+              <div class="pf-section">Tax</div>
+              <div class="pf-group">
+                <label>Tax Rate %</label>
+                <input type="number" name="tax_rate" id="taxRateField"
+                       step="0.01" min="0" max="100" value="" placeholder="e.g. 18" />
+              </div>
+              <div class="pf-grid-two">
+                <div class="pf-group">
+                  <label>CGST</label>
+                  <input type="number" name="cgst" id="cgstField" step="0.01" value="" placeholder="0.00" />
+                </div>
+                <div class="pf-group">
+                  <label>SGST</label>
+                  <input type="number" name="sgst" id="sgstField" step="0.01" value="" placeholder="0.00" />
+                </div>
+              </div>
+              <div class="pf-group">
+                <label>IGST</label>
+                <input type="number" name="igst" id="igstField" step="0.01" value="" placeholder="0.00" />
+              </div>
+
+              <!-- Hidden total sent to server -->
+              <input type="hidden" name="total" id="totalHidden" value="0" />
+
+              <!-- Total display -->
+              <div class="part-total-row">
+                <span class="total-label">Total</span>
+                <span class="total-value" id="totalDisplay">₹ 0.00</span>
+              </div>
+
+              <!-- Actions -->
+              <div class="pf-actions">
+                <button type="submit" class="pf-save-btn">Save Particular</button>
+                <button type="button" class="pf-reset-btn" id="resetBtn">Reset</button>
+              </div>
+
+            </form>
+          </div>
+        </div>
+
+      </div><!-- /.particulars-shell -->
+
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  /* ── Element refs ───────────────────────────────────── */
+  var sel       = document.getElementById('particularSelect');
+  var customGrp = document.getElementById('customLabelGroup');
+  var useFormCb = document.getElementById('useFormula');
+  var exRate    = document.getElementById('exRateField');
+  var weight    = document.getElementById('weightField');
+  var offered   = document.getElementById('offeredRate');
+  var expense   = document.getElementById('expenseField');
+  var taxRate   = document.getElementById('taxRateField');
+  var cgst      = document.getElementById('cgstField');
+  var sgst      = document.getElementById('sgstField');
+  var igst      = document.getElementById('igstField');
+  var totalDisp = document.getElementById('totalDisplay');
+  var totalHid  = document.getElementById('totalHidden');
+  var resetBtn  = document.getElementById('resetBtn');
+
+  /* ── Helper ─────────────────────────────────────────── */
+  function n(el) { return parseFloat(el.value) || 0; }
+  function fmt(v) { return '₹ ' + v.toFixed(2); }
+
+  /* ── "Other" toggle ─────────────────────────────────── */
+  sel.addEventListener('change', function () {
+    customGrp.style.display = sel.value === 'Other' ? 'block' : 'none';
+  });
+
+  /* ── Recalculate everything ─────────────────────────── */
+  function recalc() {
+    /* Expense */
+    if (useFormCb.checked) {
+      var calc = n(exRate) * n(weight) * n(offered);
+      expense.value = calc.toFixed(2);
+      expense.readOnly = true;
+      expense.style.background = 'var(--surface)';
+      expense.style.color = 'var(--ink-muted)';
+    } else {
+      expense.readOnly = false;
+      expense.style.background = '';
+      expense.style.color = '';
+    }
+
+    /* Taxes */
+    var exp    = n(expense);
+    var rate   = n(taxRate);
+    var half   = (exp * rate / 100) / 2;
+    var full   = exp * rate / 100;
+
+    /* Only auto-fill if fields are empty or were previously auto-set */
+    if (taxRate.value !== '') {
+      cgst.value = half.toFixed(2);
+      sgst.value = half.toFixed(2);
+      igst.value = full.toFixed(2);
+    }
+
+    /* Total */
+    var tot = exp + n(cgst) + n(sgst) + n(igst);
+    totalDisp.textContent = fmt(tot);
+    totalHid.value = tot.toFixed(2);
+  }
+
+  /* ── Event listeners ────────────────────────────────── */
+  useFormCb.addEventListener('change', recalc);
+  [offered, expense, taxRate].forEach(function (el) {
+    el.addEventListener('input', recalc);
+  });
+  /* Allow manual override of CGST/SGST/IGST — only update total */
+  [cgst, sgst, igst].forEach(function (el) {
+    el.addEventListener('input', function () {
+      var exp = n(expense);
+      var tot = exp + n(cgst) + n(sgst) + n(igst);
+      totalDisp.textContent = fmt(tot);
+      totalHid.value = tot.toFixed(2);
+    });
+  });
+
+  /* ── Reset ──────────────────────────────────────────── */
+  resetBtn.addEventListener('click', function () {
+    sel.value         = '';
+    customGrp.style.display = 'none';
+    document.getElementById('customLabel').value = '';
+    document.getElementById('sacHsn').value      = '';
+    document.getElementById('qtyField').value    = '1';
+    offered.value     = '';
+    useFormCb.checked = false;
+    expense.readOnly  = false;
+    expense.style.background = '';
+    expense.style.color = '';
+    expense.value     = '';
+    taxRate.value     = '';
+    cgst.value        = '';
+    sgst.value        = '';
+    igst.value        = '';
+    totalDisp.textContent = '₹ 0.00';
+    totalHid.value    = '0';
+  });
+
+  /* ── Delete row ─────────────────────────────────────── */
+  document.querySelectorAll('.part-delete-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (!confirm('Delete this particular?')) return;
+      var url = btn.dataset.url;
+      var id  = btn.dataset.id;
+      fetch(url, { method: 'POST' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d.ok) {
+            var row = document.getElementById('prow-' + id);
+            if (row) {
+              row.style.transition = 'opacity 0.3s';
+              row.style.opacity = '0';
+              setTimeout(function () { row.remove(); }, 300);
+            }
+          }
+        });
+    });
+  });
+
+}());
+</script>
+{% endblock %}
