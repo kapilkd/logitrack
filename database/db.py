@@ -1528,6 +1528,16 @@ def update_enquiry(enquiry_id, data):
     conn.close()
 
 
+def update_enquiry_status(enquiry_id, status):
+    conn = get_db()
+    conn.execute(
+        "UPDATE enquiries SET status = %s, updated_at = NOW() WHERE id = %s",
+        (status, enquiry_id),
+    )
+    conn.commit()
+    conn.close()
+
+
 # ------------------------------------------------------------------ #
 # Particulars Types                                                   #
 # ------------------------------------------------------------------ #

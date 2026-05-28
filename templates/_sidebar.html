@@ -51,7 +51,8 @@
       <div class="sidebar-sub-nav">
         <a href="{{ url_for('enquiries') }}"
            class="sidebar-sub-link{% if request.endpoint == 'enquiries' %} sidebar-sub-link--active{% endif %}">All Enquiries</a>
-        <a href="#" class="sidebar-sub-link">New Enquiry</a>
+        <a href="{{ url_for('add_enquiry') }}"
+           class="sidebar-sub-link{% if request.endpoint == 'add_enquiry' %} sidebar-sub-link--active{% endif %}">New Enquiry</a>
       </div>
     </div>
 

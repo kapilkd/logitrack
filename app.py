@@ -43,14 +43,14 @@ from database.db import (
     save_email, get_emails_by_user, get_email_by_id, delete_email,
     get_emails_by_thread, upsert_ai_processing, get_ai_processing,
     get_user_by_id as get_user_row_by_id, update_user_profile, update_user_password,
-    create_enquiry, get_enquiries_by_user, get_enquiry_count,
-    get_enquiry_by_id, update_enquiry,
+    create_enquiry, get_enquiries_by_user, get_enquiry_count, get_shipment_count,
+    get_enquiry_by_id, update_enquiry, update_enquiry_status,
     get_particular_types, ensure_particular_type,
     get_particulars_by_enquiry, create_enquiry_particular, delete_enquiry_particular,
     generate_customer_vendor_code,
     ENQUIRY_STATUSES, ENQUIRY_PRIORITIES, WEIGHT_UNITS, CONSIGNMENT_TYPES,
 )
-from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_filtered_vendors, get_billing_stats, get_shipment_billing_list, get_recent_alerts, get_shipment_bill_vendors, get_emails_with_shipment_links, get_vendor_ledger, get_vendor_ledger_stats, get_shipment_report_rows, get_report_summary_stats, get_expense_link_summary, get_monthly_expense_trend, get_vendor_report_rows, get_vendor_report_summary
+from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_filtered_vendors, get_billing_stats, get_shipment_billing_list, get_recent_alerts, get_shipment_bill_vendors, get_emails_with_shipment_links, get_vendor_ledger, get_vendor_ledger_stats, get_shipment_report_rows, get_report_summary_stats, get_expense_link_summary, get_monthly_expense_trend, get_vendor_report_rows, get_vendor_report_summary, get_filtered_enquiries
 from gmail_utils import (
     GMAIL_AVAILABLE, SCOPES, credentials_file_exists,
     encrypt_token, decrypt_token, sync_inbox, send_gmail, parse_message,
@@ -731,15 +731,33 @@ def enquiries():
     if user is None:
         session.clear()
         return redirect(url_for("login"))
-    enquiry_list = get_enquiries_by_user(uid)
+    filters = {
+        "customer":  request.args.get("customer", "").strip(),
+        "status":    request.args.get("status", "").strip(),
+        "priority":  request.args.get("priority", "").strip(),
+        "from_date": request.args.get("from_date", "").strip(),
+        "to_date":   request.args.get("to_date", "").strip(),
+    }
+    enquiry_list = get_filtered_enquiries(
+        uid,
+        customer=filters["customer"] or None,
+        status=filters["status"] or None,
+        priority=filters["priority"] or None,
+        from_date=filters["from_date"] or None,
+        to_date=filters["to_date"] or None,
+    )
     active_rows = [e for e in enquiry_list if e["status"] not in ("CONVERTED", "CLOSED")]
     closed_rows = [e for e in enquiry_list if e["status"] in ("CONVERTED", "CLOSED")]
+    count = get_shipment_count(uid)
+    suggested_shipment_number = f"SHP-{datetime.now().year}-{(count + 1):03d}"
     return render_template("enquiries.html",
         user=user,
         enquiries=active_rows,
         closed_enquiries=closed_rows,
         statuses=ENQUIRY_STATUSES,
         priorities=ENQUIRY_PRIORITIES,
+        filters=filters,
+        suggested_shipment_number=suggested_shipment_number,
         active_section="enquiries",
     )
 
@@ -1004,6 +1022,86 @@ def delete_enquiry_particular_route(enquiry_id, particular_id):
         return jsonify({"ok": False}), 403
     delete_enquiry_particular(particular_id)
     return jsonify({"ok": True})
+
+
+@app.route("/enquiries/<int:enquiry_id>")
+def enquiry_detail(enquiry_id):
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    uid  = session["user_id"]
+    user = get_user_by_id(uid)
+    enq  = get_enquiry_by_id(enquiry_id)
+    if enq is None:
+        abort(404)
+    if enq["user_id"] != uid:
+        abort(403)
+    particulars = get_particulars_by_enquiry(enquiry_id)
+    grand_total = sum(p["total"] for p in particulars)
+    count = get_shipment_count(uid)
+    suggested_shipment_number = f"SHP-{datetime.now().year}-{(count + 1):03d}"
+    return render_template(
+        "enquiry_detail.html",
+        user=user, enq=enq,
+        particulars=particulars, grand_total=grand_total,
+        statuses=ENQUIRY_STATUSES,
+        suggested_shipment_number=suggested_shipment_number,
+        active_section="enquiries",
+    )
+
+
+@app.route("/enquiries/<int:enquiry_id>/status", methods=["POST"])
+def enquiry_status(enquiry_id):
+    if not session.get("user_id"):
+        return jsonify({"ok": False}), 401
+    uid = session["user_id"]
+    enq = get_enquiry_by_id(enquiry_id)
+    if enq is None:
+        return jsonify({"ok": False}), 404
+    if enq["user_id"] != uid:
+        return jsonify({"ok": False}), 403
+    status = (request.json or {}).get("status", "")
+    if status not in ENQUIRY_STATUSES:
+        return jsonify({"ok": False, "error": "Invalid status"}), 400
+    update_enquiry_status(enquiry_id, status)
+    return jsonify({"ok": True, "status": status})
+
+
+@app.route("/enquiries/<int:enquiry_id>/convert", methods=["POST"])
+def enquiry_convert(enquiry_id):
+    if not session.get("user_id"):
+        return jsonify({"ok": False}), 401
+    uid = session["user_id"]
+    enq = get_enquiry_by_id(enquiry_id)
+    if enq is None:
+        return jsonify({"ok": False}), 404
+    if enq["user_id"] != uid:
+        return jsonify({"ok": False}), 403
+    body = request.json or {}
+    shipment_number = (body.get("shipment_number") or "").strip()
+    if not shipment_number:
+        return jsonify({"ok": False, "error": "Shipment number is required"}), 400
+    if get_shipment_by_number(shipment_number):
+        return jsonify({"ok": False, "error": f"Shipment number '{shipment_number}' already exists"}), 409
+    origin         = (body.get("origin") or "").strip() or None
+    destination    = (body.get("destination") or "").strip() or None
+    incoterms      = (body.get("incoterms") or "").strip() or None
+    initial_status = (body.get("initial_status") or "BOOKED").strip()
+    if initial_status not in SHIPMENT_STATUSES:
+        initial_status = "BOOKED"
+    description = f"Converted from enquiry {enq['enquiry_number']}"
+    if enq.get("commodity"):
+        description += f" — {enq['commodity']}"
+    new_shipment = create_shipment(
+        uid, shipment_number,
+        origin=origin, destination=destination,
+        incoterms=incoterms, status=initial_status,
+        shipment_date=enq.get("enquiry_date"),
+        description=description,
+    )
+    update_enquiry_status(enquiry_id, "CONVERTED")
+    log_alert(uid, "enquiry", enquiry_id, enq["enquiry_number"], "converted",
+              f"Enquiry {enq['enquiry_number']} converted to shipment {shipment_number}")
+    return jsonify({"ok": True, "redirect": url_for("shipment_detail", shipment_id=new_shipment["id"])})
 
 
 @app.route("/emails")
