@@ -1,14 +1,15 @@
-/* ── Two-panel shell ─────────────────────────────────── */
+/* ── Single-column shell ──────────────────────────────── */
 .particulars-shell {
-    display: grid;
-    grid-template-columns: 1fr 400px;
-    gap: 1.5rem;
-    align-items: start;
+    display: block;
 }
 
-/* ── Left panel: list ────────────────────────────────── */
-.particulars-list-panel {
-    min-width: 0;
+/* ── List panel header ────────────────────────────────── */
+.list-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.9rem 1.25rem 0.75rem;
+    border-bottom: 1px solid var(--border-soft);
 }
 
 .particulars-list-panel .panel-title {
@@ -17,11 +18,34 @@
     color: var(--ink-muted);
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    margin-bottom: 0.75rem;
+    margin: 0;
 }
 
+.panel-count {
+    font-weight: 400;
+    color: var(--ink-faint);
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 0.8rem;
+}
+
+.add-particular-btn {
+    padding: 0.35rem 0.9rem;
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+.add-particular-btn:hover { background: var(--accent); }
+
 .particulars-empty {
-    padding: 2rem 1rem;
+    padding: 2.5rem 1rem;
     text-align: center;
     color: var(--ink-faint);
     font-size: 0.875rem;
@@ -70,28 +94,69 @@
 }
 .part-delete-btn:hover { color: var(--danger); background: var(--danger-light); }
 
-/* ── Right panel: add form ───────────────────────────── */
-.particulars-form-panel {
-    position: sticky;
-    top: 1.5rem;
+/* ── Add Particular modal backdrop ───────────────────── */
+.part-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
 }
+.part-modal-backdrop.hidden { display: none; }
 
-.form-panel-card {
+/* ── Modal container ──────────────────────────────────── */
+.part-modal {
     background: var(--paper);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 1.25rem;
+    border-radius: var(--radius-md);
+    width: min(800px, 100%);
+    max-height: 92vh;
+    overflow-y: auto;
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.22);
+    display: flex;
+    flex-direction: column;
 }
 
-.form-panel-title {
+.part-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border-soft);
+    position: sticky;
+    top: 0;
+    background: var(--paper);
+    z-index: 1;
+    flex-shrink: 0;
+}
+
+.part-modal-header h3 {
     font-size: 0.78rem;
     font-weight: 700;
     color: var(--ink-muted);
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    margin: 0 0 1rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--border-soft);
+    margin: 0;
+}
+
+.part-modal-close {
+    background: none;
+    border: none;
+    font-size: 1.35rem;
+    color: var(--ink-faint);
+    cursor: pointer;
+    padding: 0 0.4rem;
+    border-radius: var(--radius-sm);
+    line-height: 1.2;
+    transition: color 0.15s, background 0.15s;
+}
+.part-modal-close:hover { color: var(--danger); background: var(--danger-light); }
+
+.part-modal-body {
+    padding: 1.5rem;
 }
 
 /* ── Form fields ─────────────────────────────────────── */
@@ -106,10 +171,9 @@
     margin-bottom: 0.25rem;
 }
 .pf-group input,
-.pf-group select,
-.pf-group textarea {
+.pf-group select {
     width: 100%;
-    padding: 0.4rem 0.65rem;
+    padding: 0.42rem 0.7rem;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     font-family: var(--font-body);
@@ -129,11 +193,21 @@
 }
 .pf-group input::placeholder { color: var(--ink-faint); }
 
-/* ── Two-col mini grid ───────────────────────────────── */
+/* ── Grid layouts ────────────────────────────────────── */
 .pf-grid-two {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 0 0.75rem;
+    gap: 0 0.85rem;
+}
+.pf-grid-three {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 0 0.85rem;
+}
+.pf-grid-four {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 0 0.85rem;
 }
 
 /* ── Section divider inside form ─────────────────────── */
@@ -143,7 +217,7 @@
     color: var(--ink-faint);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin: 1rem 0 0.6rem;
+    margin: 1.1rem 0 0.65rem;
     padding-bottom: 0.3rem;
     border-bottom: 1px solid var(--border-soft);
 }
@@ -154,7 +228,7 @@
     align-items: center;
     gap: 0.5rem;
     margin-bottom: 0.85rem;
-    padding: 0.5rem 0.65rem;
+    padding: 0.5rem 0.7rem;
     background: var(--surface);
     border: 1px solid var(--border-soft);
     border-radius: var(--radius-sm);
@@ -176,12 +250,19 @@
     margin-left: auto;
 }
 
+/* ── IGST label hint ─────────────────────────────────── */
+.field-hint-inline {
+    font-size: 0.72rem;
+    font-weight: 400;
+    color: var(--ink-faint);
+}
+
 /* ── Total display ───────────────────────────────────── */
 .part-total-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.65rem 0.75rem;
+    padding: 0.65rem 0.85rem;
     background: var(--accent-light);
     border: 1px solid var(--accent);
     border-radius: var(--radius-sm);
@@ -204,11 +285,11 @@
 .pf-actions {
     display: flex;
     gap: 0.6rem;
-    margin-top: 0.5rem;
+    margin-top: 0.25rem;
 }
 .pf-save-btn {
     flex: 1;
-    padding: 0.5rem;
+    padding: 0.55rem;
     background: var(--ink);
     color: var(--paper);
     border: none;
@@ -221,7 +302,7 @@
 }
 .pf-save-btn:hover { background: var(--accent); }
 .pf-reset-btn {
-    padding: 0.5rem 1rem;
+    padding: 0.55rem 1.25rem;
     background: none;
     color: var(--ink-muted);
     border: 1px solid var(--border);

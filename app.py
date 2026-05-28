@@ -56,7 +56,7 @@ from gmail_utils import (
     encrypt_token, decrypt_token, sync_inbox, send_gmail, parse_message,
 )
 from ai_utils import ANTHROPIC_AVAILABLE, process_email_with_claude, generate_reply_with_claude
-from forex_utils import FOREX_AVAILABLE, fetch_hdfc_usd_tt_selling_rate
+from forex_utils import FOREX_AVAILABLE, fetch_hdfc_usd_tt_selling_rate, save_manual_rate
 
 _IS_PRODUCTION = os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("PRODUCTION")
 
@@ -823,13 +823,24 @@ def add_enquiry():
     return redirect(url_for("enquiries"))
 
 
-@app.route("/enquiries/forex-rate")
+@app.route("/enquiries/forex-rate", methods=["GET", "POST"])
 def enquiry_forex_rate():
     if not session.get("user_id"):
         return jsonify({"ok": False, "error": "Unauthorized"}), 401
-    rate = fetch_hdfc_usd_tt_selling_rate()
+
+    if request.method == "POST":
+        try:
+            rate = float((request.json or {}).get("rate", 0))
+            if rate <= 0:
+                raise ValueError
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "error": "Invalid rate"}), 400
+        ok = save_manual_rate(rate)
+        return jsonify({"ok": ok})
+
+    rate, source = fetch_hdfc_usd_tt_selling_rate()
     if rate is not None:
-        return jsonify({"ok": True, "rate": rate})
+        return jsonify({"ok": True, "rate": rate, "source": source})
     return jsonify({"ok": False, "error": "HDFC rate not available. Please enter manually."}), 502
 
 

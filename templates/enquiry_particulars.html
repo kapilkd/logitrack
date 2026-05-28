@@ -51,19 +51,18 @@
         </div>
       </div>
 
-      <!-- ── Two-panel layout ─────────────────────────── -->
+      <!-- ── Particulars list (full width) ────────────── -->
       <div class="particulars-shell">
-
-        <!-- LEFT: saved particulars list -->
         <div class="particulars-list-panel">
           <div class="profile-card" style="padding: 0; overflow: hidden;">
-            <div style="padding: 1rem 1.25rem 0.75rem; border-bottom: 1px solid var(--border-soft);">
-              <p class="panel-title" style="margin: 0;">
+            <div class="list-panel-header">
+              <p class="panel-title">
                 Saved Particulars
                 {% if particulars %}
-                  <span style="font-weight: 400; color: var(--ink-faint); text-transform: none; letter-spacing: 0; font-size: 0.8rem;">({{ particulars | length }})</span>
+                <span class="panel-count">({{ particulars | length }})</span>
                 {% endif %}
               </p>
+              <button type="button" id="openPartModal" class="add-particular-btn">+ Add Particular</button>
             </div>
 
             {% if particulars %}
@@ -131,146 +130,191 @@
             {% endif %}
           </div>
         </div>
-
-        <!-- RIGHT: add form -->
-        <div class="particulars-form-panel">
-          <div class="form-panel-card">
-            <h3 class="form-panel-title">Add Particular</h3>
-
-            <form method="POST" action="{{ url_for('add_enquiry_particular', enquiry_id=enq.id) }}" id="partForm">
-
-              <!-- Particular type -->
-              <div class="pf-group">
-                <label>Particular <span style="color:var(--danger)">*</span></label>
-                <select name="particular_type" id="particularSelect" required>
-                  <option value="">— Select —</option>
-                  {% for t in types_list %}
-                  <option value="{{ t }}">{{ t }}</option>
-                  {% endfor %}
-                  <option value="Other">Other…</option>
-                </select>
-              </div>
-              <div class="pf-group" id="customLabelGroup" style="display:none;">
-                <label>Custom Label</label>
-                <input type="text" name="custom_label" id="customLabel"
-                       placeholder="Enter new particular name" />
-              </div>
-
-              <!-- SAC/HSN + QTY -->
-              <div class="pf-grid-two">
-                <div class="pf-group">
-                  <label>SAC/HSN</label>
-                  <input type="text" name="sac_hsn" id="sacHsn" placeholder="e.g. 996511" />
-                </div>
-                <div class="pf-group">
-                  <label>QTY</label>
-                  <input type="number" name="qty" id="qtyField" value="1" min="1" step="1" />
-                </div>
-              </div>
-
-              <!-- Read-only enquiry values -->
-              <div class="pf-section">From Enquiry (read-only)</div>
-              <div class="pf-grid-two">
-                <div class="pf-group">
-                  <label>Ex.rate (INR)</label>
-                  <input type="number" name="ex_rate" id="exRateField"
-                         value="{{ enq.ex_rate or 0 }}" readonly />
-                </div>
-                <div class="pf-group">
-                  <label>Weight ({{ enq.weight_unit }})</label>
-                  <input type="number" name="weight" id="weightField"
-                         value="{{ enq.weight or 0 }}" readonly />
-                </div>
-              </div>
-
-              <!-- Offered rate -->
-              <div class="pf-section">Calculation</div>
-              <div class="pf-group">
-                <label>Offered Rate</label>
-                <input type="number" name="offered_rate" id="offeredRate"
-                       step="0.01" min="0" value="" placeholder="0.00" />
-              </div>
-
-              <!-- Formula checkbox -->
-              <label class="formula-row" for="useFormula">
-                <input type="checkbox" name="use_formula" id="useFormula" value="1" />
-                <span class="formula-label">Use formula for Expense</span>
-                <span class="formula-hint">Ex.rate × Weight × Offered Rate</span>
-              </label>
-
-              <!-- Expense (manual or auto) -->
-              <div class="pf-group">
-                <label>Expense (INR)</label>
-                <input type="number" name="expense" id="expenseField"
-                       step="0.01" min="0" value="" placeholder="0.00" />
-              </div>
-
-              <!-- Tax rate + CGST/SGST/IGST -->
-              <div class="pf-section">Tax</div>
-              <div class="pf-group">
-                <label>Tax Rate %</label>
-                <input type="number" name="tax_rate" id="taxRateField"
-                       step="0.01" min="0" max="100" value="" placeholder="e.g. 18" />
-              </div>
-              <div class="pf-grid-two">
-                <div class="pf-group">
-                  <label>CGST</label>
-                  <input type="number" name="cgst" id="cgstField" step="0.01" value="" placeholder="0.00" />
-                </div>
-                <div class="pf-group">
-                  <label>SGST</label>
-                  <input type="number" name="sgst" id="sgstField" step="0.01" value="" placeholder="0.00" />
-                </div>
-              </div>
-              <div class="pf-group">
-                <label>IGST</label>
-                <input type="number" name="igst" id="igstField" step="0.01" value="" placeholder="0.00" />
-              </div>
-
-              <!-- Hidden total sent to server -->
-              <input type="hidden" name="total" id="totalHidden" value="0" />
-
-              <!-- Total display -->
-              <div class="part-total-row">
-                <span class="total-label">Total</span>
-                <span class="total-value" id="totalDisplay">₹ 0.00</span>
-              </div>
-
-              <!-- Actions -->
-              <div class="pf-actions">
-                <button type="submit" class="pf-save-btn">Save Particular</button>
-                <button type="button" class="pf-reset-btn" id="resetBtn">Reset</button>
-              </div>
-
-            </form>
-          </div>
-        </div>
-
-      </div><!-- /.particulars-shell -->
+      </div>
 
     </div>
   </section>
 </div>
 
+<!-- ── Add Particular Modal ──────────────────────────────── -->
+<div class="part-modal-backdrop hidden" id="partModalBackdrop">
+  <div class="part-modal" role="dialog" aria-modal="true" aria-labelledby="partModalTitle">
+
+    <div class="part-modal-header">
+      <h3 id="partModalTitle">Add Particular</h3>
+      <button type="button" class="part-modal-close" id="closePartModal" aria-label="Close">×</button>
+    </div>
+
+    <div class="part-modal-body">
+      <form method="POST" action="{{ url_for('add_enquiry_particular', enquiry_id=enq.id) }}" id="partForm">
+
+        <!-- SAC/HSN datalist populated from existing particulars -->
+        <datalist id="sacHsnList">
+          {% for p in particulars %}
+          {% if p.sac_hsn %}
+          <option value="{{ p.sac_hsn }}">
+          {% endif %}
+          {% endfor %}
+        </datalist>
+
+        <!-- ── Particular type / SAC / QTY ───────────── -->
+        <div class="pf-grid-three">
+          <div class="pf-group">
+            <label>Particular <span style="color:var(--danger)">*</span></label>
+            <select name="particular_type" id="particularSelect" required>
+              <option value="">— Select —</option>
+              {% for t in types_list %}
+              <option value="{{ t }}">{{ t }}</option>
+              {% endfor %}
+              <option value="Other">Other…</option>
+            </select>
+          </div>
+          <div class="pf-group">
+            <label>SAC/HSN</label>
+            <input type="text" name="sac_hsn" id="sacHsn"
+                   list="sacHsnList" placeholder="e.g. 996511" autocomplete="off" />
+          </div>
+          <div class="pf-group">
+            <label>QTY</label>
+            <input type="number" name="qty" id="qtyField" value="1" min="1" step="1" />
+          </div>
+        </div>
+
+        <div class="pf-group" id="customLabelGroup" style="display:none;">
+          <label>Custom Label</label>
+          <input type="text" name="custom_label" id="customLabel"
+                 placeholder="Enter new particular name" />
+        </div>
+
+        <!-- ── From Enquiry (read-only) ──────────────── -->
+        <div class="pf-section">From Enquiry (read-only)</div>
+        <div class="pf-grid-two">
+          <div class="pf-group">
+            <label>Ex.rate (INR)</label>
+            <input type="number" name="ex_rate" id="exRateField"
+                   value="{{ enq.ex_rate or 0 }}" readonly />
+          </div>
+          <div class="pf-group">
+            <label>Weight ({{ enq.weight_unit }})</label>
+            <input type="number" name="weight" id="weightField"
+                   value="{{ enq.weight or 0 }}" readonly />
+          </div>
+        </div>
+
+        <!-- ── Calculation ────────────────────────────── -->
+        <div class="pf-section">Calculation</div>
+        <div class="pf-group">
+          <label>Offered Rate</label>
+          <input type="number" name="offered_rate" id="offeredRate"
+                 step="0.01" min="0" value="1.00" placeholder="1.00" />
+        </div>
+
+        <label class="formula-row" for="useFormula">
+          <input type="checkbox" name="use_formula" id="useFormula" value="1" />
+          <span class="formula-label">Use formula for Expense</span>
+          <span class="formula-hint">Ex.rate × Weight × QTY × Offered Rate</span>
+        </label>
+
+        <div class="pf-group">
+          <label>Expense (INR)</label>
+          <input type="number" name="expense" id="expenseField"
+                 step="0.01" min="0" value="" placeholder="0.00" />
+        </div>
+
+        <!-- ── Tax ────────────────────────────────────── -->
+        <div class="pf-section">Tax</div>
+        <div class="pf-grid-four">
+          <div class="pf-group">
+            <label>Tax Rate %</label>
+            <input type="number" name="tax_rate" id="taxRateField"
+                   step="0.01" min="0" max="100" value="" placeholder="e.g. 18" />
+          </div>
+          <div class="pf-group">
+            <label>CGST</label>
+            <input type="number" name="cgst" id="cgstField"
+                   step="0.01" value="" placeholder="0.00" />
+          </div>
+          <div class="pf-group">
+            <label>SGST</label>
+            <input type="number" name="sgst" id="sgstField"
+                   step="0.01" value="" placeholder="0.00" />
+          </div>
+          <div class="pf-group">
+            <label>IGST <span class="field-hint-inline">(default 0)</span></label>
+            <input type="number" name="igst" id="igstField"
+                   step="0.01" value="0" placeholder="0.00" />
+          </div>
+        </div>
+
+        <!-- ── Total + actions ────────────────────────── -->
+        <input type="hidden" name="total" id="totalHidden" value="0" />
+        <div class="part-total-row">
+          <span class="total-label">Total</span>
+          <span class="total-value" id="totalDisplay">₹ 0.00</span>
+        </div>
+
+        <div class="pf-actions">
+          <button type="submit" class="pf-save-btn">Save Particular</button>
+          <button type="button" class="pf-reset-btn" id="resetBtn">Reset</button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+
 <script>
 (function () {
-  /* ── Element refs ───────────────────────────────────── */
-  var sel       = document.getElementById('particularSelect');
-  var customGrp = document.getElementById('customLabelGroup');
-  var useFormCb = document.getElementById('useFormula');
-  var exRate    = document.getElementById('exRateField');
-  var weight    = document.getElementById('weightField');
-  var offered   = document.getElementById('offeredRate');
-  var expense   = document.getElementById('expenseField');
-  var taxRate   = document.getElementById('taxRateField');
-  var cgst      = document.getElementById('cgstField');
-  var sgst      = document.getElementById('sgstField');
-  var igst      = document.getElementById('igstField');
-  var totalDisp = document.getElementById('totalDisplay');
-  var totalHid  = document.getElementById('totalHidden');
-  var resetBtn  = document.getElementById('resetBtn');
+  /* ── Refs ───────────────────────────────────────────── */
+  var backdrop   = document.getElementById('partModalBackdrop');
+  var openBtn    = document.getElementById('openPartModal');
+  var closeBtn   = document.getElementById('closePartModal');
+  var sel        = document.getElementById('particularSelect');
+  var customGrp  = document.getElementById('customLabelGroup');
+  var useFormCb  = document.getElementById('useFormula');
+  var exRate     = document.getElementById('exRateField');
+  var weight     = document.getElementById('weightField');
+  var qty        = document.getElementById('qtyField');
+  var offered    = document.getElementById('offeredRate');
+  var expense    = document.getElementById('expenseField');
+  var taxRate    = document.getElementById('taxRateField');
+  var cgst       = document.getElementById('cgstField');
+  var sgst       = document.getElementById('sgstField');
+  var igst       = document.getElementById('igstField');
+  var totalDisp  = document.getElementById('totalDisplay');
+  var totalHid   = document.getElementById('totalHidden');
+  var resetBtn   = document.getElementById('resetBtn');
+  var sacHsnInp  = document.getElementById('sacHsn');
 
-  /* ── Helper ─────────────────────────────────────────── */
+  /* ── SAC/HSN options from existing particulars ──────── */
+  var sacHsnOptions = Array.from(document.querySelectorAll('#sacHsnList option'))
+    .map(function (o) { return o.value; })
+    .filter(function (v, i, arr) { return v && arr.indexOf(v) === i; });
+
+  /* ── Modal open / close ─────────────────────────────── */
+  openBtn.addEventListener('click', function () {
+    backdrop.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    if (sacHsnOptions.length > 0 && !sacHsnInp.value) {
+      sacHsnInp.value = sacHsnOptions[sacHsnOptions.length - 1];
+    }
+    recalc();
+  });
+
+  function closeModal() {
+    backdrop.classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+
+  closeBtn.addEventListener('click', closeModal);
+  backdrop.addEventListener('click', function (e) {
+    if (e.target === backdrop) closeModal();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeModal();
+  });
+
+  /* ── Helpers ────────────────────────────────────────── */
   function n(el) { return parseFloat(el.value) || 0; }
   function fmt(v) { return '₹ ' + v.toFixed(2); }
 
@@ -279,12 +323,11 @@
     customGrp.style.display = sel.value === 'Other' ? 'block' : 'none';
   });
 
-  /* ── Recalculate everything ─────────────────────────── */
+  /* ── Recalculate ────────────────────────────────────── */
   function recalc() {
-    /* Expense */
+    /* Expense — formula now includes QTY */
     if (useFormCb.checked) {
-      var calc = n(exRate) * n(weight) * n(offered);
-      expense.value = calc.toFixed(2);
+      expense.value = (n(exRate) * n(weight) * n(qty) * n(offered)).toFixed(2);
       expense.readOnly = true;
       expense.style.background = 'var(--surface)';
       expense.style.color = 'var(--ink-muted)';
@@ -294,35 +337,28 @@
       expense.style.color = '';
     }
 
-    /* Taxes */
-    var exp    = n(expense);
-    var rate   = n(taxRate);
-    var half   = (exp * rate / 100) / 2;
-    var full   = exp * rate / 100;
-
-    /* Only auto-fill if fields are empty or were previously auto-set */
+    /* Tax — only CGST and SGST auto-calculated; IGST left as-is */
     if (taxRate.value !== '') {
+      var half = (n(expense) * n(taxRate) / 100) / 2;
       cgst.value = half.toFixed(2);
       sgst.value = half.toFixed(2);
-      igst.value = full.toFixed(2);
     }
 
     /* Total */
-    var tot = exp + n(cgst) + n(sgst) + n(igst);
+    var tot = n(expense) + n(cgst) + n(sgst) + n(igst);
     totalDisp.textContent = fmt(tot);
     totalHid.value = tot.toFixed(2);
   }
 
-  /* ── Event listeners ────────────────────────────────── */
+  /* ── Event wiring ───────────────────────────────────── */
   useFormCb.addEventListener('change', recalc);
-  [offered, expense, taxRate].forEach(function (el) {
+  [qty, offered, expense, taxRate].forEach(function (el) {
     el.addEventListener('input', recalc);
   });
-  /* Allow manual override of CGST/SGST/IGST — only update total */
+  /* Manual overrides on CGST/SGST/IGST → total only */
   [cgst, sgst, igst].forEach(function (el) {
     el.addEventListener('input', function () {
-      var exp = n(expense);
-      var tot = exp + n(cgst) + n(sgst) + n(igst);
+      var tot = n(expense) + n(cgst) + n(sgst) + n(igst);
       totalDisp.textContent = fmt(tot);
       totalHid.value = tot.toFixed(2);
     });
@@ -330,23 +366,23 @@
 
   /* ── Reset ──────────────────────────────────────────── */
   resetBtn.addEventListener('click', function () {
-    sel.value         = '';
+    sel.value = '';
     customGrp.style.display = 'none';
     document.getElementById('customLabel').value = '';
-    document.getElementById('sacHsn').value      = '';
-    document.getElementById('qtyField').value    = '1';
-    offered.value     = '';
+    sacHsnInp.value = sacHsnOptions.length > 0 ? sacHsnOptions[sacHsnOptions.length - 1] : '';
+    qty.value      = '1';
+    offered.value  = '1.00';
     useFormCb.checked = false;
     expense.readOnly  = false;
     expense.style.background = '';
     expense.style.color = '';
-    expense.value     = '';
-    taxRate.value     = '';
-    cgst.value        = '';
-    sgst.value        = '';
-    igst.value        = '';
+    expense.value  = '';
+    taxRate.value  = '';
+    cgst.value     = '';
+    sgst.value     = '';
+    igst.value     = '0';
     totalDisp.textContent = '₹ 0.00';
-    totalHid.value    = '0';
+    totalHid.value = '0';
   });
 
   /* ── Delete row ─────────────────────────────────────── */

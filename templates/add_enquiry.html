@@ -131,6 +131,7 @@
                        value="{{ form.ex_rate if form else '' }}"
                        placeholder="e.g. 84.50" />
                 <button type="button" id="fetchRateBtn" class="fetch-rate-btn">Fetch Rate</button>
+                <button type="button" id="saveRateBtn" class="fetch-rate-btn save-rate-btn" style="display:none">Save for today</button>
               </div>
               <span id="exRateMsg" class="field-hint"></span>
             </div>
@@ -222,33 +223,77 @@
 
 <script>
 (function () {
-  var btn = document.getElementById('fetchRateBtn');
-  var inp = document.getElementById('ex_rate');
-  var msg = document.getElementById('exRateMsg');
+  var btn     = document.getElementById('fetchRateBtn');
+  var saveBtn = document.getElementById('saveRateBtn');
+  var inp     = document.getElementById('ex_rate');
+  var msg     = document.getElementById('exRateMsg');
   if (!btn) return;
+
+  function showSave(show) { saveBtn.style.display = show ? 'inline-block' : 'none'; }
+
   btn.addEventListener('click', function () {
     btn.disabled = true;
     btn.textContent = 'Fetching…';
     msg.textContent = '';
+    showSave(false);
     fetch('/enquiries/forex-rate')
       .then(function (r) { return r.json(); })
       .then(function (d) {
         if (d.ok) {
           inp.value = d.rate;
-          msg.textContent = 'Rate fetched successfully.';
+          msg.textContent = d.source === 'cached'
+            ? 'Rate loaded from today\'s cache.'
+            : 'Live rate fetched and cached for today.';
           msg.style.color = 'var(--accent)';
         } else {
           msg.textContent = d.error || 'Fetch failed. Enter rate manually.';
           msg.style.color = 'var(--danger)';
+          showSave(true);
         }
       })
       .catch(function () {
         msg.textContent = 'Network error. Enter rate manually.';
         msg.style.color = 'var(--danger)';
+        showSave(true);
       })
       .finally(function () {
         btn.disabled = false;
         btn.textContent = 'Fetch Rate';
+      });
+  });
+
+  saveBtn.addEventListener('click', function () {
+    var rate = parseFloat(inp.value);
+    if (!rate || rate <= 0) {
+      msg.textContent = 'Enter a valid rate before saving.';
+      msg.style.color = 'var(--danger)';
+      return;
+    }
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving…';
+    fetch('/enquiries/forex-rate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rate: rate })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.ok) {
+          msg.textContent = 'Rate saved for today.';
+          msg.style.color = 'var(--accent)';
+          showSave(false);
+        } else {
+          msg.textContent = d.error || 'Could not save rate.';
+          msg.style.color = 'var(--danger)';
+        }
+      })
+      .catch(function () {
+        msg.textContent = 'Could not save rate.';
+        msg.style.color = 'var(--danger)';
+      })
+      .finally(function () {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save for today';
       });
   });
 }());
