@@ -23,6 +23,47 @@
         <a href="{{ url_for('add_enquiry') }}" class="profile-add-btn">+ New Enquiry</a>
       </div>
 
+      <!-- ── Filter bar ─────────────────────────────────── -->
+      <form class="enq-filter-bar" method="get" action="{{ url_for('enquiries') }}">
+        <div class="enq-filter-group">
+          <span class="enq-filter-label">Customer</span>
+          <input class="enq-filter-input" type="text" name="customer"
+                 value="{{ filters.customer }}" placeholder="Customer name" autocomplete="off">
+        </div>
+        <div class="enq-filter-group">
+          <span class="enq-filter-label">Status</span>
+          <select class="enq-filter-select" name="status">
+            <option value="">All Statuses</option>
+            {% for s in statuses %}
+            <option value="{{ s }}" {% if filters.status == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="enq-filter-group">
+          <span class="enq-filter-label">Priority</span>
+          <select class="enq-filter-select" name="priority">
+            <option value="">All Priorities</option>
+            {% for p in priorities %}
+            <option value="{{ p }}" {% if filters.priority == p %}selected{% endif %}>{{ p }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="enq-filter-group">
+          <span class="enq-filter-label">Enquiry Date</span>
+          <div class="enq-filter-date-group">
+            <input class="enq-filter-select" type="date" name="from_date" value="{{ filters.from_date }}">
+            <span class="enq-filter-date-sep">–</span>
+            <input class="enq-filter-select" type="date" name="to_date" value="{{ filters.to_date }}">
+          </div>
+        </div>
+        <div class="enq-filter-actions">
+          <button class="enq-filter-btn" type="submit">Apply</button>
+          {% if filters.customer or filters.status or filters.priority or filters.from_date or filters.to_date %}
+          <a class="enq-filter-clear" href="{{ url_for('enquiries') }}">Clear filters</a>
+          {% endif %}
+        </div>
+      </form>
+
       {% if closed_enquiries %}
       <div class="profile-card closed-enquiries-card">
         <button class="closed-enquiries-toggle" id="closedToggle"
@@ -63,7 +104,14 @@
                 <td class="txn-desc">{{ e.commodity or '—' }}</td>
                 <td class="txn-desc">{{ e.consignment_type or '—' }}</td>
                 <td>
-                  <span class="status-badge status-badge--{{ e.status | lower | replace('_', '-') }}">
+                  <span class="status-badge status-badge--{{ e.status | lower | replace('_', '-') }} enq-status-clickable"
+                        data-enq-id="{{ e.id }}"
+                        data-current-status="{{ e.status }}"
+                        data-origin="{{ e.origin or '' }}"
+                        data-destination="{{ e.destination or '' }}"
+                        data-incoterms="{{ e.incoterms or '' }}"
+                        data-enq-number="{{ e.enquiry_number }}"
+                        title="Click to change status">
                     {{ e.status }}
                   </span>
                 </td>
@@ -83,7 +131,7 @@
                 </td>
                 <td>
                   <div class="enq-actions">
-                    <a href="#" class="enq-btn enq-btn--view">View</a>
+                    <a href="{{ url_for('enquiry_detail', enquiry_id=e.id) }}" class="enq-btn enq-btn--view">View</a>
                     <a href="{{ url_for('edit_enquiry', enquiry_id=e.id) }}" class="enq-btn enq-btn--edit">Edit</a>
                     <a href="{{ url_for('enquiry_particulars', enquiry_id=e.id) }}" class="enq-btn enq-btn--particulars">Particulars</a>
                   </div>
@@ -128,7 +176,14 @@
               <td class="txn-desc">{{ e.commodity or '—' }}</td>
               <td class="txn-desc">{{ e.consignment_type or '—' }}</td>
               <td>
-                <span class="status-badge status-badge--{{ e.status | lower | replace('_', '-') }}">
+                <span class="status-badge status-badge--{{ e.status | lower | replace('_', '-') }} enq-status-clickable"
+                      data-enq-id="{{ e.id }}"
+                      data-current-status="{{ e.status }}"
+                      data-origin="{{ e.origin or '' }}"
+                      data-destination="{{ e.destination or '' }}"
+                      data-incoterms="{{ e.incoterms or '' }}"
+                      data-enq-number="{{ e.enquiry_number }}"
+                      title="Click to change status">
                   {{ e.status }}
                 </span>
               </td>
@@ -148,7 +203,7 @@
               </td>
               <td>
                 <div class="enq-actions">
-                  <a href="#" class="enq-btn enq-btn--view">View</a>
+                  <a href="{{ url_for('enquiry_detail', enquiry_id=e.id) }}" class="enq-btn enq-btn--view">View</a>
                   <a href="{{ url_for('edit_enquiry', enquiry_id=e.id) }}" class="enq-btn enq-btn--edit">Edit</a>
                   <a href="{{ url_for('enquiry_particulars', enquiry_id=e.id) }}" class="enq-btn enq-btn--particulars">Particulars</a>
                 </div>
@@ -158,7 +213,7 @@
           </tbody>
         </table>
         {% else %}
-        <div class="txn-empty">No enquiries yet. <a href="{{ url_for('add_enquiry') }}">Create your first enquiry.</a></div>
+        <div class="txn-empty">No enquiries found. {% if not (filters.customer or filters.status or filters.priority or filters.from_date or filters.to_date) %}<a href="{{ url_for('add_enquiry') }}">Create your first enquiry.</a>{% else %}<a href="{{ url_for('enquiries') }}">Clear filters</a> to see all enquiries.{% endif %}</div>
         {% endif %}
       </div>
 
@@ -166,17 +221,235 @@
   </section>
 </div>
 
+<!-- ── Convert to Shipment modal ──────────────────────── -->
+<div class="convert-modal-overlay" id="convertModalOverlay">
+  <div class="convert-modal">
+    <p class="convert-modal-title">Convert Enquiry to Shipment</p>
+    <p class="convert-modal-subtitle" id="convertModalSubtitle"></p>
+    <p class="convert-modal-error" id="convertModalError"></p>
+    <div class="convert-modal-field">
+      <label for="convertShipmentNumber">Shipment # <span style="color:var(--danger)">*</span></label>
+      <input type="text" id="convertShipmentNumber" autocomplete="off">
+    </div>
+    <div class="convert-modal-field">
+      <label for="convertOrigin">Origin</label>
+      <input type="text" id="convertOrigin" autocomplete="off">
+    </div>
+    <div class="convert-modal-field">
+      <label for="convertDestination">Destination</label>
+      <input type="text" id="convertDestination" autocomplete="off">
+    </div>
+    <div class="convert-modal-field">
+      <label for="convertIncoterms">Incoterms</label>
+      <select id="convertIncoterms">
+        <option value="">— select —</option>
+        {% for t in ['EXW','FCA','FOB','CFR','CIF','CPT','CIP','DAP','DPU','DDP'] %}
+        <option value="{{ t }}">{{ t }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="convert-modal-field">
+      <label for="convertStatus">Initial Status</label>
+      <select id="convertStatus">
+        <option value="BOOKED">BOOKED</option>
+        <option value="DRAFT">DRAFT</option>
+        <option value="PICKUP_PENDING">PICKUP_PENDING</option>
+      </select>
+    </div>
+    <div class="convert-modal-actions">
+      <button class="convert-modal-cancel" id="convertModalCancel" type="button">Cancel</button>
+      <button class="convert-modal-submit" id="convertModalSubmit" type="button">Create Shipment</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function () {
-  var btn = document.getElementById('closedToggle');
+  var STATUSES = {{ statuses | tojson }};
+  var suggestedShipmentNumber = {{ suggested_shipment_number | tojson }};
+
+  /* ── Closed section toggle ──────────────────────────── */
+  var btn  = document.getElementById('closedToggle');
   var body = document.getElementById('closedEnquiriesBody');
-  if (!btn || !body) return;
-  btn.addEventListener('click', function () {
-    var expanded = btn.getAttribute('aria-expanded') === 'true';
-    btn.setAttribute('aria-expanded', String(!expanded));
-    if (expanded) { body.setAttribute('hidden', ''); }
-    else { body.removeAttribute('hidden'); }
-    btn.querySelector('.closed-toggle-chevron').style.transform = expanded ? '' : 'rotate(180deg)';
+  if (btn && body) {
+    btn.addEventListener('click', function () {
+      var expanded = btn.getAttribute('aria-expanded') === 'true';
+      btn.setAttribute('aria-expanded', String(!expanded));
+      if (expanded) { body.setAttribute('hidden', ''); }
+      else           { body.removeAttribute('hidden'); }
+      btn.querySelector('.closed-toggle-chevron').style.transform = expanded ? '' : 'rotate(180deg)';
+    });
+  }
+
+  /* ── Convert modal helpers ──────────────────────────── */
+  var overlay      = document.getElementById('convertModalOverlay');
+  var subtitle     = document.getElementById('convertModalSubtitle');
+  var errorEl      = document.getElementById('convertModalError');
+  var inputNum     = document.getElementById('convertShipmentNumber');
+  var inputOrigin  = document.getElementById('convertOrigin');
+  var inputDest    = document.getElementById('convertDestination');
+  var selInco      = document.getElementById('convertIncoterms');
+  var selStatus    = document.getElementById('convertStatus');
+  var cancelBtn    = document.getElementById('convertModalCancel');
+  var submitBtn    = document.getElementById('convertModalSubmit');
+
+  var _activeEnqId = null;
+  var _restoredBadge = null;  // callback to restore badge if cancelled
+
+  function openConvertModal(enqId, enqNumber, origin, destination, incoterms, restoreFn) {
+    _activeEnqId   = enqId;
+    _restoredBadge = restoreFn || null;
+    subtitle.textContent = 'Enquiry ' + enqNumber + ' will be marked as CONVERTED.';
+    errorEl.textContent  = '';
+    errorEl.classList.remove('is-visible');
+    inputNum.value   = suggestedShipmentNumber;
+    inputOrigin.value    = origin || '';
+    inputDest.value      = destination || '';
+    selInco.value        = incoterms || '';
+    selStatus.value      = 'BOOKED';
+    submitBtn.disabled   = false;
+    overlay.classList.add('is-open');
+    inputNum.focus();
+  }
+
+  function closeConvertModal() {
+    overlay.classList.remove('is-open');
+    _activeEnqId   = null;
+    _restoredBadge = null;
+  }
+
+  cancelBtn.addEventListener('click', function () {
+    if (_restoredBadge) _restoredBadge();
+    closeConvertModal();
+  });
+
+  overlay.addEventListener('click', function (e) {
+    if (e.target === overlay) {
+      if (_restoredBadge) _restoredBadge();
+      closeConvertModal();
+    }
+  });
+
+  submitBtn.addEventListener('click', function () {
+    if (!_activeEnqId) return;
+    var num = inputNum.value.trim();
+    if (!num) {
+      errorEl.textContent = 'Shipment number is required.';
+      errorEl.classList.add('is-visible');
+      inputNum.focus();
+      return;
+    }
+    submitBtn.disabled  = true;
+    submitBtn.textContent = 'Creating…';
+    errorEl.classList.remove('is-visible');
+
+    fetch('/enquiries/' + _activeEnqId + '/convert', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        shipment_number: num,
+        origin:          inputOrigin.value.trim(),
+        destination:     inputDest.value.trim(),
+        incoterms:       selInco.value,
+        initial_status:  selStatus.value,
+      }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.ok) {
+          window.location.href = d.redirect;
+        } else {
+          errorEl.textContent = d.error || 'Something went wrong.';
+          errorEl.classList.add('is-visible');
+          submitBtn.disabled    = false;
+          submitBtn.textContent = 'Create Shipment';
+        }
+      })
+      .catch(function () {
+        errorEl.textContent = 'Network error — please try again.';
+        errorEl.classList.add('is-visible');
+        submitBtn.disabled    = false;
+        submitBtn.textContent = 'Create Shipment';
+      });
+  });
+
+  /* ── Inline status badge click ──────────────────────── */
+  document.addEventListener('click', function (e) {
+    var badge = e.target.closest('.enq-status-clickable');
+    if (!badge) return;
+
+    var enqId      = badge.dataset.enqId;
+    var currentSt  = badge.dataset.currentStatus;
+    var origin     = badge.dataset.origin;
+    var dest       = badge.dataset.destination;
+    var incoterms  = badge.dataset.incoterms;
+    var enqNumber  = badge.dataset.enqNumber;
+
+    /* Build inline <select> */
+    var sel = document.createElement('select');
+    sel.className = 'enq-inline-status-select';
+    STATUSES.forEach(function (s) {
+      var opt = document.createElement('option');
+      opt.value = s;
+      opt.textContent = s;
+      if (s === currentSt) opt.selected = true;
+      sel.appendChild(opt);
+    });
+
+    /* Replace badge with select */
+    badge.parentNode.replaceChild(sel, badge);
+    sel.focus();
+
+    function restoreBadge(status) {
+      var span = document.createElement('span');
+      var cls  = (status || currentSt).toLowerCase().replace(/_/g, '-');
+      span.className = 'status-badge status-badge--' + cls + ' enq-status-clickable';
+      span.dataset.enqId          = enqId;
+      span.dataset.currentStatus  = status || currentSt;
+      span.dataset.origin         = origin;
+      span.dataset.destination    = dest;
+      span.dataset.incoterms      = incoterms;
+      span.dataset.enqNumber      = enqNumber;
+      span.title = 'Click to change status';
+      span.textContent = status || currentSt;
+      sel.parentNode.replaceChild(span, sel);
+    }
+
+    sel.addEventListener('blur', function () {
+      /* small delay so change fires before blur */
+      setTimeout(function () {
+        if (sel.parentNode) restoreBadge(currentSt);
+      }, 200);
+    });
+
+    sel.addEventListener('change', function () {
+      var newStatus = sel.value;
+      if (newStatus === currentSt) {
+        restoreBadge(currentSt);
+        return;
+      }
+      if (newStatus === 'CONVERTED') {
+        openConvertModal(enqId, enqNumber, origin, dest, incoterms, function () {
+          restoreBadge(currentSt);
+        });
+        return;
+      }
+      /* For all other statuses, update immediately */
+      fetch('/enquiries/' + enqId + '/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d.ok) {
+            restoreBadge(d.status);
+          } else {
+            restoreBadge(currentSt);
+          }
+        })
+        .catch(function () { restoreBadge(currentSt); });
+    });
   });
 }());
 </script>

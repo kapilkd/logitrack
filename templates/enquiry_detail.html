@@ -1,0 +1,386 @@
+{% extends "base.html" %}
+{% block title %}{{ enq.enquiry_number }} — LogiTrack{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/enquiries.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/enquiry_particulars.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/enquiry_detail.css') }}" />
+{% endblock %}
+{% block content %}
+<div class="profile-shell">
+  {% include '_sidebar.html' %}
+
+  <section class="profile-section">
+    <div class="profile-container">
+
+      <!-- ── Page header ──────────────────────────────── -->
+      <div class="profile-header">
+        <div class="profile-user-info">
+          <div class="profile-meta">
+            <span class="profile-name">{{ enq.enquiry_number }}</span>
+            <span class="profile-meta-sep">·</span>
+            <span id="statusBadge" class="status-badge status-badge--{{ enq.status | lower | replace('_', '-') }}">
+              {{ enq.status }}
+            </span>
+            <span class="profile-meta-sep">·</span>
+            <span class="priority-badge priority-badge--{{ enq.priority | lower }}">
+              {{ enq.priority }}
+            </span>
+          </div>
+        </div>
+        <a href="{{ url_for('enquiries') }}" class="back-link">← Back to Enquiries</a>
+      </div>
+
+      <!-- ── Action bar ────────────────────────────────── -->
+      <div class="enq-detail-action-bar">
+        <a href="{{ url_for('edit_enquiry', enquiry_id=enq.id) }}"
+           class="enq-action-btn enq-action-btn--primary">Edit Enquiry</a>
+        <a href="{{ url_for('enquiry_particulars', enquiry_id=enq.id) }}"
+           class="enq-action-btn">Manage Particulars</a>
+        <select id="statusSelect" class="enq-status-select" aria-label="Change status">
+          {% for s in statuses %}
+          <option value="{{ s }}" {% if s == enq.status %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- ── Info cards grid ───────────────────────────── -->
+      <div class="enq-detail-grid">
+
+        <!-- Customer card -->
+        <div class="enq-detail-card">
+          <p class="enq-detail-card-title">Customer</p>
+          <div class="enq-detail-row">
+            <span class="enq-detail-label">Name</span>
+            <span class="enq-detail-value">{{ enq.customer_name or '—' }}</span>
+          </div>
+          <div class="enq-detail-row">
+            <span class="enq-detail-label">Email</span>
+            <span class="enq-detail-value {% if not enq.customer_email %}enq-detail-value--muted{% endif %}">
+              {{ enq.customer_email or '—' }}
+            </span>
+          </div>
+          <div class="enq-detail-row">
+            <span class="enq-detail-label">Phone</span>
+            <span class="enq-detail-value {% if not enq.customer_phone %}enq-detail-value--muted{% endif %}">
+              {{ enq.customer_phone or '—' }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Cargo card -->
+        <div class="enq-detail-card">
+          <p class="enq-detail-card-title">Cargo</p>
+          <div class="enq-detail-row">
+            <span class="enq-detail-label">Commodity</span>
+            <span class="enq-detail-value">{{ enq.commodity or '—' }}</span>
+          </div>
+          <div class="enq-detail-row">
+            <span class="enq-detail-label">Type</span>
+            <span class="enq-detail-value">{{ enq.consignment_type or '—' }}</span>
+          </div>
+          <div class="enq-detail-row">
+            <span class="enq-detail-label">Terms</span>
+            <span class="enq-detail-value">{{ enq.shipment_terms or '—' }}</span>
+          </div>
+          <div class="enq-detail-row">
+            <span class="enq-detail-label">Weight</span>
+            <span class="enq-detail-value">{{ enq.weight or 0 }} {{ enq.weight_unit }}</span>
+          </div>
+          <div class="enq-detail-row">
+            <span class="enq-detail-label">Packages</span>
+            <span class="enq-detail-value">{{ enq.packages or '—' }}</span>
+          </div>
+          <div class="enq-detail-row">
+            <span class="enq-detail-label">MAWB</span>
+            <span class="enq-detail-value">{{ enq.mawb or '—' }}</span>
+          </div>
+          <div class="enq-detail-row">
+            <span class="enq-detail-label">HAWB</span>
+            <span class="enq-detail-value">{{ enq.hawb or '—' }}</span>
+          </div>
+          <div class="enq-detail-row">
+            <span class="enq-detail-label">Route</span>
+            <span class="enq-detail-value">
+              {% if enq.origin or enq.destination %}
+                {{ enq.origin or '—' }} → {{ enq.destination or '—' }}
+              {% else %}—{% endif %}
+            </span>
+          </div>
+          <div class="enq-detail-row">
+            <span class="enq-detail-label">Incoterms</span>
+            <span class="enq-detail-value">{{ enq.incoterms or '—' }}</span>
+          </div>
+        </div>
+
+        <!-- Enquiry details card -->
+        <div class="enq-detail-card">
+          <p class="enq-detail-card-title">Enquiry Details</p>
+          <div class="enq-detail-row">
+            <span class="enq-detail-label">Enquiry Date</span>
+            <span class="enq-detail-value">{{ enq.enquiry_date or '—' }}</span>
+          </div>
+          <div class="enq-detail-row">
+            <span class="enq-detail-label">Follow-up</span>
+            <span class="enq-detail-value {% if not enq.follow_up_date %}enq-detail-value--muted{% endif %}">
+              {{ enq.follow_up_date or '—' }}
+            </span>
+          </div>
+          <div class="enq-detail-row">
+            <span class="enq-detail-label">Currency</span>
+            <span class="enq-detail-value">{{ enq.currency }}</span>
+          </div>
+          <div class="enq-detail-row">
+            <span class="enq-detail-label">Ex.rate</span>
+            <span class="enq-detail-value">
+              {% if enq.ex_rate %}₹ {{ "%.2f"|format(enq.ex_rate) }}{% else %}—{% endif %}
+            </span>
+          </div>
+          <div class="enq-detail-row">
+            <span class="enq-detail-label">Est. Value</span>
+            <span class="enq-detail-value">
+              {% if enq.estimated_value %}
+                {{ enq.currency }} {{ "%.2f"|format(enq.estimated_value) }}
+              {% else %}—{% endif %}
+            </span>
+          </div>
+        </div>
+
+      </div><!-- /.enq-detail-grid -->
+
+      <!-- ── Particulars card ──────────────────────────── -->
+      <div class="profile-card" style="padding: 0; overflow: hidden;">
+        <div class="enq-particulars-header">
+          <p class="enq-particulars-title">
+            Particulars
+            {% if particulars %}
+            <span class="enq-particulars-count">({{ particulars | length }})</span>
+            {% endif %}
+          </p>
+          <a href="{{ url_for('enquiry_particulars', enquiry_id=enq.id) }}"
+             class="enq-manage-link">Manage Particulars →</a>
+        </div>
+
+        {% if particulars %}
+        <div style="overflow-x: auto;">
+          <table class="part-table">
+            <thead>
+              <tr>
+                <th>Particular</th>
+                <th>SAC/HSN</th>
+                <th class="text-right">QTY</th>
+                <th class="text-right">Ex.rate</th>
+                <th class="text-right">Weight</th>
+                <th class="text-right">Offered Rate</th>
+                <th class="text-right">Expense</th>
+                <th class="text-right">Tax %</th>
+                <th class="text-right">CGST</th>
+                <th class="text-right">SGST</th>
+                <th class="text-right">IGST</th>
+                <th class="text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in particulars %}
+              <tr>
+                <td>
+                  <div class="part-type">{{ p.particular_type }}</div>
+                  {% if p.use_formula %}<div class="part-meta">formula</div>{% endif %}
+                </td>
+                <td class="part-meta">{{ p.sac_hsn or '—' }}</td>
+                <td class="text-right">{{ p.qty }}</td>
+                <td class="text-right">{{ "%.2f"|format(p.ex_rate) }}</td>
+                <td class="text-right">{{ p.weight }} {{ p.weight_unit }}</td>
+                <td class="text-right">{{ "%.2f"|format(p.offered_rate) }}</td>
+                <td class="text-right part-amount">{{ "%.2f"|format(p.expense) }}</td>
+                <td class="text-right">{{ p.tax_rate }}%</td>
+                <td class="text-right">{{ "%.2f"|format(p.cgst) }}</td>
+                <td class="text-right">{{ "%.2f"|format(p.sgst) }}</td>
+                <td class="text-right">{{ "%.2f"|format(p.igst) }}</td>
+                <td class="text-right part-total">{{ "%.2f"|format(p.total) }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="11" style="text-align:right; font-size:0.78rem; font-weight:600; color:var(--ink-muted); padding: 0.5rem 0.65rem;">Grand Total</td>
+                <td class="text-right" style="font-weight:700; color:var(--accent); padding: 0.5rem 0.65rem; font-size:0.9rem;">
+                  {{ "%.2f"|format(grand_total) }}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        {% else %}
+        <div class="enq-particulars-empty">
+          No particulars added yet.
+          <a href="{{ url_for('enquiry_particulars', enquiry_id=enq.id) }}">Add particulars →</a>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- ── Notes card ─────────────────────────────────── -->
+      {% if enq.notes %}
+      <div class="profile-card">
+        <h2 class="profile-card-title">Notes</h2>
+        <p class="enq-notes-text">{{ enq.notes }}</p>
+      </div>
+      {% endif %}
+
+    </div>
+  </section>
+</div>
+
+<!-- ── Convert to Shipment modal ──────────────────────── -->
+<div class="convert-modal-overlay" id="convertModalOverlay">
+  <div class="convert-modal">
+    <p class="convert-modal-title">Convert Enquiry to Shipment</p>
+    <p class="convert-modal-subtitle">Enquiry {{ enq.enquiry_number }} will be marked as CONVERTED.</p>
+    <p class="convert-modal-error" id="convertModalError"></p>
+    <div class="convert-modal-field">
+      <label for="convertShipmentNumber">Shipment # <span style="color:var(--danger)">*</span></label>
+      <input type="text" id="convertShipmentNumber" value="{{ suggested_shipment_number }}" autocomplete="off">
+    </div>
+    <div class="convert-modal-field">
+      <label for="convertOrigin">Origin</label>
+      <input type="text" id="convertOrigin" value="{{ enq.origin or '' }}" autocomplete="off">
+    </div>
+    <div class="convert-modal-field">
+      <label for="convertDestination">Destination</label>
+      <input type="text" id="convertDestination" value="{{ enq.destination or '' }}" autocomplete="off">
+    </div>
+    <div class="convert-modal-field">
+      <label for="convertIncoterms">Incoterms</label>
+      <select id="convertIncoterms">
+        <option value="">— select —</option>
+        {% for t in ['EXW','FCA','FOB','CFR','CIF','CPT','CIP','DAP','DPU','DDP'] %}
+        <option value="{{ t }}" {% if enq.incoterms == t %}selected{% endif %}>{{ t }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="convert-modal-field">
+      <label for="convertStatus">Initial Status</label>
+      <select id="convertStatus">
+        <option value="BOOKED">BOOKED</option>
+        <option value="DRAFT">DRAFT</option>
+        <option value="PICKUP_PENDING">PICKUP_PENDING</option>
+      </select>
+    </div>
+    <div class="convert-modal-actions">
+      <button class="convert-modal-cancel" id="convertModalCancel" type="button">Cancel</button>
+      <button class="convert-modal-submit" id="convertModalSubmit" type="button">Create Shipment</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var sel   = document.getElementById('statusSelect');
+  var badge = document.getElementById('statusBadge');
+  var prevStatus = '{{ enq.status }}';
+
+  var overlay    = document.getElementById('convertModalOverlay');
+  var errorEl    = document.getElementById('convertModalError');
+  var inputNum   = document.getElementById('convertShipmentNumber');
+  var inputOrigin= document.getElementById('convertOrigin');
+  var inputDest  = document.getElementById('convertDestination');
+  var selInco    = document.getElementById('convertIncoterms');
+  var selStatus  = document.getElementById('convertStatus');
+  var cancelBtn  = document.getElementById('convertModalCancel');
+  var submitBtn  = document.getElementById('convertModalSubmit');
+
+  function openConvertModal() {
+    errorEl.textContent = '';
+    errorEl.classList.remove('is-visible');
+    submitBtn.disabled    = false;
+    submitBtn.textContent = 'Create Shipment';
+    overlay.classList.add('is-open');
+    inputNum.focus();
+  }
+
+  function closeConvertModal() {
+    overlay.classList.remove('is-open');
+  }
+
+  cancelBtn.addEventListener('click', function () {
+    sel.value = prevStatus;
+    closeConvertModal();
+  });
+
+  overlay.addEventListener('click', function (e) {
+    if (e.target === overlay) {
+      sel.value = prevStatus;
+      closeConvertModal();
+    }
+  });
+
+  submitBtn.addEventListener('click', function () {
+    var num = inputNum.value.trim();
+    if (!num) {
+      errorEl.textContent = 'Shipment number is required.';
+      errorEl.classList.add('is-visible');
+      inputNum.focus();
+      return;
+    }
+    submitBtn.disabled    = true;
+    submitBtn.textContent = 'Creating…';
+    errorEl.classList.remove('is-visible');
+
+    fetch('/enquiries/{{ enq.id }}/convert', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        shipment_number: num,
+        origin:          inputOrigin.value.trim(),
+        destination:     inputDest.value.trim(),
+        incoterms:       selInco.value,
+        initial_status:  selStatus.value,
+      }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.ok) {
+          window.location.href = d.redirect;
+        } else {
+          errorEl.textContent = d.error || 'Something went wrong.';
+          errorEl.classList.add('is-visible');
+          submitBtn.disabled    = false;
+          submitBtn.textContent = 'Create Shipment';
+        }
+      })
+      .catch(function () {
+        errorEl.textContent = 'Network error — please try again.';
+        errorEl.classList.add('is-visible');
+        submitBtn.disabled    = false;
+        submitBtn.textContent = 'Create Shipment';
+      });
+  });
+
+  if (!sel) return;
+  sel.addEventListener('change', function () {
+    var newStatus = sel.value;
+    if (newStatus === 'CONVERTED') {
+      openConvertModal();
+      return;
+    }
+    fetch('/enquiries/{{ enq.id }}/status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.ok) {
+          prevStatus = d.status;
+          badge.textContent = d.status;
+          badge.className = 'status-badge status-badge--'
+                          + d.status.toLowerCase().replace(/_/g, '-');
+        } else {
+          sel.value = prevStatus;
+        }
+      })
+      .catch(function () { sel.value = prevStatus; });
+  });
+}());
+</script>
+{% endblock %}

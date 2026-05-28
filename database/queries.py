@@ -1,5 +1,5 @@
 from datetime import datetime
-from database.db import get_db
+from database.db import get_db, ENQUIRY_STATUSES, ENQUIRY_PRIORITIES
 
 
 def _date_filter(from_date, to_date):
@@ -268,6 +268,32 @@ def get_shipment_bill_vendors(shipment_id):
         """,
         (shipment_id,),
     ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_filtered_enquiries(user_id, customer=None, status=None, priority=None,
+                            from_date=None, to_date=None):
+    sql = "SELECT * FROM enquiries WHERE user_id = %s"
+    params = [user_id]
+    if customer:
+        sql += " AND customer_name ILIKE %s"
+        params.append(f"%{customer}%")
+    if status in ENQUIRY_STATUSES:
+        sql += " AND status = %s"
+        params.append(status)
+    if priority in ENQUIRY_PRIORITIES:
+        sql += " AND priority = %s"
+        params.append(priority)
+    if from_date:
+        sql += " AND enquiry_date >= %s"
+        params.append(from_date)
+    if to_date:
+        sql += " AND enquiry_date <= %s"
+        params.append(to_date)
+    sql += " ORDER BY created_at DESC"
+    conn = get_db()
+    rows = conn.execute(sql, params).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 

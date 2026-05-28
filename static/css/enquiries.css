@@ -140,3 +140,225 @@
     padding: 0 1.25rem 1.25rem;
     border-top: 1px solid var(--border-soft);
 }
+
+/* ── Filter bar ──────────────────────────────────────── */
+.enq-filter-bar {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    padding: 0.85rem 1.25rem;
+    background: var(--paper-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    margin-bottom: 0.75rem;
+}
+
+.enq-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.enq-filter-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.enq-filter-select,
+.enq-filter-input {
+    padding: 0.33rem 0.65rem;
+    font-size: 0.82rem;
+    font-family: var(--font-body);
+    color: var(--ink-soft);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    outline: none;
+    transition: border-color 0.15s;
+    height: 2rem;
+}
+.enq-filter-select:focus,
+.enq-filter-input:focus { border-color: var(--accent); }
+
+.enq-filter-input { min-width: 12rem; }
+
+.enq-filter-date-group {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.35rem;
+}
+
+.enq-filter-date-sep {
+    font-size: 0.78rem;
+    color: var(--ink-faint);
+    padding-bottom: 0.4rem;
+}
+
+.enq-filter-actions {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.5rem;
+    margin-left: auto;
+}
+
+.enq-filter-btn {
+    padding: 0.33rem 0.9rem;
+    height: 2rem;
+    font-size: 0.82rem;
+    font-weight: 500;
+    font-family: var(--font-body);
+    background: var(--ink);
+    color: var(--paper);
+    border: 1px solid var(--ink);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    white-space: nowrap;
+}
+.enq-filter-btn:hover { background: var(--accent); border-color: var(--accent); }
+
+.enq-filter-clear {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--ink-muted);
+    text-decoration: none;
+    white-space: nowrap;
+    padding-bottom: 0.3rem;
+}
+.enq-filter-clear:hover { color: var(--danger); }
+
+/* ── Inline status change ─────────────────────────────── */
+.enq-status-clickable {
+    cursor: pointer;
+}
+.enq-status-clickable:hover {
+    opacity: 0.8;
+}
+
+.enq-inline-status-select {
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-family: var(--font-body);
+    padding: 0.15rem 0.4rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--ink-soft);
+    cursor: pointer;
+    outline: none;
+}
+
+/* ── Convert to Shipment modal ───────────────────────── */
+.convert-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+.convert-modal-overlay.is-open {
+    display: flex;
+}
+
+.convert-modal {
+    background: var(--paper-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    width: 100%;
+    max-width: 28rem;
+    padding: 1.5rem;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+}
+
+.convert-modal-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 0.25rem;
+}
+
+.convert-modal-subtitle {
+    font-size: 0.8rem;
+    color: var(--ink-muted);
+    margin: 0 0 1.25rem;
+}
+
+.convert-modal-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-bottom: 0.85rem;
+}
+
+.convert-modal-field label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.convert-modal-field input,
+.convert-modal-field select {
+    padding: 0.4rem 0.7rem;
+    font-size: 0.85rem;
+    font-family: var(--font-body);
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    outline: none;
+    transition: border-color 0.15s;
+}
+.convert-modal-field input:focus,
+.convert-modal-field select:focus { border-color: var(--accent); }
+
+.convert-modal-error {
+    font-size: 0.8rem;
+    color: var(--danger);
+    margin: 0 0 0.75rem;
+    display: none;
+}
+.convert-modal-error.is-visible { display: block; }
+
+.convert-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+    margin-top: 1rem;
+}
+
+.convert-modal-cancel {
+    padding: 0.38rem 0.9rem;
+    font-size: 0.82rem;
+    font-weight: 500;
+    font-family: var(--font-body);
+    background: var(--surface);
+    color: var(--ink-soft);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.convert-modal-cancel:hover { background: var(--border-soft); }
+
+.convert-modal-submit {
+    padding: 0.38rem 1rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    font-family: var(--font-body);
+    background: var(--accent);
+    color: var(--paper);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.convert-modal-submit:hover { background: var(--accent-dark, var(--accent)); opacity: 0.9; }
+.convert-modal-submit:disabled { opacity: 0.6; cursor: not-allowed; }

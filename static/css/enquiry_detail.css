@@ -1,0 +1,164 @@
+/* ── Action bar ───────────────────────────────────────── */
+.enq-detail-action-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.75rem 1.25rem;
+    background: var(--paper-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    flex-wrap: wrap;
+}
+
+.enq-detail-action-bar .enq-action-btn {
+    padding: 0.35rem 0.9rem;
+    font-size: 0.82rem;
+    font-weight: 500;
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    font-family: var(--font-body);
+    background: var(--paper);
+    color: var(--ink-soft);
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+}
+.enq-detail-action-bar .enq-action-btn:hover {
+    background: var(--surface);
+    color: var(--ink);
+    border-color: var(--ink-soft);
+}
+.enq-detail-action-bar .enq-action-btn--primary {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+}
+.enq-detail-action-bar .enq-action-btn--primary:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.enq-status-select {
+    margin-left: auto;
+    padding: 0.32rem 0.7rem;
+    font-size: 0.82rem;
+    font-weight: 500;
+    font-family: var(--font-body);
+    color: var(--ink-soft);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.15s;
+}
+.enq-status-select:focus { border-color: var(--accent); }
+
+/* ── Info cards grid ──────────────────────────────────── */
+.enq-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+    align-items: start;
+}
+
+.enq-detail-card {
+    background: var(--paper-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1.25rem;
+}
+
+.enq-detail-card-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0 0 0.85rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.enq-detail-row {
+    display: flex;
+    gap: 0.6rem;
+    padding: 0.35rem 0;
+    border-bottom: 1px solid var(--border-soft);
+    font-size: 0.83rem;
+    align-items: baseline;
+}
+.enq-detail-row:last-child { border-bottom: none; }
+
+.enq-detail-label {
+    min-width: 120px;
+    flex-shrink: 0;
+    color: var(--ink-faint);
+    font-size: 0.78rem;
+    font-weight: 500;
+}
+
+.enq-detail-value {
+    color: var(--ink);
+    font-weight: 500;
+    word-break: break-word;
+}
+.enq-detail-value--muted { color: var(--ink-muted); font-weight: 400; }
+
+/* ── Particulars card ─────────────────────────────────── */
+.enq-particulars-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.9rem 1.25rem 0.75rem;
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.enq-particulars-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0;
+}
+
+.enq-particulars-count {
+    font-weight: 400;
+    color: var(--ink-faint);
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 0.8rem;
+}
+
+.enq-manage-link {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--accent);
+    text-decoration: none;
+}
+.enq-manage-link:hover { text-decoration: underline; }
+
+.enq-particulars-empty {
+    padding: 2rem 1.25rem;
+    color: var(--ink-faint);
+    font-size: 0.875rem;
+}
+
+/* ── Notes card ───────────────────────────────────────── */
+.enq-notes-text {
+    font-size: 0.875rem;
+    color: var(--ink-soft);
+    white-space: pre-wrap;
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* ── Responsive collapse ──────────────────────────────── */
+@media (max-width: 900px) {
+    .enq-detail-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 600px) {
+    .enq-detail-grid { grid-template-columns: 1fr; }
+}

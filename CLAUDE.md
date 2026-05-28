@@ -252,6 +252,23 @@ pytest -s
 | `GET /auth/gmail/callback`           | Implemented — OAuth callback, encrypts and stores tokens              |
 | `POST /auth/gmail/disconnect`        | Implemented — revokes token and deletes the gmail_accounts row        |
 
+### Enquiries
+
+| Route                                                        | Status                                                                         |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| `GET /enquiries`                                             | Implemented — list with active/closed sections (login required)                |
+| `GET /enquiries/add`                                         | Implemented — new enquiry form (login required)                                |
+| `POST /enquiries/add`                                        | Implemented — creates enquiry, redirects to `/enquiries`                       |
+| `GET /enquiries/forex-rate`                                  | Implemented — fetches live HDFC USD TT selling rate (JSON, login required)     |
+| `POST /enquiries/forex-rate`                                 | Implemented — saves a manual forex rate (JSON, login required)                 |
+| `GET /enquiries/<id>`                                        | Implemented — detail view: customer, cargo, particulars, notes (login required, ownership check) |
+| `POST /enquiries/<id>/status`                                | Implemented — inline status update, returns `{"ok": true, "status": "..."}` (login required, ownership check) |
+| `GET /enquiries/<id>/edit`                                   | Implemented — edit enquiry form (login required, ownership check)              |
+| `POST /enquiries/<id>/edit`                                  | Implemented — updates enquiry, redirects to `/enquiries`                       |
+| `GET /enquiries/<id>/particulars`                            | Implemented — particulars list + add form (login required, ownership check)    |
+| `POST /enquiries/<id>/particulars/add`                       | Implemented — adds particular, redirects to particulars page                  |
+| `POST /enquiries/<id>/particulars/<pid>/delete`              | Implemented — deletes particular, returns `{"ok": true}`                      |
+
 ### Notifications & stubs
 
 | Route                | Status                                                            |
