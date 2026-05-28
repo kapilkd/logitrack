@@ -63,12 +63,12 @@
           </div>
         </div>
         <div class="stat-card stat-card--billing">
-          <span class="stat-label">Receivables</span>
+          <span class="stat-label">Receivables (Quoted)</span>
           <span class="stat-value amount-receivable">₹{{ "%.2f"|format(receivables) }}</span>
           <div class="stat-billing-sub">
-            <span class="stat-sub-item">Rcvd <strong>₹{{ "%.2f"|format(receivables_rcvd) }}</strong></span>
+            <span class="stat-sub-item">{{ particulars | length }} item{{ 's' if (particulars | length) != 1 }}</span>
             <span class="stat-sub-sep">·</span>
-            <span class="stat-sub-item">Due <strong class="amount-pending">₹{{ "%.2f"|format([receivables - receivables_rcvd, 0]|max) }}</strong></span>
+            <span class="stat-sub-item">Margin <strong class="{% if receivables - payables > 0 %}amount-receivable{% else %}amount-pending{% endif %}">₹{{ "%.2f"|format(receivables - payables) }}</strong></span>
           </div>
         </div>
       </div>
@@ -169,80 +169,112 @@
         {% endif %}
       </div>
 
-      <!-- Customer Receivables -->
+      <!-- Shipment Particulars (Receivables / Quoted to Customer) -->
       <div class="profile-card">
         <div class="card-header-row">
-          <h2 class="profile-card-title">Customer Receivables</h2>
-          <button class="txn-btn txn-btn--edit" id="openAddReceivableModal">+ Add Receivable</button>
+          <h2 class="profile-card-title">Particulars{% if particulars %} <span class="panel-count">({{ particulars | length }})</span>{% endif %}</h2>
+          <button class="txn-btn txn-btn--edit" id="openAddParticularModal">+ Add Particular</button>
         </div>
-        {% if receivable_vendors %}
-        <table class="txn-table sv-table">
-          <thead>
-            <tr>
-              <th>Customer</th>
-              <th>Category</th>
-              <th class="text-right">Total</th>
-              <th class="text-right">Received</th>
-              <th class="text-right">Balance</th>
-              <th>Invoice #</th>
-              <th>Due Date</th>
-              <th>Status</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for v in receivable_vendors %}
-            <tr class="sv-main-row">
-              <td class="txn-desc">{{ v.vendor_name }}</td>
-              <td><span class="category-badge">{{ v.vendor_category | replace('_', ' ') }}</span></td>
-              <td class="txn-amount text-right">₹{{ "%.2f"|format(v.amount) }}</td>
-              <td class="txn-amount text-right amount-receivable">₹{{ "%.2f"|format(v.paid_amount) }}</td>
-              <td class="txn-amount text-right {% if v.balance > 0 %}amount-pending{% endif %}">₹{{ "%.2f"|format(v.balance) }}</td>
-              <td class="txn-desc">{{ v.invoice_number or '—' }}</td>
-              <td class="txn-date">{{ v.due_date or '—' }}</td>
-              <td><span class="payment-badge payment-badge--{{ v.payment_status | lower }}">{{ v.payment_status }}</span></td>
-              <td class="txn-actions">
-                <button class="txn-btn txn-btn--edit add-payment-btn"
-                  data-sv-id="{{ v.id }}"
-                  data-label="{{ v.vendor_name | e }}"
-                  data-total="{{ v.amount }}"
-                  data-paid="{{ v.paid_amount }}"
-                  data-balance="{{ v.balance }}">+ Receive</button>
-                <button class="txn-btn txn-btn--edit edit-sv-btn"
-                  data-id="{{ v.id }}"
-                  data-relationship-type="{{ v.relationship_type }}"
-                  data-billing-type="{{ v.billing_type }}"
-                  data-amount="{{ v.amount }}"
-                  data-currency="{{ v.currency }}"
-                  data-invoice-number="{{ v.invoice_number or '' }}"
-                  data-invoice-date="{{ v.invoice_date or '' }}"
-                  data-due-date="{{ v.due_date or '' }}"
-                  data-payment-status="{{ v.payment_status }}"
-                  data-notes="{{ v.notes or '' }}">Edit</button>
-                <button class="txn-btn txn-btn--delete delete-sv-btn" data-id="{{ v.id }}">Remove</button>
-              </td>
-            </tr>
-            {% for p in v.payments %}
-            <tr class="payment-sub-row">
-              <td colspan="2" class="payment-sub-indent">
-                <span class="payment-sub-date">{{ p.payment_date }}</span>
-                {% if p.reference %}<span class="payment-sub-ref">{{ p.reference }}</span>{% endif %}
-                {% if p.notes %}<span class="payment-sub-notes">{{ p.notes }}</span>{% endif %}
-              </td>
-              <td colspan="3" class="text-right payment-sub-amount amount-receivable">₹{{ "%.2f"|format(p.amount) }}</td>
-              <td colspan="3"></td>
-              <td class="txn-actions">
-                <button class="txn-btn txn-btn--delete delete-payment-btn"
-                  data-sv-id="{{ v.id }}"
-                  data-payment-id="{{ p.id }}">×</button>
-              </td>
-            </tr>
-            {% endfor %}
-            {% endfor %}
-          </tbody>
-        </table>
+        {% if particulars %}
+        <div style="overflow-x: auto;">
+          <table class="txn-table part-table">
+            <thead>
+              <tr>
+                <th>Particular</th>
+                <th>SAC/HSN</th>
+                <th class="text-right">QTY</th>
+                <th class="text-right">Ex.Rate</th>
+                <th class="text-right">Weight</th>
+                <th class="text-right">Offered Rate</th>
+                <th class="text-right">Expense</th>
+                <th class="text-right">Tax%</th>
+                <th class="text-right">CGST</th>
+                <th class="text-right">SGST</th>
+                <th class="text-right">IGST</th>
+                <th class="text-right">Total</th>
+                <th>Vendor Cost</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in particulars %}
+              {% set pv = particular_vendor_map.get(p.id) %}
+              <tr>
+                <td>
+                  <div class="part-type">{{ p.particular_type }}</div>
+                  {% if p.use_formula %}<div class="part-meta">formula</div>{% endif %}
+                </td>
+                <td class="part-meta">{{ p.sac_hsn or '—' }}</td>
+                <td class="text-right">{{ p.qty }}</td>
+                <td class="text-right">{{ "%.2f"|format(p.ex_rate) }}</td>
+                <td class="text-right">{{ p.weight }} {{ p.weight_unit }}</td>
+                <td class="text-right">{{ "%.2f"|format(p.offered_rate) }}</td>
+                <td class="text-right part-amount">{{ "%.2f"|format(p.expense) }}</td>
+                <td class="text-right">{{ p.tax_rate }}%</td>
+                <td class="text-right">{{ "%.2f"|format(p.cgst) }}</td>
+                <td class="text-right">{{ "%.2f"|format(p.sgst) }}</td>
+                <td class="text-right">{{ "%.2f"|format(p.igst) }}</td>
+                <td class="text-right part-total"><strong>{{ "%.2f"|format(p.total) }}</strong></td>
+                <td>
+                  {% if pv %}
+                  <span class="vendor-assigned-tag">{{ pv.vendor_name }}: ₹{{ "%.2f"|format(pv.amount) }}</span>
+                  <button class="txn-btn txn-btn--edit assign-vendor-btn"
+                    data-pid="{{ p.id }}"
+                    data-sv-id="{{ pv.id }}"
+                    data-vendor-id="{{ pv.vendor_id }}"
+                    data-amount="{{ pv.amount }}"
+                    data-currency="{{ pv.currency }}"
+                    data-invoice-number="{{ pv.invoice_number or '' }}"
+                    data-invoice-date="{{ pv.invoice_date or '' }}"
+                    data-due-date="{{ pv.due_date or '' }}"
+                    data-payment-status="{{ pv.payment_status }}"
+                    data-notes="{{ pv.notes or '' }}">Edit Cost</button>
+                  {% else %}
+                  <button class="txn-btn txn-btn--edit assign-vendor-btn"
+                    data-pid="{{ p.id }}"
+                    data-sv-id=""
+                    data-vendor-id=""
+                    data-amount="0"
+                    data-currency="INR"
+                    data-payment-status="PENDING">Assign Vendor</button>
+                  {% endif %}
+                </td>
+                <td class="txn-actions">
+                  <button class="txn-btn txn-btn--edit edit-particular-btn"
+                    data-id="{{ p.id }}"
+                    data-particular-type="{{ p.particular_type }}"
+                    data-sac-hsn="{{ p.sac_hsn or '' }}"
+                    data-qty="{{ p.qty }}"
+                    data-ex-rate="{{ p.ex_rate }}"
+                    data-weight="{{ p.weight }}"
+                    data-weight-unit="{{ p.weight_unit }}"
+                    data-offered-rate="{{ p.offered_rate }}"
+                    data-use-formula="{{ 'true' if p.use_formula else 'false' }}"
+                    data-expense="{{ p.expense }}"
+                    data-tax-rate="{{ p.tax_rate }}"
+                    data-cgst="{{ p.cgst }}"
+                    data-sgst="{{ p.sgst }}"
+                    data-igst="{{ p.igst }}"
+                    data-total="{{ p.total }}"
+                    data-currency="{{ p.currency }}">Edit</button>
+                  <button class="txn-btn txn-btn--delete delete-particular-btn" data-id="{{ p.id }}">×</button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="11" style="text-align:right; font-size:0.78rem; font-weight:600; color:var(--ink-muted); padding:0.5rem 0.65rem;">Grand Total</td>
+                <td class="text-right" style="font-weight:700; color:var(--accent); padding:0.5rem 0.65rem; font-size:0.9rem;">
+                  ₹{{ "%.2f"|format(particulars | sum(attribute='total')) }}
+                </td>
+                <td colspan="2"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
         {% else %}
-        <div class="txn-empty">No receivables recorded. Use <em>Add Receivable</em> to record a customer invoice.</div>
+        <div class="txn-empty">No particulars yet. Use <em>Add Particular</em> to record quoted items.</div>
         {% endif %}
       </div>
 
@@ -292,65 +324,245 @@
   </section>
 </div>
 
-<!-- ADD RECEIVABLE MODAL -->
-<div class="modal-overlay" id="addReceivableModal">
+<!-- ADD PARTICULAR MODAL -->
+<div class="modal-overlay" id="addParticularModal">
+  <div class="modal-box modal-box--wide">
+    <div class="modal-header">
+      <h2>Add Particular</h2>
+      <button class="close-modal" id="closeAddParticularModal">×</button>
+    </div>
+    <form method="POST" action="{{ url_for('add_shipment_particular', shipment_id=shipment.id) }}" id="addParticularForm">
+      <datalist id="addSacHsnList">
+        {% for p in particulars %}{% if p.sac_hsn %}<option value="{{ p.sac_hsn }}">{% endif %}{% endfor %}
+      </datalist>
+      <div class="form-row-three">
+        <div class="form-group">
+          <label>Particular <span class="field-required">*</span></label>
+          <select name="particular_type" id="addPartTypeSelect" required>
+            <option value="">— Select —</option>
+            {% for t in particular_types %}
+            <option value="{{ t }}">{{ t }}</option>
+            {% endfor %}
+            <option value="Other">Other…</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>SAC/HSN</label>
+          <input type="text" name="sac_hsn" id="addPartSacHsn" list="addSacHsnList" autocomplete="off" />
+        </div>
+        <div class="form-group">
+          <label>QTY</label>
+          <input type="number" name="qty" id="addPartQty" value="1" min="1" step="1" />
+        </div>
+      </div>
+      <div class="form-group" id="addCustomLabelGroup" style="display:none;">
+        <label>Custom Label</label>
+        <input type="text" name="custom_label" id="addCustomLabel" placeholder="Enter new particular name" />
+      </div>
+      <div class="form-row-two">
+        <div class="form-group">
+          <label>Ex.Rate (INR)</label>
+          <input type="number" name="ex_rate" id="addPartExRate" step="0.01" value="0" />
+        </div>
+        <div class="form-group">
+          <label>Weight</label>
+          <div style="display:flex;gap:0.4rem;">
+            <input type="number" name="weight" id="addPartWeight" step="0.001" value="0" style="flex:1;" />
+            <select name="weight_unit" id="addPartWeightUnit" style="width:5rem;">
+              {% for u in weight_units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Offered Rate</label>
+        <input type="number" name="offered_rate" id="addPartOfferedRate" step="0.01" value="1.00" />
+      </div>
+      <label class="formula-row" style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.75rem;">
+        <input type="checkbox" name="use_formula" id="addPartUseFormula" value="1" />
+        <span>Use formula: Ex.Rate × Weight × QTY × Offered Rate</span>
+      </label>
+      <div class="form-group">
+        <label>Expense (INR)</label>
+        <input type="number" name="expense" id="addPartExpense" step="0.01" value="0" />
+      </div>
+      <div class="form-row-four">
+        <div class="form-group">
+          <label>Tax Rate %</label>
+          <input type="number" name="tax_rate" id="addPartTaxRate" step="0.01" value="0" />
+        </div>
+        <div class="form-group">
+          <label>CGST</label>
+          <input type="number" name="cgst" id="addPartCgst" step="0.01" value="0" />
+        </div>
+        <div class="form-group">
+          <label>SGST</label>
+          <input type="number" name="sgst" id="addPartSgst" step="0.01" value="0" />
+        </div>
+        <div class="form-group">
+          <label>IGST</label>
+          <input type="number" name="igst" id="addPartIgst" step="0.01" value="0" />
+        </div>
+      </div>
+      <input type="hidden" name="total" id="addPartTotal" value="0" />
+      <div class="form-group">
+        <label>Currency</label>
+        <select name="currency" id="addPartCurrency">
+          {% for c in currencies %}<option value="{{ c }}" {% if c == 'INR' %}selected{% endif %}>{{ c }}</option>{% endfor %}
+        </select>
+      </div>
+      <div style="text-align:right;font-weight:600;margin-bottom:0.75rem;">
+        Total: <span id="addPartTotalDisplay" style="color:var(--accent);">₹ 0.00</span>
+      </div>
+      <button type="submit" class="modal-submit-btn">Save Particular</button>
+    </form>
+  </div>
+</div>
+
+<!-- EDIT PARTICULAR MODAL -->
+<div class="modal-overlay" id="editParticularModal">
+  <div class="modal-box modal-box--wide">
+    <div class="modal-header">
+      <h2>Edit Particular</h2>
+      <button class="close-modal" id="closeEditParticularModal">×</button>
+    </div>
+    <form method="POST" id="editParticularForm">
+      <div class="form-row-three">
+        <div class="form-group">
+          <label>Particular <span class="field-required">*</span></label>
+          <select name="particular_type" id="editPartTypeSelect" required>
+            <option value="">— Select —</option>
+            {% for t in particular_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+            <option value="Other">Other…</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>SAC/HSN</label>
+          <input type="text" name="sac_hsn" id="editPartSacHsn" autocomplete="off" />
+        </div>
+        <div class="form-group">
+          <label>QTY</label>
+          <input type="number" name="qty" id="editPartQty" value="1" min="1" step="1" />
+        </div>
+      </div>
+      <div class="form-group" id="editCustomLabelGroup" style="display:none;">
+        <label>Custom Label</label>
+        <input type="text" name="custom_label" id="editCustomLabel" />
+      </div>
+      <div class="form-row-two">
+        <div class="form-group">
+          <label>Ex.Rate (INR)</label>
+          <input type="number" name="ex_rate" id="editPartExRate" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label>Weight</label>
+          <div style="display:flex;gap:0.4rem;">
+            <input type="number" name="weight" id="editPartWeight" step="0.001" style="flex:1;" />
+            <select name="weight_unit" id="editPartWeightUnit" style="width:5rem;">
+              {% for u in weight_units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Offered Rate</label>
+        <input type="number" name="offered_rate" id="editPartOfferedRate" step="0.01" />
+      </div>
+      <label class="formula-row" style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.75rem;">
+        <input type="checkbox" name="use_formula" id="editPartUseFormula" value="1" />
+        <span>Use formula: Ex.Rate × Weight × QTY × Offered Rate</span>
+      </label>
+      <div class="form-group">
+        <label>Expense (INR)</label>
+        <input type="number" name="expense" id="editPartExpense" step="0.01" />
+      </div>
+      <div class="form-row-four">
+        <div class="form-group">
+          <label>Tax Rate %</label>
+          <input type="number" name="tax_rate" id="editPartTaxRate" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label>CGST</label>
+          <input type="number" name="cgst" id="editPartCgst" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label>SGST</label>
+          <input type="number" name="sgst" id="editPartSgst" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label>IGST</label>
+          <input type="number" name="igst" id="editPartIgst" step="0.01" />
+        </div>
+      </div>
+      <input type="hidden" name="total" id="editPartTotalHidden" value="0" />
+      <div class="form-group">
+        <label>Currency</label>
+        <select name="currency" id="editPartCurrency">
+          {% for c in currencies %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+        </select>
+      </div>
+      <div style="text-align:right;font-weight:600;margin-bottom:0.75rem;">
+        Total: <span id="editPartTotalDisplay" style="color:var(--accent);">₹ 0.00</span>
+      </div>
+      <button type="submit" class="modal-submit-btn">Save Particular</button>
+    </form>
+  </div>
+</div>
+
+<!-- ASSIGN VENDOR MODAL -->
+<div class="modal-overlay" id="assignVendorModal">
   <div class="modal-box">
     <div class="modal-header">
-      <h2>Add Customer Receivable</h2>
-      <button class="close-modal" id="closeAddReceivableModal">×</button>
+      <h2 id="assignVendorModalTitle">Assign Vendor to Particular</h2>
+      <button class="close-modal" id="closeAssignVendorModal">×</button>
     </div>
-    <form method="POST" action="{{ url_for('add_shipment_vendor', shipment_id=shipment.id) }}">
-      <input type="hidden" name="billing_type" value="RECEIVABLE" />
-      <input type="hidden" name="relationship_type" value="CUSTOMER" />
+    <form method="POST" id="assignVendorForm">
       <div class="form-group">
-        <label>Customer <span class="field-hint">(Inbound vendors)</span></label>
-        <select name="vendor_id" required>
-          <option value="">— Select customer —</option>
-          {% for v in inbound_vendors %}
+        <label>Vendor <span class="field-hint">(Outbound vendors)</span></label>
+        <select name="vendor_id" id="assignVendorId" required>
+          <option value="">— Select vendor —</option>
+          {% for v in outbound_vendors %}
           <option value="{{ v.id }}">{{ v.vendor_name }} ({{ v.vendor_code }})</option>
           {% endfor %}
         </select>
-        {% if not inbound_vendors %}
-        <span class="field-hint">No inbound vendors found. Add an Inbound vendor first.</span>
+        {% if not outbound_vendors %}
+        <span class="field-hint">No outbound vendors found. Add an Outbound vendor first.</span>
         {% endif %}
       </div>
+      <input type="hidden" name="relationship_type" id="assignVendorRelType" value="TRANSPORTER" />
       <div class="form-group">
-        <label>Amount</label>
-        <input type="number" step="0.01" name="amount" value="0" min="0" required />
+        <label>Vendor Cost (Payable)</label>
+        <input type="number" step="0.01" name="amount" id="assignVendorAmount" value="0" min="0" />
       </div>
       <div class="form-group">
         <label>Currency</label>
-        <select name="currency">
-          {% for c in currencies %}
-          <option value="{{ c }}" {% if c == 'INR' %}selected{% endif %}>{{ c }}</option>
-          {% endfor %}
+        <select name="currency" id="assignVendorCurrency">
+          {% for c in currencies %}<option value="{{ c }}" {% if c == 'INR' %}selected{% endif %}>{{ c }}</option>{% endfor %}
         </select>
       </div>
       <div class="form-group">
         <label>Invoice Number</label>
-        <input type="text" name="invoice_number" />
+        <input type="text" name="invoice_number" id="assignVendorInvoiceNumber" />
       </div>
       <div class="form-group">
         <label>Invoice Date</label>
-        <input type="date" name="invoice_date" value="{{ today }}" />
+        <input type="date" name="invoice_date" id="assignVendorInvoiceDate" />
       </div>
       <div class="form-group">
         <label>Due Date</label>
-        <input type="date" name="due_date" value="{{ today }}" />
+        <input type="date" name="due_date" id="assignVendorDueDate" />
       </div>
       <div class="form-group">
         <label>Payment Status</label>
-        <select name="payment_status">
-          {% for p in payment_statuses %}
-          <option value="{{ p }}">{{ p }}</option>
-          {% endfor %}
+        <select name="payment_status" id="assignVendorPaymentStatus">
+          {% for p in payment_statuses %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
         </select>
       </div>
       <div class="form-group">
         <label>Notes</label>
-        <textarea name="notes"></textarea>
+        <textarea name="notes" id="assignVendorNotes"></textarea>
       </div>
-      <button type="submit" class="modal-submit-btn">Add Receivable</button>
+      <button type="submit" class="modal-submit-btn">Save Vendor Cost</button>
     </form>
   </div>
 </div>

@@ -144,28 +144,37 @@ def get_filtered_vendors(user_id, vendor_type=None, vendor_category=None, vendor
 
 def get_billing_stats(user_id):
     conn = get_db()
-    row = conn.execute(
+    payable_row = conn.execute(
         """
         SELECT
             COALESCE(SUM(CASE WHEN sv.billing_type = 'PAYABLE'
                               THEN sv.amount ELSE 0 END), 0.0) AS total_payable,
-            COALESCE(SUM(CASE WHEN sv.billing_type = 'RECEIVABLE'
-                              THEN sv.amount ELSE 0 END), 0.0) AS total_receivable,
             COALESCE(SUM(CASE WHEN sv.payment_status IN ('PENDING', 'PARTIAL', 'OVERDUE')
+                              AND sv.billing_type = 'PAYABLE'
                               THEN sv.amount ELSE 0 END), 0.0) AS pending_amount,
-            COUNT(CASE WHEN sv.payment_status = 'OVERDUE' THEN 1 END) AS overdue_count
+            COUNT(CASE WHEN sv.payment_status = 'OVERDUE'
+                        AND sv.billing_type = 'PAYABLE' THEN 1 END) AS overdue_count
         FROM shipment_vendors sv
         JOIN shipments s ON sv.shipment_id = s.id
         WHERE s.user_id = %s
         """,
         (user_id,),
     ).fetchone()
+    recv_row = conn.execute(
+        """
+        SELECT COALESCE(SUM(sp.total), 0.0) AS total_receivable
+        FROM shipment_particulars sp
+        JOIN shipments s ON sp.shipment_id = s.id
+        WHERE s.user_id = %s
+        """,
+        (user_id,),
+    ).fetchone()
     conn.close()
     return {
-        "total_payable": row["total_payable"],
-        "total_receivable": row["total_receivable"],
-        "pending_amount": row["pending_amount"],
-        "overdue_count": int(row["overdue_count"]),
+        "total_payable":    float(payable_row["total_payable"]),
+        "total_receivable": float(recv_row["total_receivable"]),
+        "pending_amount":   float(payable_row["pending_amount"]),
+        "overdue_count":    int(payable_row["overdue_count"]),
     }
 
 
@@ -177,19 +186,22 @@ def get_shipment_billing_list(user_id, payment_status=None, billing_type=None):
             sv.id AS sv_id, sv.vendor_id, sv.relationship_type, sv.billing_type,
             sv.amount, sv.currency, sv.invoice_number, sv.invoice_date,
             sv.due_date, sv.payment_status,
-            v.vendor_name, v.vendor_code, v.vendor_category
+            v.vendor_name, v.vendor_code, v.vendor_category,
+            COALESCE(recv.total_receivable, 0.0) AS particulars_receivable
         FROM shipment_vendors sv
         JOIN shipments s ON sv.shipment_id = s.id
         JOIN vendors v ON sv.vendor_id = v.id
-        WHERE s.user_id = %s
+        LEFT JOIN (
+            SELECT shipment_id, SUM(total) AS total_receivable
+            FROM shipment_particulars
+            GROUP BY shipment_id
+        ) recv ON recv.shipment_id = s.id
+        WHERE s.user_id = %s AND sv.billing_type = 'PAYABLE'
     """
     params = [user_id]
     if payment_status in _VALID_PAYMENT_STATUSES:
         sql += " AND sv.payment_status = %s"
         params.append(payment_status)
-    if billing_type in _VALID_BILLING_TYPES:
-        sql += " AND sv.billing_type = %s"
-        params.append(billing_type)
     sql += " ORDER BY s.shipment_date DESC, s.id DESC, v.vendor_name ASC"
 
     conn = get_db()
@@ -209,7 +221,7 @@ def get_shipment_billing_list(user_id, payment_status=None, billing_type=None):
                 "shipment_status": row["shipment_status"],
                 "shipment_date": row["shipment_date"] or "",
                 "total_payable": 0.0,
-                "total_receivable": 0.0,
+                "total_receivable": float(row["particulars_receivable"]),
                 "_vendor_ids": set(),
                 "vendor_count": 0,
                 "pending_count": 0,
@@ -218,10 +230,7 @@ def get_shipment_billing_list(user_id, payment_status=None, billing_type=None):
             }
             order.append(sid)
         entry = shipments_map[sid]
-        if row["billing_type"] == "PAYABLE":
-            entry["total_payable"] += row["amount"]
-        else:
-            entry["total_receivable"] += row["amount"]
+        entry["total_payable"] += row["amount"]
         if row["payment_status"] in ("PENDING", "PARTIAL", "OVERDUE"):
             entry["pending_count"] += 1
         if row["payment_status"] == "OVERDUE":
@@ -421,12 +430,12 @@ def get_shipment_report_rows(user_id, status=None, from_date=None, to_date=None)
             s.status,
             s.shipment_date,
             s.carrier,
-            COALESCE(e.expense_total, 0.0)                                                                   AS expense_total,
-            COALESCE(sv.total_payable, 0.0)                                                                  AS total_payable,
-            COALESCE(sv.total_receivable, 0.0)                                                               AS total_receivable,
-            COALESCE(sv.total_payable, 0.0)  + COALESCE(e.expense_total, 0.0)                               AS total_cost,
-            COALESCE(sv.total_receivable, 0.0) - (COALESCE(sv.total_payable, 0.0) + COALESCE(e.expense_total, 0.0)) AS net_position,
-            COALESCE(sv.vendor_count, 0)                                                                     AS vendor_count
+            COALESCE(e.expense_total, 0.0)                                                                       AS expense_total,
+            COALESCE(sv.total_payable, 0.0)                                                                      AS total_payable,
+            COALESCE(sp.total_receivable, 0.0)                                                                   AS total_receivable,
+            COALESCE(sv.total_payable, 0.0)  + COALESCE(e.expense_total, 0.0)                                   AS total_cost,
+            COALESCE(sp.total_receivable, 0.0) - (COALESCE(sv.total_payable, 0.0) + COALESCE(e.expense_total, 0.0)) AS net_position,
+            COALESCE(sv.vendor_count, 0)                                                                         AS vendor_count
         FROM shipments s
         LEFT JOIN (
             SELECT shipment_id, SUM(amount) AS expense_total
@@ -436,12 +445,16 @@ def get_shipment_report_rows(user_id, status=None, from_date=None, to_date=None)
         LEFT JOIN (
             SELECT
                 shipment_id,
-                SUM(CASE WHEN billing_type = 'PAYABLE'    THEN amount ELSE 0 END) AS total_payable,
-                SUM(CASE WHEN billing_type = 'RECEIVABLE' THEN amount ELSE 0 END) AS total_receivable,
-                COUNT(DISTINCT vendor_id)                                          AS vendor_count
+                SUM(CASE WHEN billing_type = 'PAYABLE' THEN amount ELSE 0 END) AS total_payable,
+                COUNT(DISTINCT vendor_id)                                        AS vendor_count
             FROM shipment_vendors
             GROUP BY shipment_id
         ) sv ON sv.shipment_id = s.id
+        LEFT JOIN (
+            SELECT shipment_id, SUM(total) AS total_receivable
+            FROM shipment_particulars
+            GROUP BY shipment_id
+        ) sp ON sp.shipment_id = s.id
         WHERE s.user_id = %s
     """
     params = [user_id]
@@ -485,7 +498,7 @@ def get_report_summary_stats(user_id, status=None, from_date=None, to_date=None)
             COUNT(*)                                AS shipment_count,
             COALESCE(SUM(e.expense_total), 0.0)    AS expense_total,
             COALESCE(SUM(sv.total_payable), 0.0)   AS total_payable,
-            COALESCE(SUM(sv.total_receivable), 0.0) AS total_receivable
+            COALESCE(SUM(sp.total_receivable), 0.0) AS total_receivable
         FROM shipments s
         LEFT JOIN (
             SELECT shipment_id, SUM(amount) AS expense_total
@@ -495,11 +508,15 @@ def get_report_summary_stats(user_id, status=None, from_date=None, to_date=None)
         LEFT JOIN (
             SELECT
                 shipment_id,
-                SUM(CASE WHEN billing_type = 'PAYABLE'    THEN amount ELSE 0 END) AS total_payable,
-                SUM(CASE WHEN billing_type = 'RECEIVABLE' THEN amount ELSE 0 END) AS total_receivable
+                SUM(CASE WHEN billing_type = 'PAYABLE' THEN amount ELSE 0 END) AS total_payable
             FROM shipment_vendors
             GROUP BY shipment_id
         ) sv ON sv.shipment_id = s.id
+        LEFT JOIN (
+            SELECT shipment_id, SUM(total) AS total_receivable
+            FROM shipment_particulars
+            GROUP BY shipment_id
+        ) sp ON sp.shipment_id = s.id
         WHERE s.user_id = %s
     """
     params = [user_id]

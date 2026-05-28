@@ -208,6 +208,10 @@ pytest -s
 | `POST /shipments/<id>/vendors/add`             | Implemented — links vendor to shipment, redirects to detail         |
 | `POST /shipments/<id>/vendors/<sv_id>/edit`    | Implemented — updates shipment–vendor record, redirects to detail   |
 | `POST /shipments/<id>/vendors/<sv_id>/delete`  | Implemented — unlinks vendor from shipment, returns JSON `{"ok": true}` |
+| `POST /shipments/<id>/particulars/add`         | Implemented — adds quoted particular to shipment, redirects to detail |
+| `POST /shipments/<id>/particulars/<pid>/edit`  | Implemented — updates shipment particular, redirects to detail      |
+| `POST /shipments/<id>/particulars/<pid>/delete` | Implemented — deletes particular, returns JSON `{"ok": true}`      |
+| `POST /shipments/<id>/particulars/<pid>/assign-vendor` | Implemented — assigns/updates vendor cost for a particular, redirects to detail |
 
 ### Vendors
 

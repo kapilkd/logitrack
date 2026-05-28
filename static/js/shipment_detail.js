@@ -10,15 +10,12 @@ function closeModal(id) {
 
 // Close on backdrop click
 window.addEventListener('click', e => {
-    ['addPaymentModal', 'addReceivableModal', 'addVendorModal', 'editVendorModal', 'addExpenseModal', 'editExpenseModal'].forEach(id => {
+    ['addPaymentModal', 'addVendorModal', 'editVendorModal', 'addExpenseModal', 'editExpenseModal',
+     'addParticularModal', 'editParticularModal', 'assignVendorModal'].forEach(id => {
         const el = document.getElementById(id);
         if (el && e.target === el) closeModal(id);
     });
 });
-
-// Add receivable modal
-document.getElementById('openAddReceivableModal')?.addEventListener('click', () => openModal('addReceivableModal'));
-document.getElementById('closeAddReceivableModal')?.addEventListener('click', () => closeModal('addReceivableModal'));
 
 // Add payment modal
 document.getElementById('closeAddPaymentModal')?.addEventListener('click', () => closeModal('addPaymentModal'));
@@ -136,5 +133,155 @@ document.querySelectorAll('.delete-expense-btn').forEach(btn => {
         fetch(`/shipments/${shipmentId}/expenses/${btn.dataset.id}/delete`, { method: 'POST' })
             .then(r => r.json())
             .then(d => { if (d.ok) location.reload(); });
+    });
+});
+
+// ── Particulars ──────────────────────────────────────────────────────────────
+
+function _n(el) { return parseFloat(el ? el.value : 0) || 0; }
+function _fmt(v) { return '₹ ' + v.toFixed(2); }
+
+function setupParticularCalc(prefix) {
+    const useFormula = document.getElementById(prefix + 'UseFormula');
+    const exRate     = document.getElementById(prefix + 'ExRate');
+    const weight     = document.getElementById(prefix + 'Weight');
+    const qty        = document.getElementById(prefix + 'Qty');
+    const offered    = document.getElementById(prefix + 'OfferedRate');
+    const expense    = document.getElementById(prefix + 'Expense');
+    const taxRate    = document.getElementById(prefix + 'TaxRate');
+    const cgst       = document.getElementById(prefix + 'Cgst');
+    const sgst       = document.getElementById(prefix + 'Sgst');
+    const igst       = document.getElementById(prefix + 'Igst');
+    const totalHid   = document.getElementById(prefix + 'Total');
+    const totalDisp  = document.getElementById(prefix + 'TotalDisplay');
+
+    if (!useFormula) return;
+
+    function recalc() {
+        if (useFormula.checked) {
+            expense.value = (_n(exRate) * _n(weight) * _n(qty) * _n(offered)).toFixed(2);
+            expense.readOnly = true;
+            expense.style.background = 'var(--surface)';
+            expense.style.color = 'var(--ink-muted)';
+        } else {
+            expense.readOnly = false;
+            expense.style.background = '';
+            expense.style.color = '';
+        }
+        if (taxRate.value !== '' && _n(taxRate) > 0) {
+            var half = (_n(expense) * _n(taxRate) / 100) / 2;
+            cgst.value = half.toFixed(2);
+            sgst.value = half.toFixed(2);
+        }
+        var tot = _n(expense) + _n(cgst) + _n(sgst) + _n(igst);
+        if (totalDisp) totalDisp.textContent = _fmt(tot);
+        if (totalHid) totalHid.value = tot.toFixed(2);
+    }
+
+    useFormula.addEventListener('change', recalc);
+    [qty, offered, expense, taxRate].forEach(el => el && el.addEventListener('input', recalc));
+    [cgst, sgst, igst].forEach(el => {
+        if (el) el.addEventListener('input', () => {
+            var tot = _n(expense) + _n(cgst) + _n(sgst) + _n(igst);
+            if (totalDisp) totalDisp.textContent = _fmt(tot);
+            if (totalHid) totalHid.value = tot.toFixed(2);
+        });
+    });
+}
+
+setupParticularCalc('addPart');
+setupParticularCalc('editPart');
+
+// "Other" type toggle — add modal
+document.getElementById('addPartTypeSelect')?.addEventListener('change', function () {
+    document.getElementById('addCustomLabelGroup').style.display = this.value === 'Other' ? 'block' : 'none';
+});
+document.getElementById('editPartTypeSelect')?.addEventListener('change', function () {
+    document.getElementById('editCustomLabelGroup').style.display = this.value === 'Other' ? 'block' : 'none';
+});
+
+// Add particular modal
+document.getElementById('openAddParticularModal')?.addEventListener('click', () => openModal('addParticularModal'));
+document.getElementById('closeAddParticularModal')?.addEventListener('click', () => closeModal('addParticularModal'));
+
+// Edit particular modal
+document.getElementById('closeEditParticularModal')?.addEventListener('click', () => closeModal('editParticularModal'));
+
+document.querySelectorAll('.edit-particular-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const pid = btn.dataset.id;
+        const ptype = btn.dataset.particularType;
+        const sel = document.getElementById('editPartTypeSelect');
+
+        // If this type is in the dropdown, select it; otherwise select Other
+        let found = false;
+        for (let opt of sel.options) {
+            if (opt.value === ptype) { sel.value = ptype; found = true; break; }
+        }
+        if (!found) {
+            sel.value = 'Other';
+            document.getElementById('editCustomLabelGroup').style.display = 'block';
+            document.getElementById('editCustomLabel').value = ptype;
+        } else {
+            document.getElementById('editCustomLabelGroup').style.display = 'none';
+        }
+
+        document.getElementById('editPartSacHsn').value       = btn.dataset.sacHsn || '';
+        document.getElementById('editPartQty').value           = btn.dataset.qty;
+        document.getElementById('editPartExRate').value        = btn.dataset.exRate;
+        document.getElementById('editPartWeight').value        = btn.dataset.weight;
+        document.getElementById('editPartWeightUnit').value    = btn.dataset.weightUnit;
+        document.getElementById('editPartOfferedRate').value   = btn.dataset.offeredRate;
+        document.getElementById('editPartUseFormula').checked  = btn.dataset.useFormula === 'true';
+        document.getElementById('editPartExpense').value       = btn.dataset.expense;
+        document.getElementById('editPartTaxRate').value       = btn.dataset.taxRate;
+        document.getElementById('editPartCgst').value          = btn.dataset.cgst;
+        document.getElementById('editPartSgst').value          = btn.dataset.sgst;
+        document.getElementById('editPartIgst').value          = btn.dataset.igst;
+        document.getElementById('editPartTotalHidden').value   = btn.dataset.total;
+        document.getElementById('editPartCurrency').value      = btn.dataset.currency;
+        const tot = parseFloat(btn.dataset.total) || 0;
+        document.getElementById('editPartTotalDisplay').textContent = '₹ ' + tot.toFixed(2);
+        document.getElementById('editParticularForm').action =
+            `/shipments/${shipmentId}/particulars/${pid}/edit`;
+        openModal('editParticularModal');
+    });
+});
+
+// Delete particular
+document.querySelectorAll('.delete-particular-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        if (!confirm('Delete this particular? The linked vendor cost (if any) will remain but be unlinked.')) return;
+        fetch(`/shipments/${shipmentId}/particulars/${btn.dataset.id}/delete`, { method: 'POST' })
+            .then(r => r.json())
+            .then(d => { if (d.ok) location.reload(); });
+    });
+});
+
+// Assign vendor modal
+document.getElementById('closeAssignVendorModal')?.addEventListener('click', () => closeModal('assignVendorModal'));
+
+document.querySelectorAll('.assign-vendor-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const pid = btn.dataset.pid;
+        const title = document.getElementById('assignVendorModalTitle');
+        if (btn.dataset.svId) {
+            if (title) title.textContent = 'Edit Vendor Cost';
+        } else {
+            if (title) title.textContent = 'Assign Vendor to Particular';
+        }
+        const vendorSel = document.getElementById('assignVendorId');
+        if (btn.dataset.vendorId) vendorSel.value = btn.dataset.vendorId;
+        else vendorSel.value = '';
+        document.getElementById('assignVendorAmount').value        = btn.dataset.amount || '0';
+        document.getElementById('assignVendorCurrency').value      = btn.dataset.currency || 'INR';
+        document.getElementById('assignVendorInvoiceNumber').value = btn.dataset.invoiceNumber || '';
+        document.getElementById('assignVendorInvoiceDate').value   = btn.dataset.invoiceDate   || '';
+        document.getElementById('assignVendorDueDate').value       = btn.dataset.dueDate       || '';
+        document.getElementById('assignVendorPaymentStatus').value = btn.dataset.paymentStatus || 'PENDING';
+        document.getElementById('assignVendorNotes').value         = btn.dataset.notes         || '';
+        document.getElementById('assignVendorForm').action =
+            `/shipments/${shipmentId}/particulars/${pid}/assign-vendor`;
+        openModal('assignVendorModal');
     });
 });

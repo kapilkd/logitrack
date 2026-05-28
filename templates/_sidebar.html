@@ -14,25 +14,6 @@
       </a>
     </div>
 
-    <div class="sidebar-group{% if active_section == 'shipments' %} is-open{% endif %}">
-      <button class="sidebar-group-toggle" type="button">
-        <span class="sidebar-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
-          </svg>
-        </span>
-        <span class="sidebar-group-label">Shipments</span>
-        <span class="sidebar-toggle-arrow">▾</span>
-      </button>
-      <div class="sidebar-sub-nav">
-        <a href="{{ url_for('shipments') }}"
-           class="sidebar-sub-link{% if request.endpoint == 'shipments' %} sidebar-sub-link--active{% endif %}">All Shipments</a>
-        <a href="{{ url_for('add_shipment') }}"
-           class="sidebar-sub-link{% if request.endpoint == 'add_shipment' %} sidebar-sub-link--active{% endif %}">Create Shipment</a>
-      </div>
-    </div>
-
     <div class="sidebar-group{% if active_section == 'enquiries' %} is-open{% endif %}">
       <button class="sidebar-group-toggle" type="button">
         <span class="sidebar-icon">
@@ -53,6 +34,25 @@
            class="sidebar-sub-link{% if request.endpoint == 'enquiries' %} sidebar-sub-link--active{% endif %}">All Enquiries</a>
         <a href="{{ url_for('add_enquiry') }}"
            class="sidebar-sub-link{% if request.endpoint == 'add_enquiry' %} sidebar-sub-link--active{% endif %}">New Enquiry</a>
+      </div>
+    </div>
+
+    <div class="sidebar-group{% if active_section == 'shipments' %} is-open{% endif %}">
+      <button class="sidebar-group-toggle" type="button">
+        <span class="sidebar-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+          </svg>
+        </span>
+        <span class="sidebar-group-label">Shipments</span>
+        <span class="sidebar-toggle-arrow">▾</span>
+      </button>
+      <div class="sidebar-sub-nav">
+        <a href="{{ url_for('shipments') }}"
+           class="sidebar-sub-link{% if request.endpoint == 'shipments' %} sidebar-sub-link--active{% endif %}">All Shipments</a>
+        <a href="{{ url_for('add_shipment') }}"
+           class="sidebar-sub-link{% if request.endpoint == 'add_shipment' %} sidebar-sub-link--active{% endif %}">Create Shipment</a>
       </div>
     </div>
 

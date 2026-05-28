@@ -299,30 +299,6 @@ def init_db(path=None):
         )
 
     conn.execute("""
-        CREATE TABLE IF NOT EXISTS enquiry_particulars (
-            id              SERIAL PRIMARY KEY,
-            enquiry_id      INTEGER NOT NULL REFERENCES enquiries(id) ON DELETE CASCADE,
-            user_id         INTEGER NOT NULL REFERENCES users(id),
-            particular_type TEXT    NOT NULL,
-            sac_hsn         TEXT,
-            qty             INTEGER NOT NULL DEFAULT 1,
-            ex_rate         REAL    NOT NULL DEFAULT 0,
-            weight          REAL    NOT NULL DEFAULT 0,
-            weight_unit     TEXT    NOT NULL DEFAULT 'KGS',
-            offered_rate    REAL    NOT NULL DEFAULT 0,
-            use_formula     BOOLEAN NOT NULL DEFAULT FALSE,
-            expense         REAL    NOT NULL DEFAULT 0,
-            tax_rate        REAL    NOT NULL DEFAULT 0,
-            cgst            REAL    NOT NULL DEFAULT 0,
-            sgst            REAL    NOT NULL DEFAULT 0,
-            igst            REAL    NOT NULL DEFAULT 0,
-            total           REAL    NOT NULL DEFAULT 0,
-            currency        TEXT    NOT NULL DEFAULT 'INR',
-            created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-
-    conn.execute("""
         CREATE TABLE IF NOT EXISTS enquiries (
             id                 SERIAL PRIMARY KEY,
             user_id            INTEGER   NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -352,6 +328,55 @@ def init_db(path=None):
             notes              TEXT,
             created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at         TIMESTAMP
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS enquiry_particulars (
+            id              SERIAL PRIMARY KEY,
+            enquiry_id      INTEGER NOT NULL REFERENCES enquiries(id) ON DELETE CASCADE,
+            user_id         INTEGER NOT NULL REFERENCES users(id),
+            particular_type TEXT    NOT NULL,
+            sac_hsn         TEXT,
+            qty             INTEGER NOT NULL DEFAULT 1,
+            ex_rate         REAL    NOT NULL DEFAULT 0,
+            weight          REAL    NOT NULL DEFAULT 0,
+            weight_unit     TEXT    NOT NULL DEFAULT 'KGS',
+            offered_rate    REAL    NOT NULL DEFAULT 0,
+            use_formula     BOOLEAN NOT NULL DEFAULT FALSE,
+            expense         REAL    NOT NULL DEFAULT 0,
+            tax_rate        REAL    NOT NULL DEFAULT 0,
+            cgst            REAL    NOT NULL DEFAULT 0,
+            sgst            REAL    NOT NULL DEFAULT 0,
+            igst            REAL    NOT NULL DEFAULT 0,
+            total           REAL    NOT NULL DEFAULT 0,
+            currency        TEXT    NOT NULL DEFAULT 'INR',
+            created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS shipment_particulars (
+            id                    SERIAL PRIMARY KEY,
+            shipment_id           INTEGER NOT NULL REFERENCES shipments(id) ON DELETE CASCADE,
+            user_id               INTEGER NOT NULL REFERENCES users(id),
+            particular_type       TEXT    NOT NULL,
+            sac_hsn               TEXT,
+            qty                   INTEGER NOT NULL DEFAULT 1,
+            ex_rate               REAL    NOT NULL DEFAULT 0,
+            weight                REAL    NOT NULL DEFAULT 0,
+            weight_unit           TEXT    NOT NULL DEFAULT 'KGS',
+            offered_rate          REAL    NOT NULL DEFAULT 0,
+            use_formula           BOOLEAN NOT NULL DEFAULT FALSE,
+            expense               REAL    NOT NULL DEFAULT 0,
+            tax_rate              REAL    NOT NULL DEFAULT 0,
+            cgst                  REAL    NOT NULL DEFAULT 0,
+            sgst                  REAL    NOT NULL DEFAULT 0,
+            igst                  REAL    NOT NULL DEFAULT 0,
+            total                 REAL    NOT NULL DEFAULT 0,
+            currency              TEXT    NOT NULL DEFAULT 'INR',
+            enquiry_particular_id INTEGER,
+            created_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
 
@@ -817,18 +842,21 @@ INCOTERMS = ('EXW', 'FCA', 'FOB', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP
 def create_shipment(user_id, shipment_number, origin=None, destination=None,
                     carrier=None, status='DRAFT', shipment_date=None,
                     etd=None, eta=None, port_of_loading=None,
-                    port_of_discharge=None, incoterms=None, description=None):
+                    port_of_discharge=None, incoterms=None, description=None,
+                    enquiry_id=None):
     conn = get_db()
-    conn.execute(
+    row = conn.execute(
         "INSERT INTO shipments"
         " (user_id, shipment_number, origin, destination, carrier, status,"
-        "  shipment_date, etd, eta, port_of_loading, port_of_discharge, incoterms, description)"
-        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+        "  shipment_date, etd, eta, port_of_loading, port_of_discharge, incoterms, description, enquiry_id)"
+        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+        " RETURNING *",
         (user_id, shipment_number, origin, destination, carrier, status,
-         shipment_date, etd, eta, port_of_loading, port_of_discharge, incoterms, description),
-    )
+         shipment_date, etd, eta, port_of_loading, port_of_discharge, incoterms, description, enquiry_id),
+    ).fetchone()
     conn.commit()
     conn.close()
+    return row
 
 
 def get_shipment_by_id(shipment_id):
@@ -921,16 +949,17 @@ CONSIGNMENT_TYPES  = ('AIR CARGO', 'FCL', 'LCL', 'BREAK BULK', 'RORO', 'COURIER'
 def create_shipment_vendor(vendor_id, shipment_id, relationship_type, billing_type,
                             amount=0, currency='INR', invoice_number=None,
                             invoice_date=None, due_date=None,
-                            payment_status='PENDING', notes=None):
+                            payment_status='PENDING', notes=None,
+                            particular_id=None):
     conn = get_db()
     conn.execute(
         "INSERT INTO shipment_vendors"
         " (vendor_id, shipment_id, relationship_type, billing_type, amount, currency,"
-        "  invoice_number, invoice_date, due_date, payment_status, notes)"
-        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+        "  invoice_number, invoice_date, due_date, payment_status, notes, particular_id)"
+        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
         (vendor_id, shipment_id, relationship_type, billing_type,
          amount, currency, invoice_number, invoice_date, due_date,
-         payment_status, notes),
+         payment_status, notes, particular_id),
     )
     conn.commit()
     conn.close()
@@ -976,15 +1005,17 @@ def get_shipments_by_vendor(vendor_id):
 def update_shipment_vendor(sv_id, relationship_type, billing_type,
                             amount=0, currency='INR', invoice_number=None,
                             invoice_date=None, due_date=None,
-                            payment_status='PENDING', notes=None):
+                            payment_status='PENDING', notes=None,
+                            particular_id=None):
     conn = get_db()
     conn.execute(
         "UPDATE shipment_vendors"
         " SET relationship_type=%s, billing_type=%s, amount=%s, currency=%s,"
-        "     invoice_number=%s, invoice_date=%s, due_date=%s, payment_status=%s, notes=%s"
+        "     invoice_number=%s, invoice_date=%s, due_date=%s, payment_status=%s,"
+        "     notes=%s, particular_id=%s"
         " WHERE id=%s",
         (relationship_type, billing_type, amount, currency,
-         invoice_number, invoice_date, due_date, payment_status, notes, sv_id),
+         invoice_number, invoice_date, due_date, payment_status, notes, particular_id, sv_id),
     )
     conn.commit()
     conn.close()
@@ -1020,8 +1051,7 @@ def get_total_payables_by_shipment(shipment_id):
 def get_total_receivables_by_shipment(shipment_id):
     conn = get_db()
     total = conn.execute(
-        "SELECT COALESCE(SUM(amount), 0) FROM shipment_vendors"
-        " WHERE shipment_id = %s AND billing_type = 'RECEIVABLE'",
+        "SELECT COALESCE(SUM(total), 0) FROM shipment_particulars WHERE shipment_id = %s",
         (shipment_id,),
     ).fetchone()[0]
     conn.close()
@@ -1617,3 +1647,102 @@ def delete_enquiry_particular(particular_id):
     conn.execute("DELETE FROM enquiry_particulars WHERE id = %s", (particular_id,))
     conn.commit()
     conn.close()
+
+
+# ------------------------------------------------------------------ #
+# Shipment Particulars CRUD                                           #
+# ------------------------------------------------------------------ #
+
+def get_particulars_by_shipment(shipment_id):
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM shipment_particulars WHERE shipment_id = %s ORDER BY created_at ASC",
+        (shipment_id,)
+    ).fetchall()
+    conn.close()
+    return rows
+
+
+def get_shipment_particular_by_id(particular_id):
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM shipment_particulars WHERE id = %s", (particular_id,)
+    ).fetchone()
+    conn.close()
+    return row
+
+
+def create_shipment_particular(shipment_id, user_id, data, enquiry_particular_id=None):
+    conn = get_db()
+    row = conn.execute(
+        "INSERT INTO shipment_particulars"
+        " (shipment_id, user_id, particular_type, sac_hsn, qty,"
+        "  ex_rate, weight, weight_unit, offered_rate, use_formula,"
+        "  expense, tax_rate, cgst, sgst, igst, total, currency, enquiry_particular_id)"
+        " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+        " RETURNING *",
+        (shipment_id, user_id,
+         data["particular_type"], data.get("sac_hsn") or None,
+         int(data.get("qty") or 1),
+         float(data.get("ex_rate") or 0), float(data.get("weight") or 0),
+         data.get("weight_unit", "KGS"),
+         float(data.get("offered_rate") or 0),
+         bool(data.get("use_formula")),
+         float(data.get("expense") or 0),
+         float(data.get("tax_rate") or 0),
+         float(data.get("cgst") or 0), float(data.get("sgst") or 0),
+         float(data.get("igst") or 0),
+         float(data.get("total") or 0),
+         data.get("currency", "INR"),
+         enquiry_particular_id)
+    ).fetchone()
+    conn.commit()
+    conn.close()
+    return row
+
+
+def update_shipment_particular(particular_id, data):
+    conn = get_db()
+    conn.execute(
+        "UPDATE shipment_particulars"
+        " SET particular_type=%s, sac_hsn=%s, qty=%s, ex_rate=%s, weight=%s,"
+        "     weight_unit=%s, offered_rate=%s, use_formula=%s, expense=%s,"
+        "     tax_rate=%s, cgst=%s, sgst=%s, igst=%s, total=%s, currency=%s"
+        " WHERE id=%s",
+        (data["particular_type"], data.get("sac_hsn") or None,
+         int(data.get("qty") or 1),
+         float(data.get("ex_rate") or 0), float(data.get("weight") or 0),
+         data.get("weight_unit", "KGS"),
+         float(data.get("offered_rate") or 0),
+         bool(data.get("use_formula")),
+         float(data.get("expense") or 0),
+         float(data.get("tax_rate") or 0),
+         float(data.get("cgst") or 0), float(data.get("sgst") or 0),
+         float(data.get("igst") or 0),
+         float(data.get("total") or 0),
+         data.get("currency", "INR"),
+         particular_id)
+    )
+    conn.commit()
+    conn.close()
+
+
+def delete_shipment_particular(particular_id):
+    conn = get_db()
+    conn.execute("DELETE FROM shipment_particulars WHERE id = %s", (particular_id,))
+    conn.commit()
+    conn.close()
+
+
+def get_sv_by_particular(particular_id):
+    """Return the PAYABLE shipment_vendor entry linked to a particular, or None."""
+    conn = get_db()
+    row = conn.execute(
+        "SELECT sv.*, v.vendor_name, v.vendor_code, v.vendor_category"
+        " FROM shipment_vendors sv"
+        " JOIN vendors v ON sv.vendor_id = v.id"
+        " WHERE sv.particular_id = %s",
+        (particular_id,)
+    ).fetchone()
+    conn.close()
+    return row

@@ -47,6 +47,9 @@ from database.db import (
     get_enquiry_by_id, update_enquiry, update_enquiry_status,
     get_particular_types, ensure_particular_type,
     get_particulars_by_enquiry, create_enquiry_particular, delete_enquiry_particular,
+    get_particulars_by_shipment, get_shipment_particular_by_id,
+    create_shipment_particular, update_shipment_particular, delete_shipment_particular,
+    get_sv_by_particular,
     generate_customer_vendor_code,
     ENQUIRY_STATUSES, ENQUIRY_PRIORITIES, WEIGHT_UNITS, CONSIGNMENT_TYPES,
 )
@@ -1097,11 +1100,36 @@ def enquiry_convert(enquiry_id):
         incoterms=incoterms, status=initial_status,
         shipment_date=enq.get("enquiry_date"),
         description=description,
+        enquiry_id=enquiry_id,
     )
+    new_shipment_id = new_shipment["id"]
+    for ep in get_particulars_by_enquiry(enquiry_id):
+        create_shipment_particular(
+            shipment_id=new_shipment_id,
+            user_id=uid,
+            data={
+                "particular_type": ep["particular_type"],
+                "sac_hsn":         ep["sac_hsn"],
+                "qty":             ep["qty"],
+                "ex_rate":         ep["ex_rate"],
+                "weight":          ep["weight"],
+                "weight_unit":     ep["weight_unit"],
+                "offered_rate":    ep["offered_rate"],
+                "use_formula":     ep["use_formula"],
+                "expense":         ep["expense"],
+                "tax_rate":        ep["tax_rate"],
+                "cgst":            ep["cgst"],
+                "sgst":            ep["sgst"],
+                "igst":            ep["igst"],
+                "total":           ep["total"],
+                "currency":        ep["currency"],
+            },
+            enquiry_particular_id=ep["id"],
+        )
     update_enquiry_status(enquiry_id, "CONVERTED")
     log_alert(uid, "enquiry", enquiry_id, enq["enquiry_number"], "converted",
               f"Enquiry {enq['enquiry_number']} converted to shipment {shipment_number}")
-    return jsonify({"ok": True, "redirect": url_for("shipment_detail", shipment_id=new_shipment["id"])})
+    return jsonify({"ok": True, "redirect": url_for("shipment_detail", id=new_shipment_id)})
 
 
 @app.route("/emails")
@@ -1908,41 +1936,48 @@ def shipment_detail(id):
     sv_list = get_vendors_by_shipment(id)
     payments_map = get_payments_by_shipment(id)
 
-    payable_vendors    = [dict(v) for v in sv_list if v["billing_type"] == "PAYABLE"]
-    receivable_vendors = [dict(v) for v in sv_list if v["billing_type"] == "RECEIVABLE"]
+    payable_vendors = [dict(v) for v in sv_list if v["billing_type"] == "PAYABLE"]
 
-    for v in payable_vendors + receivable_vendors:
+    for v in payable_vendors:
         v["payments"]    = payments_map.get(v["id"], [])
         v["paid_amount"] = round(sum(p["amount"] for p in v["payments"]), 2)
         v["balance"]     = round(float(v["amount"]) - v["paid_amount"], 2)
 
-    active_vendors  = [v for v in get_all_vendors(user_id=session["user_id"]) if v["status"] == "ACTIVE"]
+    particulars = get_particulars_by_shipment(id)
+    particular_vendor_map = {}
+    for p in particulars:
+        sv = get_sv_by_particular(p["id"])
+        if sv:
+            particular_vendor_map[p["id"]] = dict(sv)
+
+    active_vendors   = [v for v in get_all_vendors(user_id=session["user_id"]) if v["status"] == "ACTIVE"]
     inbound_vendors  = [v for v in active_vendors if v["vendor_type"] == "INBOUND"]
     outbound_vendors = [v for v in active_vendors if v["vendor_type"] == "OUTBOUND"]
-    total_expenses  = sum(e["amount"] for e in expenses)
-    payables    = get_total_payables_by_shipment(id)
-    receivables = get_total_receivables_by_shipment(id)
+    total_expenses   = sum(e["amount"] for e in expenses)
+    payables         = get_total_payables_by_shipment(id)
+    receivables      = get_total_receivables_by_shipment(id)
     payables_paid    = round(sum(v["paid_amount"] for v in payable_vendors), 2)
-    receivables_rcvd = round(sum(v["paid_amount"] for v in receivable_vendors), 2)
 
     return render_template(
         "shipment_detail.html",
         shipment=shipment,
         expenses=expenses,
         payable_vendors=payable_vendors,
-        receivable_vendors=receivable_vendors,
+        particulars=particulars,
+        particular_vendor_map=particular_vendor_map,
         inbound_vendors=inbound_vendors,
         outbound_vendors=outbound_vendors,
         total_expenses=total_expenses,
         payables=payables,
         receivables=receivables,
         payables_paid=payables_paid,
-        receivables_rcvd=receivables_rcvd,
         categories=EXPENSE_CATEGORIES,
         relationship_types=RELATIONSHIP_TYPES,
         billing_types=BILLING_TYPES,
         payment_statuses=PAYMENT_STATUSES,
         currencies=CURRENCIES,
+        particular_types=get_particular_types(session["user_id"]),
+        weight_units=WEIGHT_UNITS,
         today=date.today().isoformat(),
         active_section="shipments",
     )
@@ -2288,6 +2323,185 @@ def delete_shipment_vendor_route(shipment_id, sv_id):
         description=f"Billing entry deleted on shipment {shipment['shipment_number']}",
     )
     return jsonify({"ok": True})
+
+
+# ── Shipment Particulars CRUD ─────────────────────────────────────────────────
+
+@app.route("/shipments/<int:shipment_id>/particulars/add", methods=["POST"])
+def add_shipment_particular(shipment_id):
+    if not session.get("user_id"):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+    shipment = get_shipment_by_id(shipment_id)
+    if shipment is None:
+        abort(404)
+    if shipment["user_id"] != session["user_id"]:
+        abort(403)
+
+    particular_type = request.form.get("particular_type", "").strip()
+    custom_label = request.form.get("custom_label", "").strip()
+    if particular_type == "Other" and custom_label:
+        particular_type = custom_label
+    if not particular_type:
+        return redirect(url_for("shipment_detail", id=shipment_id))
+
+    ensure_particular_type(session["user_id"], particular_type)
+    create_shipment_particular(
+        shipment_id=shipment_id,
+        user_id=session["user_id"],
+        data={
+            "particular_type": particular_type,
+            "sac_hsn":         request.form.get("sac_hsn", "").strip() or None,
+            "qty":             request.form.get("qty", 1),
+            "ex_rate":         request.form.get("ex_rate", 0),
+            "weight":          request.form.get("weight", 0),
+            "weight_unit":     request.form.get("weight_unit", "KGS"),
+            "offered_rate":    request.form.get("offered_rate", 0),
+            "use_formula":     request.form.get("use_formula") in ("on", "1", "true"),
+            "expense":         request.form.get("expense", 0),
+            "tax_rate":        request.form.get("tax_rate", 0),
+            "cgst":            request.form.get("cgst", 0),
+            "sgst":            request.form.get("sgst", 0),
+            "igst":            request.form.get("igst", 0),
+            "total":           request.form.get("total", 0),
+            "currency":        request.form.get("currency", "INR"),
+        },
+    )
+    log_alert(session["user_id"], "shipment", shipment_id,
+              shipment["shipment_number"], "PARTICULAR_ADDED",
+              f"Particular '{particular_type}' added to {shipment['shipment_number']}")
+    return redirect(url_for("shipment_detail", id=shipment_id))
+
+
+@app.route("/shipments/<int:shipment_id>/particulars/<int:pid>/edit", methods=["POST"])
+def edit_shipment_particular(shipment_id, pid):
+    if not session.get("user_id"):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+    shipment = get_shipment_by_id(shipment_id)
+    if shipment is None:
+        abort(404)
+    if shipment["user_id"] != session["user_id"]:
+        abort(403)
+    part = get_shipment_particular_by_id(pid)
+    if part is None or part["shipment_id"] != shipment_id:
+        abort(404)
+
+    particular_type = request.form.get("particular_type", "").strip()
+    custom_label = request.form.get("custom_label", "").strip()
+    if particular_type == "Other" and custom_label:
+        particular_type = custom_label
+    if not particular_type:
+        return redirect(url_for("shipment_detail", id=shipment_id))
+
+    ensure_particular_type(session["user_id"], particular_type)
+    update_shipment_particular(
+        particular_id=pid,
+        data={
+            "particular_type": particular_type,
+            "sac_hsn":         request.form.get("sac_hsn", "").strip() or None,
+            "qty":             request.form.get("qty", 1),
+            "ex_rate":         request.form.get("ex_rate", 0),
+            "weight":          request.form.get("weight", 0),
+            "weight_unit":     request.form.get("weight_unit", "KGS"),
+            "offered_rate":    request.form.get("offered_rate", 0),
+            "use_formula":     request.form.get("use_formula") in ("on", "1", "true"),
+            "expense":         request.form.get("expense", 0),
+            "tax_rate":        request.form.get("tax_rate", 0),
+            "cgst":            request.form.get("cgst", 0),
+            "sgst":            request.form.get("sgst", 0),
+            "igst":            request.form.get("igst", 0),
+            "total":           request.form.get("total", 0),
+            "currency":        request.form.get("currency", "INR"),
+        },
+    )
+    log_alert(session["user_id"], "shipment", shipment_id,
+              shipment["shipment_number"], "PARTICULAR_UPDATED",
+              f"Particular '{particular_type}' updated on {shipment['shipment_number']}")
+    return redirect(url_for("shipment_detail", id=shipment_id))
+
+
+@app.route("/shipments/<int:shipment_id>/particulars/<int:pid>/delete", methods=["POST"])
+def delete_shipment_particular_route(shipment_id, pid):
+    if not session.get("user_id"):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+    shipment = get_shipment_by_id(shipment_id)
+    if shipment is None:
+        abort(404)
+    if shipment["user_id"] != session["user_id"]:
+        abort(403)
+    part = get_shipment_particular_by_id(pid)
+    if part is None or part["shipment_id"] != shipment_id:
+        abort(404)
+
+    delete_shipment_particular(pid)
+    log_alert(session["user_id"], "shipment", shipment_id,
+              shipment["shipment_number"], "PARTICULAR_DELETED",
+              f"Particular deleted from {shipment['shipment_number']}")
+    return jsonify({"ok": True})
+
+
+@app.route("/shipments/<int:shipment_id>/particulars/<int:pid>/assign-vendor", methods=["POST"])
+def assign_particular_vendor(shipment_id, pid):
+    if not session.get("user_id"):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+    shipment = get_shipment_by_id(shipment_id)
+    if shipment is None:
+        abort(404)
+    if shipment["user_id"] != session["user_id"]:
+        abort(403)
+    part = get_shipment_particular_by_id(pid)
+    if part is None or part["shipment_id"] != shipment_id:
+        abort(404)
+
+    def _f(key):
+        v = request.form.get(key, "").strip()
+        return v or None
+
+    def _num(key, cast, default):
+        try:
+            return cast(request.form.get(key, "").strip())
+        except (ValueError, TypeError):
+            return default
+
+    vendor_id = _num("vendor_id", int, None)
+    if not vendor_id:
+        return redirect(url_for("shipment_detail", id=shipment_id))
+
+    payment_status = request.form.get("payment_status", "PENDING")
+    if payment_status not in PAYMENT_STATUSES:
+        payment_status = "PENDING"
+
+    existing_sv = get_sv_by_particular(pid)
+    if existing_sv:
+        update_shipment_vendor(
+            sv_id=existing_sv["id"],
+            relationship_type=existing_sv["relationship_type"],
+            billing_type="PAYABLE",
+            amount=_num("amount", float, 0.0),
+            currency=request.form.get("currency", "INR") or "INR",
+            invoice_number=_f("invoice_number"),
+            invoice_date=_f("invoice_date"),
+            due_date=_f("due_date"),
+            payment_status=payment_status,
+            notes=_f("notes"),
+            particular_id=pid,
+        )
+    else:
+        relationship_type = _f("relationship_type") or "TRANSPORTER"
+        create_shipment_vendor(
+            vendor_id=vendor_id,
+            shipment_id=shipment_id,
+            relationship_type=relationship_type,
+            billing_type="PAYABLE",
+            amount=_num("amount", float, 0.0),
+            currency=request.form.get("currency", "INR") or "INR",
+            invoice_number=_f("invoice_number"),
+            invoice_date=_f("invoice_date"),
+            due_date=_f("due_date"),
+            payment_status=payment_status,
+            notes=_f("notes"),
+            particular_id=pid,
+        )
+    return redirect(url_for("shipment_detail", id=shipment_id))
 
 
 @app.route("/shipments/<int:shipment_id>/vendors/<int:sv_id>/payments/add", methods=["POST"])
