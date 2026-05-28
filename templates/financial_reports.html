@@ -2,7 +2,6 @@
 {% block title %}Financial Reports — LogiTrack{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}" />
-<link rel="stylesheet" href="{{ url_for('static', filename='css/billing.css') }}" />
 <link rel="stylesheet" href="{{ url_for('static', filename='css/reports.css') }}" />
 {% endblock %}
 {% block content %}
@@ -12,85 +11,104 @@
   <section class="profile-section">
     <div class="profile-container">
 
-      <h2 class="reports-page-title">Financial Reports</h2>
+      <!-- Page header -->
+      <div class="profile-header">
+        <div class="profile-user-info">
+          <div class="profile-meta">
+            <span class="profile-name">Financial Reports</span>
+            <span class="profile-meta-sep">·</span>
+            <span class="profile-email">Expense analysis</span>
+          </div>
+        </div>
+      </div>
 
       <!-- Filter bar -->
-      <div class="filter-bar">
-        <div class="filter-presets">
-          <a
-            href="{{ url_for('financial_reports') }}"
-            class="filter-preset-btn{% if active_preset == 'all' %} filter-preset-btn--active{% endif %}"
-          >All Time</a>
-          <a
-            href="{{ url_for('financial_reports', from_date=presets.this_month[0], to_date=presets.this_month[1]) }}"
-            class="filter-preset-btn{% if active_preset == 'this_month' %} filter-preset-btn--active{% endif %}"
-          >This Month</a>
-          <a
-            href="{{ url_for('financial_reports', from_date=presets.last_month[0], to_date=presets.last_month[1]) }}"
-            class="filter-preset-btn{% if active_preset == 'last_month' %} filter-preset-btn--active{% endif %}"
-          >Last Month</a>
-          <a
-            href="{{ url_for('financial_reports', from_date=presets.last_3_months[0], to_date=presets.last_3_months[1]) }}"
-            class="filter-preset-btn{% if active_preset == 'last_3_months' %} filter-preset-btn--active{% endif %}"
-          >Last 3 Months</a>
+      <div class="profile-card reports-filter-card reports-filter-card--split">
+        <div class="reports-filter-presets">
+          <a href="{{ url_for('financial_reports') }}"
+             class="reports-preset-btn{% if active_preset == 'all' %} reports-preset-btn--active{% endif %}">All Time</a>
+          <a href="{{ url_for('financial_reports', from_date=presets.this_month[0], to_date=presets.this_month[1]) }}"
+             class="reports-preset-btn{% if active_preset == 'this_month' %} reports-preset-btn--active{% endif %}">This Month</a>
+          <a href="{{ url_for('financial_reports', from_date=presets.last_month[0], to_date=presets.last_month[1]) }}"
+             class="reports-preset-btn{% if active_preset == 'last_month' %} reports-preset-btn--active{% endif %}">Last Month</a>
+          <a href="{{ url_for('financial_reports', from_date=presets.last_3_months[0], to_date=presets.last_3_months[1]) }}"
+             class="reports-preset-btn{% if active_preset == 'last_3_months' %} reports-preset-btn--active{% endif %}">Last 3 Months</a>
         </div>
-        <form class="filter-custom-form" method="get" action="{{ url_for('financial_reports') }}">
-          <input class="filter-date-input" type="date" name="from_date" value="{{ from_date }}" aria-label="From date" />
-          <span class="filter-date-sep">to</span>
-          <input class="filter-date-input" type="date" name="to_date" value="{{ to_date }}" aria-label="To date" />
-          <button type="submit" class="filter-apply-btn">Apply</button>
+        <form class="reports-filter-form" method="get" action="{{ url_for('financial_reports') }}">
+          <div class="reports-filter-field">
+            <label class="reports-filter-label">From</label>
+            <input class="reports-filter-select" type="date" name="from_date" value="{{ from_date }}" aria-label="From date">
+          </div>
+          <div class="reports-filter-field">
+            <label class="reports-filter-label">To</label>
+            <input class="reports-filter-select" type="date" name="to_date" value="{{ to_date }}" aria-label="To date">
+          </div>
+          <div class="reports-filter-actions">
+            <button type="submit" class="profile-add-btn reports-apply-btn">Apply</button>
+          </div>
         </form>
       </div>
 
       <!-- Summary cards -->
-      <div class="billing-stats-grid" style="margin-bottom: 1.25rem;">
-        <div class="stat-card billing-stat-card">
+      <div class="profile-stats reports-stats--4col">
+        <div class="stat-card stat-card--billing">
           <span class="stat-label">Total Expenses</span>
-          <span class="stat-value">₹{{ "%.2f"|format(link_summary.total) }}</span>
+          <span class="stat-value amount-payable">₹{{ link_summary.total | inr }}</span>
+          <div class="stat-billing-sub">
+            <span class="stat-sub-item">{{ link_summary.total_count }} transaction{{ 's' if link_summary.total_count != 1 else '' }}</span>
+          </div>
         </div>
-        <div class="stat-card billing-stat-card">
+        <div class="stat-card stat-card--billing">
+          <span class="stat-label">Shipment-Linked</span>
+          <span class="stat-value amount-payable">₹{{ link_summary.linked_total | inr }}</span>
+          <div class="stat-billing-sub">
+            <span class="stat-sub-item">{{ link_summary.linked_count }} transaction{{ 's' if link_summary.linked_count != 1 else '' }}</span>
+          </div>
+        </div>
+        <div class="stat-card stat-card--billing">
+          <span class="stat-label">Standalone</span>
+          <span class="stat-value amount-payable">₹{{ link_summary.standalone_total | inr }}</span>
+          <div class="stat-billing-sub">
+            <span class="stat-sub-item">{{ link_summary.standalone_count }} transaction{{ 's' if link_summary.standalone_count != 1 else '' }}</span>
+          </div>
+        </div>
+        <div class="stat-card stat-card--billing">
           <span class="stat-label">Total Transactions</span>
           <span class="stat-value">{{ link_summary.total_count }}</span>
-        </div>
-        <div class="stat-card billing-stat-card">
-          <span class="stat-label">Shipment-Linked</span>
-          <span class="stat-value">₹{{ "%.2f"|format(link_summary.linked_total) }}</span>
-          <span class="stat-sub">{{ link_summary.linked_count }} transaction{{ 's' if link_summary.linked_count != 1 else '' }}</span>
-        </div>
-        <div class="stat-card billing-stat-card">
-          <span class="stat-label">Standalone</span>
-          <span class="stat-value">₹{{ "%.2f"|format(link_summary.standalone_total) }}</span>
-          <span class="stat-sub">{{ link_summary.standalone_count }} transaction{{ 's' if link_summary.standalone_count != 1 else '' }}</span>
+          <div class="stat-billing-sub">
+            <span class="stat-sub-item">All periods combined</span>
+          </div>
         </div>
       </div>
 
-      <!-- Two-column tables -->
+      <!-- Two-column breakdown -->
       <div class="reports-two-col">
 
         <!-- Category Breakdown -->
-        <div class="reports-table-card">
-          <h3 class="reports-section-title">By Category</h3>
-          {% if not categories %}
-          <div class="billing-empty">
-            <p>No expenses in this period.</p>
+        <div class="profile-card">
+          <div class="card-header-row">
+            <h2 class="profile-card-title">By Category</h2>
+            <span class="reports-inr-note">₹ All amounts in INR</span>
           </div>
+          {% if not categories %}
+          <div class="txn-empty">No expenses in this period.</div>
           {% else %}
           <table class="reports-table">
             <thead>
               <tr>
                 <th>Category</th>
-                <th>Amount</th>
-                <th>Transactions</th>
-                <th>%</th>
+                <th class="text-right">Amount</th>
+                <th class="text-right">Txns</th>
+                <th class="text-right">%</th>
               </tr>
             </thead>
             <tbody>
               {% for cat in categories %}
               <tr>
                 <td>{{ cat.name }}</td>
-                <td class="reports-amount">{{ cat.amount }}</td>
-                <td>{{ cat.count }}</td>
-                <td>{{ cat.pct }}%</td>
+                <td class="text-right txn-amount amount-payable">{{ cat.amount }}</td>
+                <td class="text-right txn-date">{{ cat.count }}</td>
+                <td class="text-right txn-date">{{ cat.pct }}%</td>
               </tr>
               {% endfor %}
             </tbody>
@@ -99,27 +117,28 @@
         </div>
 
         <!-- Monthly Trend -->
-        <div class="reports-table-card">
-          <h3 class="reports-section-title">Monthly Trend</h3>
-          {% if not monthly_trend %}
-          <div class="billing-empty">
-            <p>No expenses in this period.</p>
+        <div class="profile-card">
+          <div class="card-header-row">
+            <h2 class="profile-card-title">Monthly Trend</h2>
+            <span class="reports-inr-note">₹ All amounts in INR</span>
           </div>
+          {% if not monthly_trend %}
+          <div class="txn-empty">No expenses in this period.</div>
           {% else %}
           <table class="reports-table">
             <thead>
               <tr>
                 <th>Month</th>
-                <th>Amount</th>
-                <th>Transactions</th>
+                <th class="text-right">Amount</th>
+                <th class="text-right">Txns</th>
               </tr>
             </thead>
             <tbody>
               {% for row in monthly_trend %}
               <tr>
                 <td>{{ row.month_label }}</td>
-                <td class="reports-amount">₹{{ "%.2f"|format(row.total) }}</td>
-                <td>{{ row.count }}</td>
+                <td class="text-right txn-amount amount-payable">{{ row.total | inr }}</td>
+                <td class="text-right txn-date">{{ row.count }}</td>
               </tr>
               {% endfor %}
             </tbody>

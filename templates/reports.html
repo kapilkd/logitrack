@@ -31,28 +31,28 @@
         </div>
         <div class="stat-card stat-card--billing">
           <span class="stat-label">Revenue</span>
-          <span class="stat-value amount-receivable">₹{{ "%.2f"|format(stats.total_receivable) }}</span>
+          <span class="stat-value amount-receivable">₹{{ stats.total_receivable | inr }}</span>
           <div class="stat-billing-sub">
             <span class="stat-sub-item">Receivables from customers</span>
           </div>
         </div>
         <div class="stat-card stat-card--billing">
           <span class="stat-label">Vendor Costs</span>
-          <span class="stat-value amount-payable">₹{{ "%.2f"|format(stats.total_payable) }}</span>
+          <span class="stat-value amount-payable">₹{{ stats.total_payable | inr }}</span>
           <div class="stat-billing-sub">
             <span class="stat-sub-item">Outbound vendor payables</span>
           </div>
         </div>
         <div class="stat-card stat-card--billing">
           <span class="stat-label">Expenses</span>
-          <span class="stat-value amount-payable">₹{{ "%.2f"|format(stats.expense_total) }}</span>
+          <span class="stat-value amount-payable">₹{{ stats.expense_total | inr }}</span>
           <div class="stat-billing-sub">
             <span class="stat-sub-item">Shipment-linked expenses</span>
           </div>
         </div>
         <div class="stat-card stat-card--billing">
           <span class="stat-label">Total Outflow</span>
-          <span class="stat-value amount-payable">₹{{ "%.2f"|format(stats.total_cost) }}</span>
+          <span class="stat-value amount-payable">₹{{ stats.total_cost | inr }}</span>
           <div class="stat-billing-sub">
             <span class="stat-sub-item">Vendor costs + Expenses</span>
           </div>
@@ -60,7 +60,7 @@
         <div class="stat-card stat-card--billing">
           <span class="stat-label">Net Position</span>
           <span class="stat-value {% if stats.net_position > 0 %}reports-net-positive{% elif stats.net_position < 0 %}reports-net-negative{% else %}reports-net-zero{% endif %}">
-            {% if stats.net_position >= 0 %}+{% endif %}₹{{ "%.2f"|format(stats.net_position) }}
+            {% if stats.net_position >= 0 %}+{% endif %}₹{{ stats.net_position | inr }}
           </span>
           <div class="stat-billing-sub">
             <span class="stat-sub-item">Revenue − Total Outflow</span>
@@ -73,7 +73,7 @@
         <form class="reports-filter-form" method="get" action="{{ url_for('reports') }}">
           <div class="reports-filter-field">
             <label class="reports-filter-label">Status</label>
-            <select class="billing-filter-select" name="status">
+            <select class="reports-filter-select" name="status">
               <option value="">All statuses</option>
               {% for s in SHIPMENT_STATUSES %}
               <option value="{{ s }}" {% if filters.status == s %}selected{% endif %}>{{ s | replace('_', ' ') | title }}</option>
@@ -82,16 +82,16 @@
           </div>
           <div class="reports-filter-field">
             <label class="reports-filter-label">From Date</label>
-            <input type="date" class="billing-filter-select" name="from_date" value="{{ filters.from_date }}">
+            <input type="date" class="reports-filter-select" name="from_date" value="{{ filters.from_date }}">
           </div>
           <div class="reports-filter-field">
             <label class="reports-filter-label">To Date</label>
-            <input type="date" class="billing-filter-select" name="to_date" value="{{ filters.to_date }}">
+            <input type="date" class="reports-filter-select" name="to_date" value="{{ filters.to_date }}">
           </div>
           <div class="reports-filter-actions">
             <button type="submit" class="profile-add-btn reports-apply-btn">Apply</button>
             {% if filters.status or filters.from_date or filters.to_date %}
-            <a href="{{ url_for('reports') }}" class="billing-filter-clear">Clear</a>
+            <a href="{{ url_for('reports') }}" class="reports-filter-clear">Clear</a>
             {% endif %}
           </div>
         </form>
@@ -101,6 +101,7 @@
       <div class="profile-card">
         <div class="card-header-row">
           <h2 class="profile-card-title">Shipment Breakdown</h2>
+          <span class="reports-inr-note">₹ All amounts in INR</span>
         </div>
         {% if not shipments %}
         <div class="txn-empty">
@@ -141,17 +142,17 @@
                 </span>
               </td>
               <td class="txn-date">{{ s.shipment_date or '—' }}</td>
-              <td class="txn-amount text-right amount-payable">₹{{ "%.2f"|format(s.expense_total) }}</td>
-              <td class="txn-amount text-right amount-payable">₹{{ "%.2f"|format(s.total_payable) }}</td>
+              <td class="txn-amount text-right amount-payable">{{ s.expense_total | inr }}</td>
+              <td class="txn-amount text-right amount-payable">{{ s.total_payable | inr }}</td>
               <td class="txn-amount text-right reports-col-cost">
-                <strong>₹{{ "%.2f"|format(s.total_cost) }}</strong>
+                <strong>{{ s.total_cost | inr }}</strong>
               </td>
-              <td class="txn-amount text-right amount-receivable">₹{{ "%.2f"|format(s.total_receivable) }}</td>
+              <td class="txn-amount text-right amount-receivable">{{ s.total_receivable | inr }}</td>
               <td class="txn-amount text-right
                 {%- if s.net_position > 0 %} reports-net-positive
                 {%- elif s.net_position < 0 %} reports-net-negative
                 {%- else %} reports-net-zero{% endif %}">
-                {% if s.net_position >= 0 %}+{% endif %}₹{{ "%.2f"|format(s.net_position) }}
+                {% if s.net_position >= 0 %}+{% endif %}{{ s.net_position | inr }}
               </td>
             </tr>
             {% endfor %}
@@ -159,17 +160,17 @@
           <tfoot>
             <tr class="reports-totals-row">
               <td colspan="4" class="reports-totals-label">Totals</td>
-              <td class="txn-amount text-right amount-payable">₹{{ "%.2f"|format(stats.expense_total) }}</td>
-              <td class="txn-amount text-right amount-payable">₹{{ "%.2f"|format(stats.total_payable) }}</td>
+              <td class="txn-amount text-right amount-payable">{{ stats.expense_total | inr }}</td>
+              <td class="txn-amount text-right amount-payable">{{ stats.total_payable | inr }}</td>
               <td class="txn-amount text-right reports-col-cost">
-                <strong>₹{{ "%.2f"|format(stats.total_cost) }}</strong>
+                <strong>{{ stats.total_cost | inr }}</strong>
               </td>
-              <td class="txn-amount text-right amount-receivable">₹{{ "%.2f"|format(stats.total_receivable) }}</td>
+              <td class="txn-amount text-right amount-receivable">{{ stats.total_receivable | inr }}</td>
               <td class="txn-amount text-right
                 {%- if stats.net_position > 0 %} reports-net-positive
                 {%- elif stats.net_position < 0 %} reports-net-negative
                 {%- else %} reports-net-zero{% endif %}">
-                {% if stats.net_position >= 0 %}+{% endif %}₹{{ "%.2f"|format(stats.net_position) }}
+                {% if stats.net_position >= 0 %}+{% endif %}{{ stats.net_position | inr }}
               </td>
             </tr>
           </tfoot>

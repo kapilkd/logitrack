@@ -238,6 +238,13 @@
 .enq-status-clickable:hover {
     opacity: 0.8;
 }
+.closed-enquiries-body .enq-status-clickable {
+    cursor: default;
+    pointer-events: none;
+}
+.closed-enquiries-body .enq-status-clickable:hover {
+    opacity: 1;
+}
 
 .enq-inline-status-select {
     font-size: 0.72rem;

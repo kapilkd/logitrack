@@ -69,6 +69,24 @@ if not _IS_PRODUCTION:
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
+
+@app.template_filter('inr')
+def inr_format(value):
+    try:
+        integer_part = str(int(round(float(value))))
+        if len(integer_part) > 3:
+            last_three = integer_part[-3:]
+            rest = integer_part[:-3]
+            groups = []
+            while len(rest) > 2:
+                groups.insert(0, rest[-2:])
+                rest = rest[:-2]
+            if rest:
+                groups.insert(0, rest)
+            integer_part = ','.join(groups) + ',' + last_three
+        return integer_part
+    except (ValueError, TypeError):
+        return '—'
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SECURE"] = bool(_IS_PRODUCTION)
