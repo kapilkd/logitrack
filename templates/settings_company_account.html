@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Company Account Settings — LogiTrack{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}" />
+{% endblock %}
+{% block content %}
+<div class="profile-shell">
+  {% include '_sidebar.html' %}
+
+  <section class="profile-section">
+    <div class="profile-container">
+
+      <h2 class="settings-page-title">Company Account Settings</h2>
+
+      {% if error %}
+      <div class="settings-alert settings-alert--error">{{ error }}</div>
+      {% endif %}
+      {% if success %}
+      <div class="settings-alert settings-alert--success">{{ success }}</div>
+      {% endif %}
+
+      <form method="POST" action="{{ url_for('settings_company_account') }}">
+
+        <div class="settings-section">
+          <h3 class="settings-section-title">Bank Account Details</h3>
+          <div class="settings-form-grid">
+            <div class="form-group">
+              <label for="account_name">Account Name</label>
+              <input id="account_name" name="account_name" type="text" class="form-input"
+                value="{{ (form.account_name if form else (profile.account_name if profile else '')) or '' }}"
+                placeholder="Name as per bank records">
+            </div>
+            <div class="form-group">
+              <label for="account_no">Account No</label>
+              <input id="account_no" name="account_no" type="text" class="form-input"
+                value="{{ (form.account_no if form else (profile.account_no if profile else '')) or '' }}"
+                placeholder="Bank account number">
+            </div>
+            <div class="form-group">
+              <label for="bank_name">Bank Name</label>
+              <input id="bank_name" name="bank_name" type="text" class="form-input"
+                value="{{ (form.bank_name if form else (profile.bank_name if profile else '')) or '' }}"
+                placeholder="e.g. State Bank of India">
+            </div>
+            <div class="form-group">
+              <label for="branch">Branch</label>
+              <input id="branch" name="branch" type="text" class="form-input"
+                value="{{ (form.branch if form else (profile.branch if profile else '')) or '' }}"
+                placeholder="Branch name or address">
+            </div>
+            <div class="form-group">
+              <label for="ifsc_code">IFSC Code</label>
+              <input id="ifsc_code" name="ifsc_code" type="text" class="form-input"
+                value="{{ (form.ifsc_code if form else (profile.ifsc_code if profile else '')) or '' }}"
+                placeholder="e.g. SBIN0001234">
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-form-actions">
+          <button type="submit" class="btn-primary">Save Changes</button>
+        </div>
+
+      </form>
+
+    </div>
+  </section>
+</div>
+{% endblock %}

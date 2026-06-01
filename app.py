@@ -37,7 +37,7 @@ from database.db import (
     create_sv_payment, get_payments_by_sv, get_sv_payment_by_id,
     delete_sv_payment, get_payments_by_shipment,
     log_alert,
-    get_company_profile, upsert_company_profile,
+    get_company_profile, upsert_company_profile, upsert_company_account,
     get_all_contact_emails_by_user,
     upsert_gmail_account, get_gmail_account, delete_gmail_account,
     save_email, get_emails_by_user, get_email_by_id, delete_email,
@@ -1807,6 +1807,55 @@ def settings_company_profile():
         incoterms=INCOTERMS,
         active_section="settings",
         success="Company profile saved.",
+    )
+
+
+@app.route("/settings/company-account", methods=["GET", "POST"])
+def settings_company_account():
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    uid = session["user_id"]
+    user = get_user_by_id(uid)
+    if user is None:
+        session.clear()
+        return redirect(url_for("login"))
+
+    if request.method == "GET":
+        profile = get_company_profile(uid)
+        return render_template(
+            "settings_company_account.html",
+            user=user,
+            profile=profile,
+            active_section="settings",
+        )
+
+    def _f(key):
+        v = request.form.get(key, "").strip()
+        return v or None
+
+    upsert_company_account(
+        user_id=uid,
+        account_name=_f("account_name"),
+        account_no=_f("account_no"),
+        bank_name=_f("bank_name"),
+        branch=_f("branch"),
+        ifsc_code=_f("ifsc_code"),
+        upi_id=_f("upi_id"),
+    )
+    log_alert(
+        user_id=uid,
+        entity_type="COMPANY_PROFILE",
+        entity_id=uid,
+        entity_label="Company Account",
+        action="UPDATED",
+        description="Company bank account details updated",
+    )
+    return render_template(
+        "settings_company_account.html",
+        user=user,
+        profile=get_company_profile(uid),
+        active_section="settings",
+        success="Account details saved.",
     )
 
 

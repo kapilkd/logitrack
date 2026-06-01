@@ -69,26 +69,29 @@ body {
   text-decoration: underline;
 }
 
-/* ── B. Company header ───────────────────────────── */
+/* ── B+C. Company header + Tax IDs (merged block) ── */
+.inv-header-block {
+  border-bottom: 1px solid var(--inv-border);
+}
+
 .inv-header {
   display: flex;
   align-items: center;
-  border-bottom: 1px solid var(--inv-border);
   padding: 8px 10px;
   gap: 8px;
 }
 
 .inv-header-logo {
   flex: 0 0 auto;
-  width: 110px;
+  width: 150px;
   display: flex;
   align-items: center;
   justify-content: flex-start;
 }
 
 .inv-logo {
-  max-height: 64px;
-  max-width: 105px;
+  max-height: 96px;
+  max-width: 148px;
   object-fit: contain;
 }
 
@@ -112,24 +115,26 @@ body {
 
 .inv-header-spacer {
   flex: 0 0 auto;
-  width: 110px;
+  width: 150px;
 }
 
-/* ── C. Tax ID row ───────────────────────────────── */
-.inv-taxid-row {
+/* ── Row 1 & 2: 3-column layout ─────────────────── */
+.inv-row3 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   border-bottom: 1px solid var(--inv-border);
 }
 
-.inv-taxid-col {
-  padding: 3px 8px;
+.inv-col3 {
+  padding: 5px 8px;
+  font-size: 10px;
 }
 
-.inv-taxid-col:first-child {
+.inv-col3-border {
   border-right: 1px solid var(--inv-border);
 }
 
+/* Tax ID items (Row 1 cols 1 & 2) */
 .inv-taxid-item {
   display: flex;
   align-items: baseline;
@@ -140,27 +145,17 @@ body {
 .inv-taxid-label {
   font-weight: 700;
   white-space: nowrap;
-  min-width: 55px;
+  min-width: 50px;
 }
 
 .inv-taxid-sep {
   color: var(--inv-muted);
+  flex-shrink: 0;
 }
 
-/* ── D. Customer | Invoice meta ──────────────────── */
-.inv-split-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  border-bottom: 1px solid var(--inv-border);
-}
-
-.inv-cust-block {
-  padding: 5px 8px;
-  border-right: 1px solid var(--inv-border);
-}
-
+/* Customer block (Row 1 col 3) */
 .inv-cust-header {
-  font-size: 9.5px;
+  font-size: 9px;
   font-weight: 700;
   margin-bottom: 3px;
   color: var(--inv-muted);
@@ -176,36 +171,15 @@ body {
 
 .inv-cust-detail {
   line-height: 1.6;
-  color: var(--inv-text);
 }
 
-.inv-cust-taxrow {
-  display: flex;
-  gap: 16px;
-  margin-top: 3px;
-  flex-wrap: wrap;
-}
-
-.inv-cust-taxitem {
-  display: flex;
-  gap: 3px;
-}
-
-.inv-cust-taxlabel {
-  font-weight: 700;
-}
-
-.inv-inv-block {
-  padding: 5px 8px;
-}
-
+/* Invoice meta (Row 2 col 1) */
 .inv-inv-no {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
-  text-align: right;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
   border-bottom: 1px solid var(--inv-border-lt);
-  padding-bottom: 4px;
+  padding-bottom: 3px;
 }
 
 .inv-meta-row {
@@ -213,7 +187,6 @@ body {
   justify-content: space-between;
   align-items: baseline;
   line-height: 1.75;
-  font-size: 10px;
 }
 
 .inv-meta-label {
@@ -226,21 +199,6 @@ body {
   text-align: right;
 }
 
-/* ── E. Shipment details grid ────────────────────── */
-.inv-ship-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  border-bottom: 1px solid var(--inv-border);
-}
-
-.inv-ship-col {
-  padding: 4px 8px;
-}
-
-.inv-ship-col:first-child {
-  border-right: 1px solid var(--inv-border);
-}
-
 .inv-kv {
   display: flex;
   align-items: baseline;
@@ -251,32 +209,17 @@ body {
 .inv-kv-label {
   font-weight: 700;
   white-space: nowrap;
-  min-width: 105px;
+  min-width: 110px;
 }
 
 .inv-kv-sep {
   padding: 0 4px;
   color: var(--inv-muted);
+  flex-shrink: 0;
 }
 
 .inv-kv-val {
   flex: 1;
-}
-
-.inv-kv-pair {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0;
-}
-
-.inv-kv-right {
-  display: flex;
-  align-items: baseline;
-  gap: 0;
-}
-
-.inv-kv-right .inv-kv-label {
-  min-width: 50px;
 }
 
 /* ── F. Line items table ─────────────────────────── */
@@ -388,9 +331,22 @@ body {
   margin-bottom: 2px;
 }
 
-.inv-payment-label {
-  font-weight: 700;
-  margin-top: 6px;
+.inv-bank-table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-top: 2px;
+}
+.inv-bank-label {
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 1px 0;
+  width: 80px;
+}
+.inv-bank-sep {
+  padding: 1px 4px;
+}
+.inv-bank-val {
+  padding: 1px 0;
 }
 
 .inv-fin-block {

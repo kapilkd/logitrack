@@ -399,6 +399,18 @@ def init_db(path=None):
         ADD COLUMN IF NOT EXISTS particular_id INTEGER
     """)
 
+    # Bank account fields added to company_profiles for the Company Account
+    # Settings page.
+    for col in [
+        "ADD COLUMN IF NOT EXISTS account_name TEXT",
+        "ADD COLUMN IF NOT EXISTS account_no   TEXT",
+        "ADD COLUMN IF NOT EXISTS bank_name    TEXT",
+        "ADD COLUMN IF NOT EXISTS branch       TEXT",
+        "ADD COLUMN IF NOT EXISTS ifsc_code    TEXT",
+        "ADD COLUMN IF NOT EXISTS upi_id       TEXT",
+    ]:
+        conn.execute(f"ALTER TABLE company_profiles {col}")
+
     conn.commit()
     conn.close()
 
@@ -1423,6 +1435,31 @@ def upsert_company_profile(user_id, company_name, legal_name=None, industry=None
              address_line1, address_line2, city, state, country, pincode,
              gst_number, pan_number, iec_code, currency, incoterms,
              logo_path, billing_terms),
+        )
+    conn.commit()
+    conn.close()
+
+
+def upsert_company_account(user_id, account_name=None, account_no=None,
+                           bank_name=None, branch=None, ifsc_code=None,
+                           upi_id=None):
+    conn = get_db()
+    existing = conn.execute(
+        "SELECT id FROM company_profiles WHERE user_id = %s", (user_id,)
+    ).fetchone()
+    if existing:
+        conn.execute(
+            "UPDATE company_profiles SET account_name=%s, account_no=%s,"
+            " bank_name=%s, branch=%s, ifsc_code=%s, upi_id=%s,"
+            " updated_at=CURRENT_TIMESTAMP WHERE user_id=%s",
+            (account_name, account_no, bank_name, branch, ifsc_code, upi_id, user_id),
+        )
+    else:
+        conn.execute(
+            "INSERT INTO company_profiles (user_id, account_name, account_no,"
+            " bank_name, branch, ifsc_code, upi_id, currency)"
+            " VALUES (%s, %s, %s, %s, %s, %s, %s, 'INR')",
+            (user_id, account_name, account_no, bank_name, branch, ifsc_code, upi_id),
         )
     conn.commit()
     conn.close()
