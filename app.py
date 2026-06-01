@@ -743,6 +743,63 @@ def shipment_bill_print(id):
     )
 
 
+def _rupees_in_words(amount):
+    if amount <= 0:
+        return 'Zero Only'
+    ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+            'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
+            'Seventeen', 'Eighteen', 'Nineteen']
+    tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
+    def _w(n):
+        if n == 0: return ''
+        if n < 20: return ones[n] + ' '
+        if n < 100: return tens[n // 10] + (' ' + ones[n % 10] if n % 10 else '') + ' '
+        return ones[n // 100] + ' Hundred ' + _w(n % 100)
+    n = int(round(amount))
+    parts = []
+    if n >= 10_000_000: parts.append(_w(n // 10_000_000).strip() + ' Crore'); n %= 10_000_000
+    if n >= 100_000:    parts.append(_w(n // 100_000).strip()    + ' Lakh');   n %= 100_000
+    if n >= 1_000:      parts.append(_w(n // 1_000).strip()      + ' Thousand'); n %= 1_000
+    if n > 0:           parts.append(_w(n).strip())
+    return ' '.join(parts) + ' Only'
+
+
+@app.route("/enquiries/<int:enquiry_id>/invoice")
+def enquiry_invoice(enquiry_id):
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    uid = session["user_id"]
+    enq = get_enquiry_by_id(enquiry_id)
+    if enq is None:
+        abort(404)
+    if enq["user_id"] != uid:
+        abort(403)
+    particulars     = get_particulars_by_enquiry(enquiry_id)
+    sub_total       = sum((p["expense"] or 0) for p in particulars)
+    total_tax       = sum((p["cgst"] or 0) + (p["sgst"] or 0) + (p["igst"] or 0) for p in particulars)
+    grand_total     = sum((p["total"] or 0) for p in particulars)
+    net_payable_raw = grand_total
+    net_payable     = round(net_payable_raw)
+    round_off       = net_payable - net_payable_raw
+    amount_in_words = _rupees_in_words(net_payable)
+    company         = get_company_profile(uid)
+    user            = get_user_by_id(uid)
+    return render_template(
+        "enquiry_invoice.html",
+        enq=enq,
+        particulars=particulars,
+        sub_total=sub_total,
+        total_tax=total_tax,
+        grand_total=grand_total,
+        net_payable=net_payable,
+        round_off=round_off,
+        amount_in_words=amount_in_words,
+        company=company,
+        user=user,
+        today=date.today().isoformat(),
+    )
+
+
 @app.route("/enquiries")
 def enquiries():
     if not session.get("user_id"):
