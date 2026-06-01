@@ -39,6 +39,9 @@
         <a href="{{ url_for('enquiry_particulars', enquiry_id=enq.id) }}"
            class="enq-action-btn">Manage Particulars</a>
         {% endif %}
+        <a href="{{ url_for('enquiry_invoice', enquiry_id=enq.id) }}"
+           class="enq-action-btn"
+           target="_blank">Generate Invoice</a>
         {% if enq.status not in ('CONVERTED', 'CLOSED') %}
         <select id="statusSelect" class="enq-status-select" aria-label="Change status">
           {% for s in statuses %}

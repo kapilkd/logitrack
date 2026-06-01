@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bill of Supply — {{ enq.enquiry_number }} — LogiTrack</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/enquiry_invoice.css') }}" />
+</head>
+<body>
+
+  <!-- ── No-print action bar ───────────────────────── -->
+  <div class="inv-actions no-print">
+    <button onclick="window.print()" class="inv-print-btn">Print / Save PDF</button>
+    <a href="{{ url_for('enquiry_detail', enquiry_id=enq.id) }}" class="inv-back-link">← Back to Enquiry</a>
+  </div>
+
+  <div class="inv-page">
+
+    <!-- ── A. Document title ─────────────────────────── -->
+    <div class="inv-doc-title">BILL OF SUPPLY</div>
+
+    <!-- ── B. Company header ─────────────────────────── -->
+    <div class="inv-header">
+      <div class="inv-header-logo">
+        {% if company and company.logo_path %}
+        <img src="{{ url_for('static', filename=company.logo_path) }}" class="inv-logo" alt="Logo" />
+        {% endif %}
+      </div>
+      <div class="inv-company-center">
+        <div class="inv-company-name">{{ (company.company_name if company) or user.name }}</div>
+        {% if company %}
+        <div class="inv-company-addr">
+          {% if company.address_line1 %}{{ company.address_line1 }}{% if company.address_line2 %}, {{ company.address_line2 }}{% endif %}<br>{% endif %}
+          {% if company.city or company.state or company.pincode %}
+          {{ [company.city, company.state] | select | join(', ') }}{% if company.pincode %} - {{ company.pincode }}{% endif %}<br>
+          {% endif %}
+          {% if company.country %}{{ company.country }}<br>{% endif %}
+          {% if company.phone %}Tel. No.-{{ company.phone }}{% if company.website %}, {{ company.website }}{% endif %}{% endif %}
+        </div>
+        {% endif %}
+      </div>
+      <div class="inv-header-spacer"></div>
+    </div>
+
+    <!-- ── C. Tax ID row ──────────────────────────────── -->
+    <div class="inv-taxid-row">
+      <div class="inv-taxid-col">
+        <div class="inv-taxid-item">
+          <span class="inv-taxid-label">GSTIN</span>
+          <span class="inv-taxid-sep">:</span>
+          <span>{{ (company.gst_number if company) or '' }}</span>
+        </div>
+        <div class="inv-taxid-item">
+          <span class="inv-taxid-label">PAN No</span>
+          <span class="inv-taxid-sep">:</span>
+          <span>{{ (company.pan_number if company) or '' }}</span>
+        </div>
+        <div class="inv-taxid-item">
+          <span class="inv-taxid-label">ACK</span>
+          <span class="inv-taxid-sep">:</span>
+          <span></span>
+        </div>
+      </div>
+      <div class="inv-taxid-col">
+        <div class="inv-taxid-item">
+          <span class="inv-taxid-label">State</span>
+          <span class="inv-taxid-sep">:</span>
+          <span>{{ (company.state if company) or '' }}</span>
+        </div>
+        <div class="inv-taxid-item">
+          <span class="inv-taxid-label">CIN</span>
+          <span class="inv-taxid-sep">:</span>
+          <span>{{ (company.iec_code if company) or '' }}</span>
+        </div>
+        <div class="inv-taxid-item">
+          <span class="inv-taxid-label">IRN</span>
+          <span class="inv-taxid-sep">:</span>
+          <span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── D. Customer | Invoice meta ────────────────── -->
+    <div class="inv-split-row">
+      <div class="inv-cust-block">
+        <div class="inv-cust-header">Customer :</div>
+        <div class="inv-cust-name">{{ enq.customer_name or '—' }}</div>
+        <div class="inv-cust-detail">
+          {% if enq.customer_email %}<div>{{ enq.customer_email }}</div>{% endif %}
+          {% if enq.customer_phone %}<div>{{ enq.customer_phone }}</div>{% endif %}
+          {% if enq.origin %}<div>{{ enq.origin }}{% if enq.destination %}, {{ enq.destination }}{% endif %}</div>{% endif %}
+        </div>
+        <div class="inv-cust-taxrow">
+          <div class="inv-cust-taxitem">
+            <span class="inv-cust-taxlabel">PAN No :</span>
+            <span>&nbsp;</span>
+          </div>
+          <div class="inv-cust-taxitem">
+            <span class="inv-cust-taxlabel">GSTIN :</span>
+            <span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+            <span class="inv-cust-taxlabel">State :</span>
+            <span>&nbsp;</span>
+          </div>
+        </div>
+      </div>
+      <div class="inv-inv-block">
+        <div class="inv-inv-no">Invoice No. :&nbsp; {{ enq.enquiry_number }}</div>
+        <div class="inv-meta-row">
+          <span class="inv-meta-label">Invoice Date :</span>
+          <span class="inv-meta-val">{{ enq.enquiry_date or today }}</span>
+        </div>
+        <div class="inv-meta-row">
+          <span class="inv-meta-label">Due Date :</span>
+          <span class="inv-meta-val">{{ enq.follow_up_date or '' }}</span>
+        </div>
+        <div class="inv-meta-row">
+          <span class="inv-meta-label">Place of Supply :</span>
+          <span class="inv-meta-val">{{ (company.state if company) or '' }}</span>
+        </div>
+        <div class="inv-meta-row">
+          <span class="inv-meta-label">Shipment No. :</span>
+          <span class="inv-meta-val">{{ enq.mawb or '' }}</span>
+        </div>
+        <div class="inv-meta-row">
+          <span class="inv-meta-label">Shipment Type :</span>
+          <span class="inv-meta-val">{{ enq.consignment_type or '' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── E. Shipment details grid ───────────────────── -->
+    <div class="inv-ship-grid">
+      <div class="inv-ship-col">
+        <div class="inv-kv inv-kv-pair">
+          <div class="inv-kv">
+            <span class="inv-kv-label">MAWB No.</span>
+            <span class="inv-kv-sep">:</span>
+            <span class="inv-kv-val">{{ enq.mawb or '' }}</span>
+          </div>
+          <div class="inv-kv inv-kv-right">
+            <span class="inv-kv-label">Date</span>
+            <span class="inv-kv-sep">:</span>
+            <span class="inv-kv-val"></span>
+          </div>
+        </div>
+        <div class="inv-kv inv-kv-pair">
+          <div class="inv-kv">
+            <span class="inv-kv-label">HAWB No.</span>
+            <span class="inv-kv-sep">:</span>
+            <span class="inv-kv-val">{{ enq.hawb or '' }}</span>
+          </div>
+          <div class="inv-kv inv-kv-right">
+            <span class="inv-kv-label">Date</span>
+            <span class="inv-kv-sep">:</span>
+            <span class="inv-kv-val"></span>
+          </div>
+        </div>
+        <div class="inv-kv inv-kv-pair">
+          <div class="inv-kv">
+            <span class="inv-kv-label">BE No.</span>
+            <span class="inv-kv-sep">:</span>
+            <span class="inv-kv-val"></span>
+          </div>
+          <div class="inv-kv inv-kv-right">
+            <span class="inv-kv-label">Date</span>
+            <span class="inv-kv-sep">:</span>
+            <span class="inv-kv-val"></span>
+          </div>
+        </div>
+        <div class="inv-kv inv-kv-pair">
+          <div class="inv-kv">
+            <span class="inv-kv-label">Cargo Type</span>
+            <span class="inv-kv-sep">:</span>
+            <span class="inv-kv-val">{{ enq.consignment_type or '' }}</span>
+          </div>
+          <div class="inv-kv inv-kv-right">
+            <span class="inv-kv-label">Volume</span>
+            <span class="inv-kv-sep">:</span>
+            <span class="inv-kv-val"></span>
+          </div>
+        </div>
+        <div class="inv-kv inv-kv-pair">
+          <div class="inv-kv">
+            <span class="inv-kv-label">Packages</span>
+            <span class="inv-kv-sep">:</span>
+            <span class="inv-kv-val">{{ enq.packages or '' }}{% if enq.packages %} PKG{% endif %}</span>
+          </div>
+          <div class="inv-kv inv-kv-right">
+            <span class="inv-kv-label">Gross Wt</span>
+            <span class="inv-kv-sep">:</span>
+            <span class="inv-kv-val">{% if enq.weight %}{{ enq.weight }} {{ enq.weight_unit }}{% endif %}</span>
+          </div>
+        </div>
+        <div class="inv-kv inv-kv-pair">
+          <div class="inv-kv">
+            <span class="inv-kv-label">Chargeable Wt</span>
+            <span class="inv-kv-sep">:</span>
+            <span class="inv-kv-val">{% if enq.weight %}{{ enq.weight }} {{ enq.weight_unit }}{% endif %}</span>
+          </div>
+          <div class="inv-kv inv-kv-right">
+            <span class="inv-kv-label">Net Wt.</span>
+            <span class="inv-kv-sep">:</span>
+            <span class="inv-kv-val">{% if enq.weight %}{{ enq.weight }} {{ enq.weight_unit }}{% endif %}</span>
+          </div>
+        </div>
+        <div class="inv-kv inv-kv-pair">
+          <div class="inv-kv">
+            <span class="inv-kv-label">Flight No.</span>
+            <span class="inv-kv-sep">:</span>
+            <span class="inv-kv-val"></span>
+          </div>
+          <div class="inv-kv inv-kv-right">
+            <span class="inv-kv-label">Date</span>
+            <span class="inv-kv-sep">:</span>
+            <span class="inv-kv-val"></span>
+          </div>
+        </div>
+        <div class="inv-kv">
+          <span class="inv-kv-label">Airline</span>
+          <span class="inv-kv-sep">:</span>
+          <span class="inv-kv-val">{{ enq.shipment_terms or '' }}</span>
+        </div>
+        <div class="inv-kv inv-kv-pair">
+          <div class="inv-kv">
+            <span class="inv-kv-label">IGM Number</span>
+            <span class="inv-kv-sep">:</span>
+            <span class="inv-kv-val"></span>
+          </div>
+          <div class="inv-kv inv-kv-right">
+            <span class="inv-kv-label">Date</span>
+            <span class="inv-kv-sep">:</span>
+            <span class="inv-kv-val"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="inv-ship-col">
+        <div class="inv-kv">
+          <span class="inv-kv-label">Consignee Ref.</span>
+          <span class="inv-kv-sep">:</span>
+          <span class="inv-kv-val"></span>
+        </div>
+        <div class="inv-kv">
+          <span class="inv-kv-label">IncoTerms</span>
+          <span class="inv-kv-sep">:</span>
+          <span class="inv-kv-val">{{ enq.incoterms or '' }}</span>
+        </div>
+        <div class="inv-kv">
+          <span class="inv-kv-label">Shipper</span>
+          <span class="inv-kv-sep">:</span>
+          <span class="inv-kv-val"></span>
+        </div>
+        <div class="inv-kv">
+          <span class="inv-kv-label">Consignee</span>
+          <span class="inv-kv-sep">:</span>
+          <span class="inv-kv-val">{{ enq.customer_name or '' }}</span>
+        </div>
+        <div class="inv-kv">
+          <span class="inv-kv-label">Place of Receipt</span>
+          <span class="inv-kv-sep">:</span>
+          <span class="inv-kv-val">{{ enq.origin or '' }}</span>
+        </div>
+        <div class="inv-kv">
+          <span class="inv-kv-label">Loading Port</span>
+          <span class="inv-kv-sep">:</span>
+          <span class="inv-kv-val">{{ enq.origin or '' }}</span>
+        </div>
+        <div class="inv-kv">
+          <span class="inv-kv-label">Discharge Port</span>
+          <span class="inv-kv-sep">:</span>
+          <span class="inv-kv-val">{{ enq.destination or '' }}</span>
+        </div>
+        <div class="inv-kv">
+          <span class="inv-kv-label">Place of Delivery</span>
+          <span class="inv-kv-sep">:</span>
+          <span class="inv-kv-val">{{ enq.destination or '' }}</span>
+        </div>
+        <div class="inv-kv">
+          <span class="inv-kv-label">Destination</span>
+          <span class="inv-kv-sep">:</span>
+          <span class="inv-kv-val">{{ enq.destination or '' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── F. Line items table ────────────────────────── -->
+    <div class="inv-items-wrap">
+      <table class="inv-items-table">
+        <thead>
+          <tr>
+            <th rowspan="2" style="width:3%">Sr<br>No</th>
+            <th rowspan="2" style="width:14%">Description</th>
+            <th rowspan="2" style="width:7%">SAC/<br>HSN</th>
+            <th rowspan="2" style="width:4%">Cur</th>
+            <th rowspan="2" style="width:6%">Rate</th>
+            <th rowspan="2" style="width:8%">Quantity</th>
+            <th rowspan="2" style="width:7%">Amount<br>(Cur)</th>
+            <th rowspan="2" style="width:7%">Ex.<br>Rate</th>
+            <th rowspan="2" style="width:3%">Tax<br>Type</th>
+            <th rowspan="2" style="width:9%">Non GST<br>Exempt Value<br>(INR)</th>
+            <th rowspan="2" style="width:9%">Taxable<br>Value<br>(INR)</th>
+            <th colspan="2" style="width:10%">IGST</th>
+            <th rowspan="2" style="width:9%">Total<br>(INR)</th>
+          </tr>
+          <tr>
+            <th style="width:5%">%</th>
+            <th style="width:5%">Tax</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in particulars %}
+          {% set tax_type = 'E' if (p.tax_rate == 0 or p.tax_rate is none) else 'T' %}
+          <tr>
+            <td class="text-center">{{ loop.index }}</td>
+            <td>{{ p.particular_type }}</td>
+            <td class="text-center">{{ p.sac_hsn or '' }}</td>
+            <td class="text-center">{{ enq.currency }}</td>
+            <td class="text-right">{{ "%.3f"|format(p.offered_rate or 0) }}</td>
+            <td class="text-right">{{ p.qty }} {{ p.weight_unit }}</td>
+            <td class="text-right">{{ "%.2f"|format(p.expense or 0) }}</td>
+            <td class="text-right">{{ "%.4f"|format(p.ex_rate or 0) }}</td>
+            <td class="text-center">{{ tax_type }}</td>
+            <td class="text-right">{% if tax_type == 'E' %}{{ "%.2f"|format(p.total or 0) }}{% endif %}</td>
+            <td class="text-right">{% if tax_type == 'T' %}{{ "%.2f"|format(p.expense or 0) }}{% endif %}</td>
+            <td class="text-center">{% if tax_type == 'T' and p.tax_rate %}{{ p.tax_rate }}{% endif %}</td>
+            <td class="text-right">{% if tax_type == 'T' and p.igst %}{{ "%.2f"|format(p.igst) }}{% endif %}</td>
+            <td class="text-right text-bold">{{ "%.2f"|format(p.total or 0) }}</td>
+          </tr>
+          {% endfor %}
+          {% set spacer_count = [10 - (particulars | length), 0] | max %}
+          {% for i in range(spacer_count) %}
+          <tr class="inv-spacer">
+            <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="6" class="text-right" style="font-size:8.5px; font-weight:400;">
+              T: Taxable &nbsp; P:Pure Agent &nbsp; E:Exemption &nbsp; R:Reverse Charge &nbsp; N:Non Taxable
+            </td>
+            <td colspan="3" class="text-right text-bold">Sub Total</td>
+            <td class="text-right text-bold">{{ "%.2f"|format(grand_total - total_tax) }}</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td class="text-right text-bold">{{ "%.2f"|format(grand_total) }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <!-- ── H. Bank details | Financial summary ───────── -->
+    <div class="inv-bank-fin-row">
+      <div class="inv-bank-block">
+        {% if company and company.billing_terms %}
+        <div class="inv-bank-title">Payment &amp; Bank Details :</div>
+        <div style="white-space: pre-line; line-height: 1.6;">{{ company.billing_terms }}</div>
+        {% else %}
+        <div class="inv-bank-title">Bank :</div>
+        <div>—</div>
+        {% endif %}
+        <div class="inv-payment-label">Payment Details :</div>
+      </div>
+
+      <div class="inv-fin-block">
+        <div class="inv-fin-gst-header">
+          <span>SAC/HSN</span>
+          <span>%</span>
+          <span>Taxable</span>
+          <span>IGST</span>
+        </div>
+        <table class="inv-fin-table">
+          <tr>
+            <td class="inv-fin-label">Total Amount Before Tax</td>
+            <td class="inv-fin-cur">INR</td>
+            <td class="inv-fin-val">{{ "%.2f"|format(grand_total - total_tax) }}</td>
+          </tr>
+          <tr>
+            <td class="inv-fin-label">Add : GST</td>
+            <td class="inv-fin-cur">INR</td>
+            <td class="inv-fin-val">{{ "%.2f"|format(total_tax) }}</td>
+          </tr>
+          <tr>
+            <td class="inv-fin-label">Total Invoice Value</td>
+            <td class="inv-fin-cur">INR</td>
+            <td class="inv-fin-val">{{ "%.2f"|format(grand_total) }}</td>
+          </tr>
+          <tr>
+            <td class="inv-fin-label">Less : Advance Received</td>
+            <td class="inv-fin-cur">INR</td>
+            <td class="inv-fin-val">0.00</td>
+          </tr>
+          <tr>
+            <td class="inv-fin-label">Round-Off</td>
+            <td class="inv-fin-cur">INR</td>
+            <td class="inv-fin-val">{{ "%.2f"|format(round_off) }}</td>
+          </tr>
+          <tr class="inv-fin-netpay">
+            <td class="inv-fin-label">Net Payable</td>
+            <td class="inv-fin-cur">INR</td>
+            <td class="inv-fin-val">{{ net_payable }}</td>
+          </tr>
+          <tr>
+            <td class="inv-fin-label">Tax Payable on Reverse Charges</td>
+            <td class="inv-fin-cur">INR</td>
+            <td class="inv-fin-val">0.00</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── I. Net payable in words ────────────────────── -->
+    <div class="inv-words-row">
+      <span class="inv-words-label">Net Payable in Words (INR)</span>
+      <span>&nbsp;&nbsp;</span>
+      <span class="inv-words-value">{{ amount_in_words }}</span>
+    </div>
+
+    <!-- ── J. Remarks ─────────────────────────────────── -->
+    <div class="inv-remarks-row">
+      <span class="inv-remarks-label">Remarks :</span>
+      <span>&nbsp;&nbsp;{{ enq.notes or '' }}</span>
+    </div>
+
+    <!-- ── K. Terms & Conditions | Authorised Signatory ── -->
+    <div class="inv-tc-row">
+      <div class="inv-tc-block">
+        <div class="inv-tc-title">Terms &amp; Conditions :</div>
+        <div class="inv-tc-text">
+          {% if company and company.billing_terms %}
+          <ul>
+            {% for line in company.billing_terms.split('\n') %}
+            {% if line.strip() %}<li>{{ line.strip() }}</li>{% endif %}
+            {% endfor %}
+          </ul>
+          {% else %}
+          <ul>
+            <li>In case of any discrepancy in the invoice, please bring the same to our attention within 7 days of receipt of invoice; else the same would be treated as correct.</li>
+            <li>Delay in payment beyond the agreed credit period will attract interest @ 18% p.a.</li>
+            <li>Government Taxes applied as per the prevailing rates.</li>
+            <li>All disputes are subject to local jurisdiction.</li>
+          </ul>
+          {% endif %}
+        </div>
+      </div>
+      <div class="inv-signatory-block">
+        <div class="inv-signatory-for">For {{ (company.company_name if company) or user.name }}</div>
+        <div class="inv-signatory-label">Authorised Signatory</div>
+      </div>
+    </div>
+
+    <!-- ── L. E&OE row ────────────────────────────────── -->
+    <div class="inv-eoe-row">
+      <span>E &amp; O.E</span>
+      <span>Authorised Signatory</span>
+    </div>
+
+    <!-- ── M. Print footer ───────────────────────────── -->
+    <div class="inv-print-footer">
+      <span>Powered By LogiTrack</span>
+      <span class="inv-original">Original for Recipient</span>
+      <span>Page : 1 / 1</span>
+    </div>
+
+  </div>
+</body>
+</html>

@@ -380,6 +380,25 @@ def init_db(path=None):
         )
     """)
 
+    # ── Column migrations for existing tables ──────────────────────────────
+    # ALTER TABLE ... ADD COLUMN IF NOT EXISTS is idempotent and safe to
+    # re-run on every startup. Add entries here whenever a new column is
+    # added to an already-deployed table.
+
+    # enquiry_id added to shipments when the enquiry → shipment conversion
+    # feature was built; must come AFTER CREATE TABLE enquiries above.
+    conn.execute("""
+        ALTER TABLE shipments
+        ADD COLUMN IF NOT EXISTS enquiry_id INTEGER REFERENCES enquiries(id)
+    """)
+
+    # particular_id added to shipment_vendors to link billing entries to a
+    # specific shipment particular row.
+    conn.execute("""
+        ALTER TABLE shipment_vendors
+        ADD COLUMN IF NOT EXISTS particular_id INTEGER
+    """)
+
     conn.commit()
     conn.close()
 
