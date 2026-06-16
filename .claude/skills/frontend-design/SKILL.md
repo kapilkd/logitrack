@@ -1,147 +1,355 @@
 ---
-name: logitrack-ui-designer
-description: Designs and generates modern, production-ready UI for logitrack, a logistic tracker built on Flask + Jinja2 + vanilla CSS (repo - https://github.com/kapilkd/logitrack). Produces clean fintech-style pages and components - cards, forms, tables, dashboards, modals - with consistent spacing, soft shadows, rounded corners, and Lucide icons. Use this skill whenever the user asks to design, build, create, redesign, improve, or style any logitrack page, screen, section, or component - including phrasings like "design the X page", "create UI for X", "build a component for X", "make the X look better", "redesign X", or any request about logitrack's frontend, layout, CSS, or visual polish - even when logitrack isn't named explicitly if the conversation context is clearly about it.
+name: admin-ui-designer
+description: Designs and generates modern, production-ready UI for admin-type projects — ERP, CRM, inventory, finance, logistics, operations dashboards — built on a React + TypeScript + Vite client with a single styles.css and inline SVG icons. Produces clean, fintech-leaning pages and components: stat cards, data tables, modals, slide-in panels, forms, badges, timelines, and conversion funnels. Use this skill whenever the user asks to design, build, create, redesign, improve, or style any page, screen, section, or component in an admin project — including phrasings like "design the X page", "create UI for X", "build a component for X", "make X look better", "redesign X", or any request about the frontend, layout, CSS, or visual polish of an admin application.
 disable-model-invocation: true
 ---
 
-# logitrack UI Designer
+# Admin UI Designer
 
-You are designing frontend UI for **logitrack**, a logistic tracker. logitrack is a Flask app with server-rendered Jinja2 templates, vanilla CSS, and a sprinkle of vanilla JS. The goal of this skill is to help you generate UI that feels like it belongs in a polished, modern fintech product - not generic bootstrap-era output, and not React/Tailwind output that doesn't match the stack.
+You are designing frontend UI for **admin-type projects** — ERP systems, CRMs, inventory management, finance dashboards, procurement tools, operations portals, and similar. The goal is UI that feels like it belongs in a polished, modern business product — close in spirit to Linear, Notion, or modern banking dashboards — not generic Bootstrap-era output.
 
-## What logitrack's stack looks like
+## Target stack
 
-- **Backend:** Flask (`app.py`), SQLite or similar (`database/`)
-- **Templates:** Jinja2 in `templates/` (e.g. `base.html`, `dashboard.html`, `add_expense.html`)
-- **Styles:** vanilla CSS in `static/css/` - no Tailwind, no CSS-in-JS, no preprocessors assumed
-- **Scripts:** small amounts of vanilla JS in `static/js/` for interactions (toggles, modals, chart init)
-- **Icons:** Lucide, loaded via CDN script tag, used as `<i data-lucide="icon-name">` and initialized with `lucide.createIcons()`
+- **Client:** React 18 + TypeScript (strict mode), Vite, React Router 6
+- **Styling:** single `styles.css` with CSS custom properties — no Tailwind, no CSS Modules, no styled-components
+- **Icons:** inline SVG in `components/Icons.tsx` using `currentColor` — no icon CDN, no external icon library
+- **State:** `useState` only — no Redux, Zustand, or Context
+- **HTTP:** `api<T>()` wrapper around fetch — no raw `fetch()` in components
+- **Filterable lists:** `useSearchParams`, not `useState`, so filters survive browser refresh
 
-Generate output that fits this stack. Do not introduce React, Vue, Tailwind, shadcn, Bootstrap, or styled-components unless the user explicitly asks for a migration.
+Do not introduce Tailwind, shadcn, styled-components, Bootstrap, or any CSS-in-JS unless the project's stack explicitly uses them.
 
-## Before you design: check what already exists
+## Before you design: read the existing files
 
-If the user's project files are available (e.g. they've shared the repo, uploaded files, or you're inside the codebase), open `base.html`, the main CSS file, and one or two existing templates before generating anything new. The goal is _consistency_ - logitrack should feel like one coherent product, not a collage.
+If you are inside a codebase, always open `styles.css` and 1–2 existing page components before generating anything new. The goal is *consistency* — the new screen should feel like it belongs, not like a transplant.
 
-Specifically, look for and reuse:
+Look for and reuse:
 
-- **Color tokens** (CSS custom properties like `--color-primary`, `--color-bg`, `--color-surface`, etc.)
-- **Spacing scale** (if there's a `--space-1`, `--space-2` pattern, use it)
-- **Font family and type scale**
-- **Existing component classes** - `.card`, `.btn`, `.input`, `.badge`, `.table`, etc.
-- **The base layout** - sidebar? topbar? container width? Follow it.
+- **CSS custom properties** (design tokens on `:root`) — colors, radii, font families
+- **Existing utility classes** — `.btn`, `.btn-primary`, `.btn-ghost`, `.btn-sm`, `.input`, `.field`, `.form-row`, `.card`, `.page`, `.page-head`, `.data` (table), `.badge`, `.stat-card`, `.modal`, `.modal-backdrop`, `.toolbar`, `.filters`, `.empty-state`, `.spinner`
+- **Layout patterns** — does the app use a top nav or sidebar? A two-column detail layout? Follow what exists.
+- **Component conventions** — modal state pattern, panel slide-in vs modal, form submit pattern with `busy`/`error` state
 
-If you can't see the existing files and the request is non-trivial, ask the user to share a screenshot or paste a relevant template before you generate. One screenshot of the existing dashboard saves three rounds of revision.
+If you cannot see the existing files and the request is non-trivial, ask the user to paste the `:root` block from `styles.css` and one existing page component before generating. This prevents a full revision cycle.
 
-## The logitrack design language
+## Design language
 
-When you have no existing reference to follow, default to this. It's a clean, fintech-leaning aesthetic - close in spirit to Linear, Notion, or modern banking apps.
+When you have no existing reference, default to this. It is a clean, restrained, admin/fintech aesthetic.
 
-**Palette (defaults, override to match existing):**
+### Color tokens
 
-- Background: very light neutral (`#F7F8FA` or near-white)
-- Surface (cards): white (`#FFFFFF`) with a soft border (`#E5E7EB`) and/or tiny shadow
-- Text: near-black for primary (`#111827`), muted gray for secondary (`#6B7280`)
-- Primary accent: a single confident color - indigo/violet (`#6366F1`), emerald (`#10B981`), or similar. Pick one and stick with it.
-- Semantic: green for income/positive (`#10B981`), red for expense/negative (`#EF4444`), amber for warnings (`#F59E0B`)
+```css
+:root {
+  /* Brand */
+  --ink: #3b2f8f;        /* primary — buttons, links, active states */
+  --ink-deep: #251d63;   /* headings, sidebar background */
+  --ink-soft: #ecebf7;   /* tint fills, hover states, badge backgrounds */
 
-**Spacing:** 8px grid. Use multiples of 4px or 8px for padding, gap, margin. Don't use arbitrary values like 13px or 27px.
+  /* Page */
+  --paper: #f6f6f2;      /* page background */
+  --surface: #ffffff;    /* cards, modals, panels */
+  --border: #e2e1f0;     /* dividers, input borders */
+  --muted: #6b6894;      /* secondary text, labels, placeholders */
 
-**Radius:** `8px` for inputs and small elements, `12px` for cards, `16px` for modals. Pills/badges can be fully rounded.
+  /* Semantic */
+  --good: #1d7a55;       /* success, positive, received */
+  --good-soft: #e8f5f0;
+  --warn: #a05c10;       /* warning, pending, due */
+  --warn-soft: #fdf3e3;
+  --bad: #b03030;        /* error, danger, overdue */
+  --bad-soft: #fdecea;
 
-**Shadows:** subtle only. A card shadow like `0 1px 2px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.06)` is the ceiling. No glows, no heavy drop shadows.
+  /* Typography */
+  --font-display: 'Bricolage Grotesque', sans-serif;  /* headings, numbers */
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;            /* amounts, codes, dates */
 
-**Typography:** system font stack is fine (`-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`) or Inter if the project uses it. Type scale: 12 / 14 / 16 / 20 / 24 / 32. Font weights: 400 body, 500 medium, 600 semibold for headings. Numbers (amounts) should use tabular figures: `font-variant-numeric: tabular-nums`.
-
-**Layout patterns:**
-
-- Card-based composition - group related info in surfaces, don't sprawl
-- Generous whitespace - tight layouts read as cluttered in finance apps
-- Left-aligned content with clear hierarchy; centered layouts only for empty states and auth
-- Tables: zebra stripes optional, but always have row hover, right-align numeric columns
-- Forms: label above input, helper text below, error state in red with icon
-
-## Icons: Lucide
-
-Load Lucide once in `base.html`:
-
-```html
-<script src="https://unpkg.com/lucide@latest"></script>
+  /* Shape */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+}
 ```
 
-And call `lucide.createIcons()` after the DOM is ready (and after any dynamic DOM insert). In templates, use:
+Use only these variables — never hardcode hex values in component styles.
 
-```html
-<i data-lucide="wallet"></i>
-<i data-lucide="trending-up"></i>
-<i data-lucide="plus"></i>
+### Spacing
+
+8px grid. Padding and gap values: 4 / 8 / 12 / 16 / 20 / 24 / 28 / 32. Do not use arbitrary values like 13px or 27px.
+
+### Typography
+
+- Display font (`--font-display`) for headings, stat card values, and large numbers
+- Body font (`--font-body`) for all prose and UI labels at 15px base
+- Mono font (`--font-mono`) for amounts, reference numbers, dates, codes
+- Type scale (rem): 0.7 / 0.75 / 0.8 / 0.85 / 0.875 / 1 / 1.1 / 1.4 / 1.6 / 1.8
+- Weights: 400 body, 500 medium, 600 semibold, 700 bold (display only)
+- Amounts use `font-variant-numeric: tabular-nums`
+
+### Shadows
+
+Subtle only. Card: `0 1px 2px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.06)`. Modal: `0 20px 60px rgba(0,0,0,0.2)`. No glows, no heavy drops.
+
+### Layout patterns
+
+- **Page:** `.page` with `padding: 28px 32px`
+- **Page header:** `.page-head` — flex row, title left, actions right
+- **Stat cards:** `.stats-grid` with auto-fit columns, each card a `.stat-card` with `.label` + `.value`
+- **Data tables:** `.data` — left-align text, right-align numbers, `--font-mono` for amounts, hover row highlight
+- **Filters toolbar:** `.filters` — flex row of labeled select/input fields
+- **Cards:** `.card` with `border-radius: var(--radius-md)` and `border: 1px solid var(--border)`
+- **Modals:** `.modal-backdrop` → `.modal` (max-width 560px); `.modal-head` / `.modal-body` / `.modal-foot`
+- **Slide-in panels:** fixed right panel (width ~440px) with backdrop — for add/edit flows that don't need a full page
+- **Two-column detail:** `grid-template-columns: 320px 1fr` for detail pages (info panel left, main content right)
+- **Timeline:** vertical thread with type-colored dot and card per entry — for activity logs, interaction histories
+- **Empty state:** centered, short label, optional CTA button
+
+## Icons
+
+Icons live in `components/Icons.tsx` as inline SVGs using `currentColor`:
+
+```tsx
+const s = {
+  viewBox: '0 0 24 24', width: 16, height: 16,
+  fill: 'none', stroke: 'currentColor', strokeWidth: 2,
+  strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const,
+};
+
+export const IconPlus = () => <svg {...s}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
+export const IconEdit = () => <svg {...s}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>;
+export const IconTrash = () => <svg {...s}>...</svg>;
 ```
 
-Size icons via CSS with `width` and `height` on the `<svg>` (after Lucide replaces the `<i>`) or wrap in a span with the size you want. Prefer 16px for inline with text, 20px for buttons, 24px for section headers.
+`currentColor` means the icon inherits the surrounding text colour — no inline fill/color props needed. Size via the `width`/`height` props on the shared `s` object: 14px inline with small text, 16px default, 20px for primary action buttons.
 
-Pick icons that carry meaning. A few logitrack-appropriate defaults:
+When adding icons for a new feature, append them to `Icons.tsx` — never import from an external library.
 
-- Expense/spend: `arrow-down-right`, `shopping-bag`, `credit-card`
-- Income: `arrow-up-right`, `wallet`, `trending-up`
-- Budget: `target`, `pie-chart`
-- Category: `tag`, `folder`
-- Add/new: `plus`, `plus-circle`
-- Settings: `settings`, `sliders-horizontal`
-- Date/time: `calendar`, `clock`
-- Search: `search`, Filter: `filter`
+Standard icon set for admin modules:
 
-Don't sprinkle icons everywhere. One icon per button, one per section heading, one per table row action - that's usually the right density.
+| Context | Icon name suggestion |
+|---------|----------------------|
+| Add / New | `IconPlus` |
+| Edit | `IconEdit` |
+| Delete | `IconTrash` |
+| Search | `IconSearch` |
+| Close / Clear | `IconX` |
+| Back | `IconArrowLeft` |
+| Print | `IconPrint` |
+| Approved / Done | `IconCheck` |
+| Contacts / People | `IconContacts` / `IconTeam` |
+| Phone / Call | `IconCall` |
+| Email | `IconEmail` |
+| Calendar / Date | `IconMeeting` |
+| Note / Document | `IconNote` |
+| Dashboard tiles | `IconDashboard` |
+| Trending up | `IconTrendUp` |
+| Alert / Reminder | `IconBell` |
+
+One icon per button, one per section heading, one per row action. Do not decorate every label.
+
+## Component patterns
+
+### Buttons
+
+```tsx
+<button className="btn btn-primary">Save</button>
+<button className="btn btn-ghost btn-sm">Cancel</button>
+<button className="btn btn-danger btn-sm"><IconTrash /> Delete</button>
+<button className="btn-icon"><IconEdit /></button>  {/* square icon-only */}
+```
+
+Always disable + show spinner while a form submission is in flight:
+
+```tsx
+<button className="btn btn-primary" onClick={submit} disabled={busy}>
+  {busy ? <span className="spinner" /> : 'Save'}
+</button>
+```
+
+### Forms
+
+```tsx
+<div className="field">
+  <label>Company Name *</label>
+  <input className="input" value={v} onChange={e => setV(e.target.value)} />
+</div>
+<div className="form-row">          {/* 2 columns */}
+  <div className="field">...</div>
+  <div className="field">...</div>
+</div>
+{error && <div className="error-text">{error}</div>}
+```
+
+Every form submit follows this exact pattern:
+
+```tsx
+const [busy, setBusy] = useState(false);
+const [error, setError] = useState('');
+
+async function submit() {
+  setError(''); setBusy(true);
+  try {
+    await api('/api/resource', { method: 'POST', body: JSON.stringify(payload) });
+    onDone();
+  } catch (e: any) { setError(e.message); }
+  finally { setBusy(false); }
+}
+```
+
+### Badges / status chips
+
+```tsx
+<span className={`badge status-${record.status}`}>{record.status}</span>
+```
+
+Status class naming: `status-DRAFT`, `status-ACTIVE`, `status-PAID`, `status-WON`, etc. Define all in `styles.css` using semantic color variables. Never hardcode badge colors inline.
+
+### Modal
+
+```tsx
+{editFor && (
+  <Modal title="Edit Item" onClose={() => setEditFor(null)} footer={
+    <>
+      <button className="btn btn-primary" onClick={submit} disabled={busy}>
+        {busy ? <span className="spinner" /> : 'Save'}
+      </button>
+      <button className="btn btn-ghost" onClick={() => setEditFor(null)}>Cancel</button>
+      {error && <div className="error-text">{error}</div>}
+    </>
+  }>
+    {/* form fields */}
+  </Modal>
+)}
+```
+
+Use the `xFor` pattern for modal state: `const [editFor, setEditFor] = useState<Item | null>(null)`. Modal only mounts when `editFor !== null`.
+
+### Slide-in panel (add/edit flows)
+
+For add/edit flows that don't warrant a full page, use a slide-in panel with a backdrop:
+
+```tsx
+<>
+  <div className="panel-backdrop" onClick={onClose} />
+  <div className="panel">
+    <div className="panel-head"><h2>Add Lead</h2><button className="btn-icon" onClick={onClose}><IconX /></button></div>
+    <div className="panel-body">/* fields */</div>
+    <div className="panel-foot">/* actions */</div>
+  </div>
+</>
+```
+
+### Filterable list page
+
+```tsx
+// Filters in URL params, not component state
+const [params, setParams] = useSearchParams();
+const status = params.get('status') || '';
+
+function setParam(key: string, value: string) {
+  const next = new URLSearchParams(params);
+  if (value) next.set(key, value); else next.delete(key);
+  setParams(next, { replace: true });
+}
+```
+
+### Data table structure
+
+```tsx
+<div className="card" style={{ padding: 0 }}>
+  <table className="data">
+    <thead>
+      <tr><th>Name</th><th style={{ textAlign: 'right' }}>Amount</th><th>Status</th></tr>
+    </thead>
+    <tbody>
+      {rows.map(r => (
+        <tr key={r.id}>
+          <td><Link to={`/resource/${r.id}`} style={{ fontWeight: 600 }}>{r.name}</Link></td>
+          <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>
+            ₹{Number(r.amount).toLocaleString('en-IN')}
+          </td>
+          <td><span className={`badge status-${r.status}`}>{r.status}</span></td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+```
+
+Always right-align numeric columns. Use `var(--font-mono)` for amounts and reference numbers. Remove card padding when a table bleeds edge-to-edge.
+
+### Stat card dashboard
+
+```tsx
+<div className="stats-grid">
+  <div className="stat-card">
+    <div className="label">Total Orders</div>
+    <div className="value">{data.total}</div>
+  </div>
+  <div className="stat-card">
+    <div className="label">Revenue</div>
+    <div className="value good">₹{fmtMoney(data.revenue)}</div>
+  </div>
+</div>
+```
+
+Value color modifiers: `.value.good`, `.value.bad`, `.value.warn` — use them semantically (good = positive, bad = overdue/negative).
 
 ## Output structure
 
 When fulfilling a design request, structure your response like this:
 
-### 1. Short UI plan (2-5 bullets)
+### 1. UI plan (2–5 bullets)
 
-Name the key sections of the page/component and any notable UX decisions. Keep it tight - this is orientation, not a spec document. Example: "Dashboard has 4 summary cards on top (balance, income, expenses, savings), a 'recent transactions' table, and a category breakdown donut. Summary cards show trend vs last month as a small delta pill."
+Name the key sections and any notable UX decisions. Keep it tight — this is orientation, not a spec document. Example: "Dashboard has 6 stat cards (total, active, low-stock, value, open orders, net balance), a recent-activity table, and a party-outstanding summary. Cards at the top in a 6-col grid."
 
-### 2. The code
+### 2. Code
 
-- **Template file(s)** - full Jinja2 with `{% extends "base.html" %}` and a `{% block content %}` unless building `base.html` itself. Use Jinja control flow (`{% for %}`, `{% if %}`) with sensible placeholder variable names the user can wire to their Flask route.
-- **CSS** - either a new file (e.g. `static/css/dashboard.css`) or additions to an existing stylesheet. Scope with a page/component class prefix (`.dashboard-...`, `.tx-table-...`) so styles don't leak.
-- **JS** (only if needed) - vanilla, no frameworks. Small and readable.
+Provide complete, copy-pasteable output:
 
-Put each file in its own fenced code block with a clear header comment or path annotation like `{# templates/dashboard.html #}` or `/* static/css/dashboard.css */`.
+- **Page component** (`client/src/pages/PageName.tsx`) — full file including imports, types, and fetch logic
+- **CSS additions** — append to `client/src/styles.css` with a clear section comment; never duplicate existing classes
+- **Icon additions** — new exports to append to `client/src/components/Icons.tsx` if new icons are needed
 
-### 3. Integration note (1-3 lines)
+Put each file in its own fenced code block with the file path as a comment or header.
 
-How to wire it up - which Flask route renders it, what variables the template expects, any new dependency (almost always none). If the user needs to add a link in the sidebar or a route in `app.py`, call that out.
+### 3. Integration note (1–3 lines)
+
+What to add to `App.tsx` (route), `Shell.tsx` (nav link), `server/src/index.js` (route registration), and the Prisma schema if the feature needs new data. Call out any new API endpoint the page depends on.
 
 ## What to avoid
 
-- **Generic/dated looks** - no `<h1>Welcome to My App</h1>` with default browser styles, no sharp-cornered bordered boxes, no 2012-era bootstrap cards.
-- **Code dumps without structure** - always separate template, CSS, and JS into labeled blocks.
-- **Over-styling** - if something can be solid color instead of a gradient, use solid. If it can be a border instead of a shadow, use border. Restraint reads as quality.
-- **Inconsistent spacing** - if you used 16px for card padding in one place, use 16px in the next place too. No 14px here, 18px there.
-- **Random color accents** - one primary accent, semantic colors for meaning, everything else neutral.
-- **Clever-but-unclear UX** - a clearly-labeled button beats a mystery icon. In finance, trust matters more than cuteness.
-- **Mobile afterthought** - use CSS that works at narrow widths. At minimum, stack cards vertically and make tables horizontally scrollable below ~768px.
+- **Hardcoded colors** — use CSS variables only; never `color: #3b2f8f` inline in a component
+- **Arbitrary spacing** — stick to the 8px grid; no `padding: 13px` or `margin: 27px`
+- **Inconsistent radius** — `--radius-sm` for inputs and badges, `--radius-md` for cards and modals
+- **Heavy shadows or gradients** — restraint reads as quality in business software
+- **Random icon density** — one icon per button, not one per label
+- **Mobile afterthought** — use CSS that works at narrow widths; stack cards and make tables scrollable below `768px`
+- **`any` state types** — always define the type at the top of the file; no `useState<any>`
+- **Inline `fetch()`** — always use `api<T>()` from `lib/api.ts`
+- **Multiple CSS files per feature** — all styles go into `styles.css`, scoped with a page or component class prefix (`.leads-...`, `.team-...`)
+- **Generic empty states** — write specific copy ("No leads yet. Add your first lead to get started.") not "No data found."
 
 ## Handling ambiguity
 
-If the user asks for something under-specified ("design the reports page"), make reasonable assumptions and _state them up front_ in the UI plan - one line each, no long preamble. For example: "Assuming reports page shows: monthly spend trend, top categories, and a downloadable CSV. Let me know if you want different widgets."
+If the request is under-specified ("design the reports page"), make reasonable assumptions and state them up front in the UI plan — one line each, no long preamble. Example: "Assuming: sales report shows date-range filter, total revenue, units sold, top 5 customers by value, and a monthly trend bar (CSS only)."
 
-Don't pepper the user with clarifying questions for things you can reasonably decide. Do ask when the answer genuinely changes the output - e.g. "Is this a standalone page or a modal on top of the dashboard?"
+Ask when the answer genuinely changes the structure — e.g. "Is this a standalone page or a modal on top of the list?" Do not ask about things you can reasonably decide (color choices, icon selection, column order).
 
-## A worked example of the right vibe
+## Worked example
 
-**Request:** "Design the add expense form"
+**Request:** "Design the Team management page"
 
 **UI plan:**
+- List of team members in a card-padded table (avatar initials, name, email, role badge, join date, edit/delete actions)
+- Empty state with a CTA button when no members exist
+- "Add Member" opens a Modal with name, email, password fields and an info note about member access
+- Admin-only page — redirects non-admins to `/dashboard`
 
-- Modal dialog (not a full page) - users add expenses inline from the dashboard
-- Fields: amount (large, prominent), category (pill selector), date (defaults to today), note (optional)
-- Primary action "Add expense" anchors bottom-right; cancel is a subtle text button
-- Amount field gets a currency symbol prefix and tabular-nums
+**Code:** `client/src/pages/Team.tsx` — full file with `Member` type, `useEffect` fetch, `MemberModal` sub-component, `deleteMember` confirm flow.
 
-**Template:** `templates/partials/add_expense_modal.html` - extends nothing, included via `{% include %}`. Uses a `.modal` overlay pattern already in `base.css` if present.
+**CSS additions:** avatar circle pattern (`.avatar-circle`) appended to `styles.css`.
 
-**CSS:** additions to `static/css/components.css` for the new pill selector; reuses existing `.input`, `.btn-primary`, `.modal` classes.
+**Integration:** add `<Route path="/team" element={<Team />} />` in `App.tsx`; add Team `NavLink` to `Shell.tsx` wrapped in `{user?.role === 'ADMIN' && ...}`; no new server route needed beyond `/api/team` (already in server).
 
-**JS:** small module-free script to open/close the modal and reset the form on close.
-
-That's the shape - concrete, consistent with the stack, visually restrained, and immediately usable.
+That is the shape — concrete, consistent with the stack, visually restrained, immediately usable.

@@ -2,8 +2,12 @@ venv/
 __pycache__/
 *.pyc
 *.pyo
+*.db
 .env
 .DS_Store
 .claude/plans/
 credentials.json
 token_key.txt
+client/
+server/
+.claude/skills/project/
